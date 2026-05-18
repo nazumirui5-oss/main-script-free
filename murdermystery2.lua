@@ -345,7 +345,7 @@ return function(AccessKey)
                     ToggleBtnMain.Visible = true
                     MainFrame.Visible = true
                     HUDMain.Visible = true
-                    -- Animasi masuk secara halus (Smooth pop-up)
+                    -- Animasi masuk secara halus (Smooth pop-up) untuk Main Frame
                     MainFrame.Size = UDim2.new(0, 140, 0, 0)
                     TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 140, 0, 58)}):Play()
                 end
@@ -641,7 +641,7 @@ return function(AccessKey)
     ToggleBtnMain.Font = Enum.Font.GothamBlack
     ToggleBtnMain.TextSize = 25
     ToggleBtnMain.AutoButtonColor = false
-    ToggleBtnMain.Visible = false -- Sembunyikan di awal, muncul setelah loading selesai
+    ToggleBtnMain.Visible = false -- FORCE LOCK: Tetap false di sini, diaktifkan di dalam forceExit()
     Instance.new("UICorner", ToggleBtnMain).CornerRadius = UDim.new(1, 0)
     local ToggleStroke = Instance.new("UIStroke", ToggleBtnMain)
     ToggleStroke.Color = _GAccentColor
@@ -654,12 +654,12 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then t_dragging = false end end)
 
-    -- [[ HUD ELEMENTS - MURNI MENJADI TEXT LABEL ]]
+    -- [[ HUD ELEMENTS ]]
     HUDMain = Instance.new("Frame", ScreenGui)
     HUDMain.Size = UDim2.new(0, 125, 0, 45)
     HUDMain.Position = UDim2.new(1, -140, 0.15, 0)
     HUDMain.BackgroundTransparency = 1
-    HUDMain.Visible = false -- Sembunyikan di awal, muncul setelah loading selesai
+    HUDMain.Visible = false -- FORCE LOCK: Diaktifkan di dalam forceExit()
 
     local HUDFrame = Instance.new("Frame", HUDMain)
     HUDFrame.Size = UDim2.new(1, -20, 1, 0)
@@ -688,7 +688,7 @@ return function(AccessKey)
         b.BackgroundColor3 = _GAccentColor; b.BorderSizePixel = 0; bars[i] = b
     end
 
-    -- UNLOCKED: Potato Mode Toggle UI (Direct Action)
+    -- Potato Mode Toggle UI
     local PotatoToggle = Instance.new("TextButton", HUDFrame)
     PotatoToggle.Size = UDim2.new(0, 30, 0, 25); PotatoToggle.Position = UDim2.new(1, -35, 0.5, -12.5)
     PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30); PotatoToggle.Text = "🍃"; PotatoToggle.TextColor3 = Color3.new(1, 1, 1)
@@ -723,10 +723,10 @@ return function(AccessKey)
 
     -- [[ MAIN FRAME SETUP ]]
     MainFrame = Instance.new("Frame", ScreenGui)
-    MainFrame.Size = UDim2.new(0, 140, 0, 58) -- Diatur ke ukuran minimum di awal agar singkron saat animasi masuk
+    MainFrame.Size = UDim2.new(0, 140, 0, 58)
     MainFrame.Position = UDim2.new(0.5, -70, 0.2, 0)
     MainFrame.BackgroundColor3 = _GMainColor; MainFrame.Active = true; MainFrame.ClipsDescendants = true
-    MainFrame.Visible = false -- Sembunyikan di awal, muncul setelah loading selesai
+    MainFrame.Visible = false -- FORCE LOCK: Diaktifkan di dalam forceExit()
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
     local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
 
@@ -753,41 +753,39 @@ return function(AccessKey)
     local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
-    -- RECOVERED: Tombol Info Mini Klasik ("i")
+    -- Info Mini Klasik ("i")
     local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 4), UDim2.new(0, 26, 0, 12), Color3.fromRGB(45, 45, 55))
     InfoBtn.TextSize = 8
     InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 
-    -- [[ BAGIAN ATAS REVISI: LOCK UTILITY & AIMBOT TOGGLE SIDE-BY-SIDE ]]
+    -- LOCK UTILITY & AIMBOT TOGGLE SIDE-BY-SIDE
     local LockBtn = createBtn("🔓", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20))
     local isLocked = false
     LockBtn.MouseButton1Click:Connect(function() isLocked = not isLocked; LockBtn.Text = isLocked and "🔒" or "🔓" end)
 
-    -- Tombol Aimbot (Default Active: ON, Accent Color Color Background)
     local AimbotBtn = createBtn("AIM: ON", UDim2.new(0, 6, 0, 18), UDim2.new(0, 96, 0, 20), _GAccentColor)
     AimbotBtn.TextSize = 6.5
 
-    -- [[ EN-NOTICE LABEL (Tepat Di Bawah Tombol Aimbot) ]]
+    -- EN-NOTICE LABEL
     AimNoticeLabel = createLabel("To make aimbot work, please enable ESP!", UDim2.new(0, 6, 0, 40), UDim2.new(0, 128, 0, 10))
     AimNoticeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
     AimNoticeLabel.TextSize = 5.5
     AimNoticeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    AimNoticeLabel.Visible = false -- Sesuai state awal menu minimized
+    AimNoticeLabel.Visible = false
 
     ContentFrame = Instance.new("Frame", MainFrame)
-    ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false -- Sesuai state awal menu minimized
+    ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
     -- Fitur Utama Menu
     local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
     local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
     VisualBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 
-    -- Tombol ESP (Default Active: ON, Accent Color Background)
     local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
 
     createLine(UDim2.new(0, 6, 0, 71)).Parent = ContentFrame
 
-    -- [[ SLIDER 1: HITBOX EXPANDER CONFIG (1 - 200) ]]
+    -- SLIDER 1: HITBOX EXPANDER CONFIG
     createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 75)).Parent = ContentFrame
     local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 89); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
@@ -813,7 +811,7 @@ return function(AccessKey)
         SliderConnection = RunService.RenderStepped:Connect(UpdateSlider)
     end)
 
-    -- [[ SLIDER 2: FOV CONFIG (1 - 200) ]]
+    -- SLIDER 2: FOV CONFIG
     createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 106)).Parent = ContentFrame
     local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 120); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
@@ -893,7 +891,7 @@ return function(AccessKey)
 
     local infoOpen = false
     local function ToggleInfoLogic()
-        if isMinimized then return end -- Cegah info terbuka jika menu sedang ditutup
+        if isMinimized then return end
         infoOpen = not infoOpen
         if infoOpen then
             InfoFrame.Visible = true
@@ -915,7 +913,7 @@ return function(AccessKey)
         MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 295), "Out", "Quad", 0.25, true)
         CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
         task.wait(0.2); ContentFrame.Visible = not isMinimized; AimNoticeLabel.Visible = not isMinimized
-        if isMinimized and infoOpen then ToggleInfoLogic() end -- Tutup panel sosmed otomatis jika menu di-minimize
+        if isMinimized and infoOpen then ToggleInfoLogic() end
     end)
 
     ToggleBtnMain.MouseButton1Click:Connect(function()
@@ -949,7 +947,7 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ INTERFACE LOGIC & TRIGGER CONFIG - FIX TOGGLE ON / OFF ]]
+    -- [[ INTERFACE LOGIC & TRIGGER CONFIG ]]
     -- ========================================================================
     local function toggleAimbot()
         Settings.CameraAimbot = not Settings.CameraAimbot
@@ -997,3 +995,4 @@ return function(AccessKey)
 
     print("Louis Hub FREE V13.5.2: Integrated Advanced Full Module Init Success.")
 end
+
