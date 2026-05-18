@@ -272,7 +272,7 @@ return function(AccessKey)
         subTitle.Size = UDim2.new(1, 0, 0.1, 0)
         subTitle.Position = UDim2.new(0, 0, 0.45, 0)
         subTitle.BackgroundTransparency = 1
-        subTitle.Text = "MURDER MYSTERY 2" -- Berhasil Diganti Sesuai Request
+        subTitle.Text = "MURDER MYSTERY 2" 
         subTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
         subTitle.TextSize = 24
         subTitle.Font = Enum.Font.GothamBold
@@ -399,7 +399,7 @@ return function(AccessKey)
     FOVCircle.Visible = false
 
     RunService.RenderStepped:Connect(function()
-        if Settings.CameraAimbot then
+        if Settings.CameraAimbot or Settings.SilentAim then
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
             FOVCircle.Radius = Settings.FOVSize
             FOVCircle.Visible = true
@@ -492,20 +492,24 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ LOGIKA SILENT AIM HOOK ENGINE ]]
+    -- [[ INTEGRASI SILENT AIM: BULLET TELEPORTATION & ESP METHOD ]]
     -- ========================================================================
     local MainMetatable = getrawmetatable(game)
+    local OldIndex = MainMetatable.__index
+    local OldNewIndex = MainMetatable.__newindex
     local OldNamecall = MainMetatable.__namecall
     setreadonly(MainMetatable, false)
 
+    -- Intersepting Namecall untuk mendeteksi aktivasi projectile/raycast senjata
     MainMetatable.__namecall = newcclosure(function(Self, ...)
         local Method = getnamecallmethod()
         local Args = {...}
         
-        if Settings.SilentAim and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay") then
+        if Settings.SilentAim and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FireServer") then
             local MyRole = GetMM2Role(LocalPlayer)
             local TargetPart = nil
             
+            -- Prioritas Target Berdasarkan Validasi ESP Terintegrasi
             if MyRole == "Murderer" then
                 TargetPart = GetInnocentOrSheriffTarget()
             else
@@ -513,15 +517,45 @@ return function(AccessKey)
             end
             
             if TargetPart then
-                local Origin = Args[1].Origin
-                local Direction = (TargetPart.Position - Origin).Unit * 1000
-                Args[1] = Ray.new(Origin, Direction)
-                return OldNamecall(Self, unpack(Args))
+                -- Metode Bullet Teleportation: Memaksa titik akhir peluru langsung berada di koordinat target fisik
+                if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" then
+                    local Origin = Args[1].Origin
+                    -- Arah peluru diubah total langsung menuju TargetPart (HumanoidRootPart)
+                    local Direction = (TargetPart.Position - Origin).Unit * 1000
+                    Args[1] = Ray.new(Origin, Direction)
+                    return OldNamecall(Self, unpack(Args))
+                end
             end
         end
         
         return OldNamecall(Self, ...)
     end)
+
+    -- Index Hooking tambahan untuk memastikan akurasi Bullet Teleport pada koordinat mouse / posisi pemicu
+    MainMetatable.__index = newcclosure(function(Self, Key)
+        if Settings.SilentAim and not checkcaller() then
+            if Self == Mouse and (Key == "Hit" or Key == "Target") then
+                local MyRole = GetMM2Role(LocalPlayer)
+                local TargetPart = nil
+                
+                if MyRole == "Murderer" then
+                    TargetPart = GetInnocentOrSheriffTarget()
+                else
+                    TargetPart = GetMurdererTarget()
+                end
+                
+                if TargetPart then
+                    if Key == "Hit" then
+                        return TargetPart.CFrame
+                    elseif Key == "Target" then
+                        return TargetPart
+                    end
+                end
+            end
+        end
+        return OldIndex(Self, Key)
+    end)
+
     setreadonly(MainMetatable, true)
 
     -- Velocity Regulator / Anti-Fling
@@ -675,7 +709,7 @@ return function(AccessKey)
     ToggleBtnMain.Font = Enum.Font.GothamBlack
     ToggleBtnMain.TextSize = 25
     ToggleBtnMain.AutoButtonColor = false
-    ToggleBtnMain.Visible = false -- Menunggu loading screen selesai
+    ToggleBtnMain.Visible = false 
 
     local ToggleStroke = Instance.new("UIStroke", ToggleBtnMain)
     ToggleStroke.Color = _GAccentColor
@@ -837,7 +871,7 @@ return function(AccessKey)
     ContentFrame = Instance.new("Frame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -45); ContentFrame.Position = UDim2.new(0, 0, 0, 45); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- [[ STRUKTUR MENU HUD BARU (DIFUNGSIKAN KE MODUL MM2) ]]
+    -- [[ STRUKTUR MENU HUD ]]
     local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); SilentAimBtn.Parent = ContentFrame
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0, 6, 0, 25), UDim2.new(0, 128, 0, 20)); EspBtn.Parent = ContentFrame
     local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 50), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
@@ -1032,4 +1066,3 @@ return function(AccessKey)
 
     print("Louis Hub FREE V13.5.2: Initialized Successfully (Protection 2 Disabled).")
 end
-
