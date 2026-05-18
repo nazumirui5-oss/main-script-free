@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
+-- VERSION: 13.5.2 (Security Sync Update - MM2 Edition Fixed Click)
 
 return function(AccessKey)
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
@@ -562,6 +562,27 @@ return function(AccessKey)
 
     setreadonly(MainMetatable, true)
 
+    -- [[ CLICK TRIGGER ENGINE: MEMAKSA SENJATA MM2 MENEMBAK ]]
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and Settings.SilentAim then
+            local char = LocalPlayer.Character
+            local gun = char and char:FindFirstChild("Gun")
+            if gun and gun:FindFirstChild("KnifeServer") and gun.KnifeServer:FindFirstChild("ShootGun") then
+                local TargetPart = GetClosestTargetForSilentAim()
+                if TargetPart then
+                    -- Trigger remote tembakan bawaan MM2 langsung ke server dengan kalkulasi offset target part
+                    gun.KnifeServer.ShootGun:InvokeServer({
+                        ["Normal"] = Vector3.new(0, 1, 0),
+                        ["Direction"] = (TargetPart.Position - char.HumanoidRootPart.Position).Unit,
+                        ["Position"] = TargetPart.Position,
+                        ["Hit"] = TargetPart
+                    })
+                end
+            end
+        end
+    end)
+
     RunService.Heartbeat:Connect(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local root = LocalPlayer.Character.HumanoidRootPart
@@ -951,12 +972,6 @@ return function(AccessKey)
     InfoStroke.Color = _GAccentColor
     InfoStroke.Thickness = 1
 
-    local createInfoLabel = function(txt, pos, color)
-        local l = Instance.new("TextLabel", InfoFrame)
-        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
-        l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
-    end
-
     createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
 
     local function createSocialBtn(name, link, pos, color)
@@ -1255,3 +1270,4 @@ return function(AccessKey)
 
     print("Louis Hub FREE V13.5.2: Initialized Successfully (Protection 2 Disabled).")
 end
+
