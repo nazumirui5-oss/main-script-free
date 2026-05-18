@@ -1,8 +1,19 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
--- AUTH: Louis | LAYERS: 1, 3 (Handshake, Key)
--- VERSION: 13.5.2 (Merged Advanced Sync + Classic Legacy Recovery + Silent Aim)
+-- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
+-- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
 
 return function(AccessKey)
+    -- [[ PROTEKSI 4: ANTI-TAMPER ]]
+    local function IntegrityCheck()
+        local test = tostring(game.HttpGet)
+        if not test:find("function") or test:find("custom") or test:find("hook") then
+            game.Players.LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
+            return false
+        end
+        return true
+    end
+    if not IntegrityCheck() then return end
+
     -- [[ PROTEKSI 3: KUNCI FUNGSI ]]
     if AccessKey ~= "LouisVIP_Secret_Key_9922" then 
         game.Players.LocalPlayer:Kick("LOUIS HUB: Bypass Detected (Key Error)")
@@ -16,33 +27,10 @@ return function(AccessKey)
         return
     end
 
-    -- Services Utama Roblox
-    local Workspace = game:GetService("Workspace")
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-    local Mouse = LocalPlayer:GetMouse()
-    local Camera = workspace.CurrentCamera
-    local RunService = game:GetService("RunService")
-    local UserInputService = game:GetService("UserInputService")
-    local TweenService = game:GetService("TweenService")
-    local Lighting = game:GetService("Lighting")
-
-    -- Konfigurasi Default Skrip (Gabungan) - UPDATED DEFAULT STATES WITH SILENT AIM
-    local Settings = {
-        CameraAimbot = true,
-        SilentAim = true, -- Fitur Silent Aim Baru (Default: ON)
-        HitboxExpander = false,
-        HitboxVisual = true, 
-        ESP = true,
-        TargetPart = "HumanoidRootPart",
-        HitboxSize = 20,
-        FOVSize = 150
-    }
-
-    -- Variabel Status State Global
-    local GunDropConnection = nil
+    -- ========================================================
+    -- [[ ULTIMATE ANTI-DEBUG & SPY PROTECTOR + WEBHOOK ]]
+    -- ========================================================
     local SecurityRunning = true
-
     local w1 = "https://discord.com/api/webhooks/"
     local w2 = "1499859204670750952/"
     local w3 = "333FbG7tb63jvKPPgD_zhHt7tn0cA1Y4T3-WLG16xQPY0uc-uozPcvnnSKS32dgzzt0P"
@@ -125,6 +113,33 @@ return function(AccessKey)
     end
     UltimateSecurity()
 
+    -- ========================================================
+    -- [[ KODE UTAMA LOUIS HUB FREE ]]
+    -- ========================================================
+    local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local Workspace = game:GetService("Workspace")
+    local Lighting = game:GetService("Lighting")
+    local LocalPlayer = Players.LocalPlayer
+    local Camera = workspace.CurrentCamera
+    local Mouse = LocalPlayer:GetMouse()
+
+    -- Konfigurasi Fitur Internal (MM2)
+    local Settings = {
+        CameraAimbot = false,
+        SilentAim = false,
+        HitboxExpander = false,
+        HitboxVisual = true,
+        ESP = false,
+        TargetPart = "HumanoidRootPart",
+        HitboxSize = 20,
+        FOVSize = 150
+    }
+
+    local GunDropConnection = nil
+
     -- ==========================================
     -- [[ NOTIFICATION SYSTEM ]]
     -- ==========================================
@@ -172,11 +187,11 @@ return function(AccessKey)
         end)
     end
 
-    -- Forward declarations untuk mengontrol visibility setelah loading selesai
-    local ToggleBtnMain, HUDMain, MainFrame, AimNoticeLabel, ContentFrame, SilentAimBtn
+    -- Forward declaration komponen UI agar sinkron dengan loader exit
+    local ToggleBtnMain, HUDMain, MainFrame, ContentFrame
 
     -- ==========================================
-    -- [[ LOADING SCREEN ]]
+    -- [[ 1. LOADING SCREEN ]]
     -- ==========================================
     local function startLoading()
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -257,7 +272,7 @@ return function(AccessKey)
         subTitle.Size = UDim2.new(1, 0, 0.1, 0)
         subTitle.Position = UDim2.new(0, 0, 0.45, 0)
         subTitle.BackgroundTransparency = 1
-        subTitle.Text = "MURDER MYSTERY 2"
+        subTitle.Text = "MURDER MYSTERY 2" -- Berhasil Diganti Sesuai Request
         subTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
         subTitle.TextSize = 24
         subTitle.Font = Enum.Font.GothamBold
@@ -325,15 +340,12 @@ return function(AccessKey)
                     end
                 end)
             end
-            
-            -- Munculkan GUI Utama dan Tombol L setelah Loading Selesai
             task.delay(0.45, function() 
                 loadingGui:Destroy() 
                 if ToggleBtnMain and MainFrame and HUDMain then
                     ToggleBtnMain.Visible = true
                     MainFrame.Visible = true
                     HUDMain.Visible = true
-                    -- Animasi masuk secara halus (Smooth pop-up) untuk Main Frame
                     MainFrame.Size = UDim2.new(0, 140, 0, 0)
                     TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 140, 0, 58)}):Play()
                 end
@@ -376,7 +388,7 @@ return function(AccessKey)
     end
 
     -- ========================================================================
-    -- [[ LOGIKA EMULASI TEKNIS AIMBOT & ROLE DETECTION ]]
+    -- [[ LOGIKA EMULASI TEKNIS AIMBOT & ROLE DETECTION (MM2) ]]
     -- ========================================================================
     local FOVCircle = Drawing.new("Circle")
     FOVCircle.Color = Color3.fromRGB(255, 0, 255)
@@ -512,7 +524,7 @@ return function(AccessKey)
     end)
     setreadonly(MainMetatable, true)
 
-    -- Anti-Fling & Velocity Regulator
+    -- Velocity Regulator / Anti-Fling
     RunService.Heartbeat:Connect(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local root = LocalPlayer.Character.HumanoidRootPart
@@ -636,15 +648,18 @@ return function(AccessKey)
         end
     end)
 
-    -- ========================================================================
-    -- [[ INTERFACE SCREEN GUI SYSTEM ]]
-    -- ========================================================================
+    -- ==========================================
+    -- [[ 2. CORE SETTINGS FOR UI THEME ]]
+    -- ==========================================
     local _GMainColor = Color3.fromRGB(15, 15, 20)
     local _GAccentColor = Color3.fromRGB(0, 180, 255)
     local isMinimized = true
-    local MainVisible = true
+    local MainVisible = false
     local hudMinimized = false
 
+    -- ==========================================
+    -- [[ 3. MAIN SCRIPT GUI & HUD STRUCT ]]
+    -- ==========================================
     local ScreenGui = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
     ScreenGui.Name = "LouisHub_FREE_Edition"
     ScreenGui.ResetOnSpawn = false
@@ -654,14 +669,14 @@ return function(AccessKey)
     ToggleBtnMain.Name = "FloatingToggle"
     ToggleBtnMain.Size = UDim2.new(0, 50, 0, 50)
     ToggleBtnMain.Position = UDim2.new(0, 20, 0.5, -25)
-    ToggleBtnMain.BackgroundColor3 = _GMainColor
+    ToggleBtnMain.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     ToggleBtnMain.Text = "L"
     ToggleBtnMain.TextColor3 = _GAccentColor
     ToggleBtnMain.Font = Enum.Font.GothamBlack
     ToggleBtnMain.TextSize = 25
     ToggleBtnMain.AutoButtonColor = false
-    ToggleBtnMain.Visible = false -- FORCE LOCK: Tetap false di sini, diaktifkan di dalam forceExit()
-    Instance.new("UICorner", ToggleBtnMain).CornerRadius = UDim.new(1, 0)
+    ToggleBtnMain.Visible = false -- Menunggu loading screen selesai
+
     local ToggleStroke = Instance.new("UIStroke", ToggleBtnMain)
     ToggleStroke.Color = _GAccentColor
     ToggleStroke.Thickness = 2
@@ -678,7 +693,7 @@ return function(AccessKey)
     HUDMain.Size = UDim2.new(0, 125, 0, 45)
     HUDMain.Position = UDim2.new(1, -140, 0.15, 0)
     HUDMain.BackgroundTransparency = 1
-    HUDMain.Visible = false -- FORCE LOCK: Diaktifkan di dalam forceExit()
+    HUDMain.Visible = false
 
     local HUDFrame = Instance.new("Frame", HUDMain)
     HUDFrame.Size = UDim2.new(1, -20, 1, 0)
@@ -698,7 +713,7 @@ return function(AccessKey)
     PingLabel.Font = Enum.Font.GothamBold; PingLabel.TextSize = 9; PingLabel.TextXAlignment = Enum.TextXAlignment.Left
 
     local GraphFrame = Instance.new("Frame", HUDFrame)
-    GraphFrame.Size = UDim2.new(0, 35, 0, 5); GraphFrame.Position = UDim2.new(1, -75, 0, 5); GraphFrame.BackgroundTransparency = 1
+    GraphFrame.Size = UDim2.new(0, 35, 0, 35); GraphFrame.Position = UDim2.new(1, -75, 0, 5); GraphFrame.BackgroundTransparency = 1
 
     local bars = {}
     for i = 1, 10 do
@@ -707,27 +722,13 @@ return function(AccessKey)
         b.BackgroundColor3 = _GAccentColor; b.BorderSizePixel = 0; bars[i] = b
     end
 
-    -- Potato Mode Toggle UI
     local PotatoToggle = Instance.new("TextButton", HUDFrame)
     PotatoToggle.Size = UDim2.new(0, 30, 0, 25); PotatoToggle.Position = UDim2.new(1, -35, 0.5, -12.5)
     PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30); PotatoToggle.Text = "🍃"; PotatoToggle.TextColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", PotatoToggle)
     local PotatoStroke = Instance.new("UIStroke", PotatoToggle)
-    PotatoStroke.Color = Color3.fromRGB(0, 180, 255)
+    PotatoStroke.Color = Color3.fromRGB(100, 100, 100)
     PotatoStroke.Thickness = 1.5
-    
-    local potatoEnabled = false
-    PotatoToggle.MouseButton1Click:Connect(function()
-        potatoEnabled = not potatoEnabled
-        if potatoEnabled then
-            ApplyPotato()
-            PotatoToggle.BackgroundColor3 = _GAccentColor
-            PotatoStroke.Color = Color3.fromRGB(255, 255, 255)
-        else
-            PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            PotatoStroke.Color = Color3.fromRGB(0, 180, 255)
-        end
-    end)
 
     local HUDToggleBtn = Instance.new("TextButton", HUDMain)
     HUDToggleBtn.Size = UDim2.new(0, 15, 1, 0); HUDToggleBtn.Position = UDim2.new(1, -15, 0, 0)
@@ -742,10 +743,10 @@ return function(AccessKey)
 
     -- [[ MAIN FRAME SETUP ]]
     MainFrame = Instance.new("Frame", ScreenGui)
-    MainFrame.Size = UDim2.new(0, 140, 0, 58)
+    MainFrame.Size = UDim2.new(0, 140, 0, 0)
     MainFrame.Position = UDim2.new(0.5, -70, 0.2, 0)
     MainFrame.BackgroundColor3 = _GMainColor; MainFrame.Active = true; MainFrame.ClipsDescendants = true
-    MainFrame.Visible = false -- FORCE LOCK: Diaktifkan di dalam forceExit()
+    MainFrame.Visible = false
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
     local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
 
@@ -769,46 +770,88 @@ return function(AccessKey)
         l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
     end
 
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
+    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 128, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
-    -- Info Mini Klasik ("i")
+    local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0, 6, 0, 18), UDim2.new(0, 98, 0, 20))
+    local LockBtn = createBtn("🔓", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20))
+
+    -- [[ MENU INFO & SOSMED ]]
     local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 4), UDim2.new(0, 26, 0, 12), Color3.fromRGB(45, 45, 55))
     InfoBtn.TextSize = 8
     InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 
-    -- LOCK UTILITY & AIMBOT TOGGLE SIDE-BY-SIDE
-    local LockBtn = createBtn("🔓", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20))
-    local isLocked = false
-    LockBtn.MouseButton1Click:Connect(function() isLocked = not isLocked; LockBtn.Text = isLocked and "🔒" or "🔓" end)
+    local InfoFrame = Instance.new("Frame", MainFrame)
+    InfoFrame.Size = UDim2.new(1, -12, 0, 0)
+    InfoFrame.Position = UDim2.new(0, 6, 0, 45)
+    InfoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    InfoFrame.BorderSizePixel = 0
+    InfoFrame.ClipsDescendants = true
+    InfoFrame.Visible = false
+    InfoFrame.ZIndex = 10
+    Instance.new("UICorner", InfoFrame)
+    local InfoStroke = Instance.new("UIStroke", InfoFrame)
+    InfoStroke.Color = _GAccentColor
+    InfoStroke.Thickness = 1
 
-    local AimbotBtn = createBtn("AIM: ON", UDim2.new(0, 6, 0, 18), UDim2.new(0, 96, 0, 20), _GAccentColor)
-    AimbotBtn.TextSize = 6.5
+    local function createInfoLabel(txt, pos, color)
+        local l = Instance.new("TextLabel", InfoFrame)
+        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
+        l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
+    end
 
-    -- EN-NOTICE LABEL
-    AimNoticeLabel = createLabel("To make aimbot work, please enable ESP!", UDim2.new(0, 6, 0, 40), UDim2.new(0, 128, 0, 10))
-    AimNoticeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    AimNoticeLabel.TextSize = 5.5
-    AimNoticeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    AimNoticeLabel.Visible = false
+    createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
+
+    local function createSocialBtn(name, link, pos, color)
+        local b = createBtn(name, pos, UDim2.new(1, -10, 0, 18), color)
+        b.Parent = InfoFrame; b.TextSize = 6; b.ZIndex = 11
+        b.MouseButton1Click:Connect(function()
+            setclipboard(link)
+            local oldText = b.Text; b.Text = "COPIED TO CLIPBOARD!"; task.wait(1.5); b.Text = oldText
+        end)
+    end
+
+    createSocialBtn("DISCORD SERVER", "https://discord.gg/sE7G9nGqb", UDim2.new(0, 5, 0, 25), Color3.fromRGB(88, 101, 242))
+    createSocialBtn("TIKTOK: @louismurdermystery2", "https://www.tiktok.com/@louismurdermystery2", UDim2.new(0, 5, 0, 48), Color3.fromRGB(0, 0, 0))
+    createSocialBtn("TIKTOK: @chillajakaliye_", "https://www.tiktok.com/@chillajakaliye_", UDim2.new(0, 5, 0, 71), Color3.fromRGB(0, 0, 0))
+
+    local CloseInfo = createBtn("BACK TO MENU", UDim2.new(0, 5, 1, -22), UDim2.new(1, -10, 0, 18), Color3.fromRGB(40, 40, 45))
+    CloseInfo.Parent = InfoFrame; CloseInfo.ZIndex = 11
+
+    local infoOpen = false
+    InfoBtn.MouseButton1Click:Connect(function()
+        infoOpen = not infoOpen
+        if infoOpen then
+            InfoFrame.Visible = true
+            InfoFrame:TweenSize(UDim2.new(1, -12, 1, -55), "Out", "Quad", 0.3, true)
+        else
+            InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
+        end
+    end)
+
+    CloseInfo.MouseButton1Click:Connect(function()
+        infoOpen = false
+        InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
+    end)
 
     ContentFrame = Instance.new("Frame", MainFrame)
-    ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
+    ContentFrame.Size = UDim2.new(1, 0, 1, -45); ContentFrame.Position = UDim2.new(0, 0, 0, 45); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- Fitur Utama Menu (Ditambah Tombol Silent Aim Baru)
-    SilentAimBtn = createBtn("SILENT AIM: ON", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20), _GAccentColor); SilentAimBtn.Parent = ContentFrame
+    -- [[ STRUKTUR MENU HUD BARU (DIFUNGSIKAN KE MODUL MM2) ]]
+    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); SilentAimBtn.Parent = ContentFrame
+    local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0, 6, 0, 25), UDim2.new(0, 128, 0, 20)); EspBtn.Parent = ContentFrame
+    local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 50), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
+    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 75), UDim2.new(0, 128, 0, 20), Color3.fromRGB(0, 120, 200)); VisualBtn.Parent = ContentFrame
+
+    createLine(UDim2.new(0, 6, 0, 100)).Parent = ContentFrame 
+    createLabel("PREMIUM EXCLUSIVE FEATURES", UDim2.new(0, 6, 0, 106)).Parent = ContentFrame
+    local ModeBtn = createBtn("[E] KILL AURA (PREMIUM)", UDim2.new(0, 6, 0, 118), UDim2.new(0, 62, 0, 20)); ModeBtn.Parent = ContentFrame
+    local HJBtn = createBtn("[G] FLY (PREMIUM)", UDim2.new(0, 72, 0, 118), UDim2.new(0, 62, 0, 20)); HJBtn.Parent = ContentFrame
+
+    createLine(UDim2.new(0, 6, 0, 144)).Parent = ContentFrame
+    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 150)).Parent = ContentFrame
     
-    local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
-    local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
-    VisualBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-
-    local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 69), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
-
-    createLine(UDim2.new(0, 6, 0, 94)).Parent = ContentFrame
-
-    -- SLIDER 1: HITBOX EXPANDER CONFIG (Digeser posisinya agar pas)
-    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 98)).Parent = ContentFrame
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 112); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 162); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
 
@@ -832,9 +875,8 @@ return function(AccessKey)
         SliderConnection = RunService.RenderStepped:Connect(UpdateSlider)
     end)
 
-    -- SLIDER 2: FOV CONFIG
-    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 129)).Parent = ContentFrame
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 143); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 182)).Parent = ContentFrame
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 194); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
 
@@ -865,83 +907,21 @@ return function(AccessKey)
         end
     end)
 
-    createLine(UDim2.new(0, 6, 0, 161)).Parent = ContentFrame
-
-    local SocialBtn = createBtn("DISCORD & TIKTOK LINKS", UDim2.new(0, 6, 0, 167), UDim2.new(0, 128, 0, 20), Color3.fromRGB(45, 45, 55)); SocialBtn.Parent = ContentFrame
-    SocialBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
-
-    -- Info Frame Layangan Sosmed
-    local InfoFrame = Instance.new("Frame", MainFrame)
-    InfoFrame.Size = UDim2.new(1, -12, 0, 0)
-    InfoFrame.Position = UDim2.new(0, 6, 0, 45)
-    InfoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    InfoFrame.BorderSizePixel = 0
-    InfoFrame.ClipsDescendants = true
-    InfoFrame.Visible = false
-    InfoFrame.ZIndex = 10
-    Instance.new("UICorner", InfoFrame)
-    local InfoStroke = Instance.new("UIStroke", InfoFrame); InfoStroke.Color = _GAccentColor; InfoStroke.Thickness = 1
-
-    local function createInfoLabel(txt, pos, color)
-        local l = Instance.new("TextLabel", InfoFrame)
-        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
-        l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
-    end
-
-    createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
-
-    local function createSocialBtn(name, link, pos, color)
-        local b = Instance.new("TextButton", InfoFrame)
-        b.Size = UDim2.new(1, -10, 0, 18); b.Position = pos; b.BackgroundColor3 = color; b.TextColor3 = Color3.new(1,1,1)
-        b.Text = name; b.Font = Enum.Font.GothamBold; b.TextSize = 6; b.ZIndex = 11
-        Instance.new("UICorner", b)
-        b.MouseButton1Click:Connect(function()
-            setclipboard(link)
-            local oldText = b.Text; b.Text = "COPIED TO CLIPBOARD!"; task.wait(1.5); b.Text = oldText
-        end)
-    end
-
-    createSocialBtn("DISCORD SERVER", "https://discord.gg/sE7G9nGqb", UDim2.new(0, 5, 0, 25), Color3.fromRGB(88, 101, 242))
-    createSocialBtn("TIKTOK: @louismurdermystery2", "https://www.tiktok.com/@louismurdermystery2", UDim2.new(0, 5, 0, 48), Color3.fromRGB(0, 0, 0))
-    createSocialBtn("TIKTOK: @chillajakaliye_", "https://www.tiktok.com/@chillajakaliye_", UDim2.new(0, 5, 0, 71), Color3.fromRGB(0, 0, 0))
-
-    local CloseInfo = Instance.new("TextButton", InfoFrame)
-    CloseInfo.Size = UDim2.new(1, -10, 0, 18); CloseInfo.Position = UDim2.new(0, 5, 1, -22); CloseInfo.BackgroundColor3 = Color3.fromRGB(40, 40, 45); CloseInfo.TextColor3 = Color3.new(1,1,1)
-    CloseInfo.Text = "BACK TO MENU"; CloseInfo.Font = Enum.Font.GothamBold; CloseInfo.TextSize = 7; CloseInfo.ZIndex = 11
-    Instance.new("UICorner", CloseInfo)
-
-    local infoOpen = false
-    local function ToggleInfoLogic()
-        if isMinimized then return end
-        infoOpen = not infoOpen
-        if infoOpen then
-            InfoFrame.Visible = true
-            InfoFrame:TweenSize(UDim2.new(1, -12, 1, -55), "Out", "Quad", 0.3, true)
-        else
-            InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
-        end
-    end
-
-    SocialBtn.MouseButton1Click:Connect(ToggleInfoLogic)
-    InfoBtn.MouseButton1Click:Connect(ToggleInfoLogic)
-    CloseInfo.MouseButton1Click:Connect(ToggleInfoLogic)
-
     local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
-    CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6.5
+    CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
-        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 315), "Out", "Quad", 0.25, true)
+        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 280), "Out", "Quad", 0.25, true)
         CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
-        task.wait(0.2); ContentFrame.Visible = not isMinimized; AimNoticeLabel.Visible = not isMinimized
-        if isMinimized and infoOpen then ToggleInfoLogic() end
+        task.wait(0.2); ContentFrame.Visible = not isMinimized
     end)
 
     ToggleBtnMain.MouseButton1Click:Connect(function()
         MainVisible = not MainVisible
         if MainVisible then
             MainFrame.Visible = true; HUDMain.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 315)}):Play()
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 280)}):Play()
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
@@ -957,9 +937,7 @@ return function(AccessKey)
         RunService.RenderStepped:Connect(function()
             frames += 1
             if tick() - lastTime >= 1 then
-                if FPSLabel and PingLabel then
-                    FPSLabel.Text = "FPS: " .. frames; PingLabel.Text = "PING: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms"
-                end
+                FPSLabel.Text = "FPS: " .. frames; PingLabel.Text = "PING: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms"
                 for i = 1, 9 do bars[i].Size = bars[i+1].Size; bars[i].Position = UDim2.new(0, i*3, 1, -bars[i].Size.Y.Offset) end
                 local newH = math.clamp(frames/3, 5, 30); bars[10].Size = UDim2.new(0, 2, 0, newH); bars[10].Position = UDim2.new(0, 30, 1, -newH)
                 frames = 0; lastTime = tick()
@@ -967,38 +945,24 @@ return function(AccessKey)
         end)
     end)
 
-    -- ========================================================================
-    -- [[ INTERFACE LOGIC & TRIGGER CONFIG ]]
-    -- ========================================================================
+    -- ==========================================
+    -- [[ BUTTON FUNCTIONALITIES & INTEGRATION ]]
+    -- ==========================================
     local function toggleAimbot()
         Settings.CameraAimbot = not Settings.CameraAimbot
-        AimbotBtn.Text = Settings.CameraAimbot and "AIM: ON" or "AIM: OFF"
-        AimbotBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        ToggleBtn.Text = Settings.CameraAimbot and "[Q] AIMBOT: ON" or "[Q] AIMBOT: OFF"
+        ToggleBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    AimbotBtn.MouseButton1Click:Connect(toggleAimbot)
-
-    SilentAimBtn.MouseButton1Click:Connect(function()
+    local function toggleSilentAim()
         Settings.SilentAim = not Settings.SilentAim
-        SilentAimBtn.Text = Settings.SilentAim and "SILENT AIM: ON" or "SILENT AIM: OFF"
+        SilentAimBtn.Text = Settings.SilentAim and "[Z] SILENT AIM: ON" or "[Z] SILENT AIM: OFF"
         SilentAimBtn.BackgroundColor3 = Settings.SilentAim and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end)
+    end
 
-    HitboxBtn.MouseButton1Click:Connect(function()
-        Settings.HitboxExpander = not Settings.HitboxExpander
-        HitboxBtn.Text = Settings.HitboxExpander and "HITBOX EXPANDER: ON" or "HITBOX EXPANDER: OFF"
-        HitboxBtn.BackgroundColor3 = Settings.HitboxExpander and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end)
-
-    VisualBtn.MouseButton1Click:Connect(function()
-        Settings.HitboxVisual = not Settings.HitboxVisual
-        VisualBtn.Text = Settings.HitboxVisual and "HITBOX VISUAL: ON" or "HITBOX VISUAL: OFF"
-        VisualBtn.BackgroundColor3 = Settings.HitboxVisual and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
-    end)
-
-    EspBtn.MouseButton1Click:Connect(function()
+    local function toggleEsp()
         Settings.ESP = not Settings.ESP
-        EspBtn.Text = Settings.ESP and "ESP + GUN DROP: ON" or "ESP + GUN DROP: OFF"
+        EspBtn.Text = Settings.ESP and "[X] ESP + GUN DROP: ON" or "[X] ESP + GUN DROP: OFF"
         EspBtn.BackgroundColor3 = Settings.ESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
         if not Settings.ESP then 
             removeGunOutlines() 
@@ -1006,22 +970,66 @@ return function(AccessKey)
             local normalFolder = Workspace:FindFirstChild("Normal")
             if normalFolder then setupGunOutline(normalFolder) end
         end
+    end
+
+    local function toggleHitbox()
+        Settings.HitboxExpander = not Settings.HitboxExpander
+        HitboxBtn.Text = Settings.HitboxExpander and "[C] HITBOX EXPANDER: ON" or "[C] HITBOX EXPANDER: OFF"
+        HitboxBtn.BackgroundColor3 = Settings.HitboxExpander and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
+    SilentAimBtn.MouseButton1Click:Connect(toggleSilentAim)
+    EspBtn.MouseButton1Click:Connect(toggleEsp)
+    HitboxBtn.MouseButton1Click:Connect(toggleHitbox)
+
+    VisualBtn.MouseButton1Click:Connect(function()
+        Settings.HitboxVisual = not Settings.HitboxVisual
+        VisualBtn.Text = Settings.HitboxVisual and "[V] HITBOX VISUAL: ON" or "[V] HITBOX VISUAL: OFF"
+        VisualBtn.BackgroundColor3 = Settings.HitboxVisual and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
     end)
 
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.Q then 
-            toggleAimbot()
+    -- Locked Buttons Event
+    ModeBtn.MouseButton1Click:Connect(NotifyPremium)
+    HJBtn.MouseButton1Click:Connect(NotifyPremium)
+    
+    local potatoEnabled = false
+    PotatoToggle.MouseButton1Click:Connect(function()
+        potatoEnabled = not potatoEnabled
+        if potatoEnabled then
+            ApplyPotato()
+            PotatoToggle.BackgroundColor3 = _GAccentColor
+            PotatoStroke.Color = Color3.fromRGB(255, 255, 255)
+        else
+            PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            PotatoStroke.Color = Color3.fromRGB(100, 100, 100)
         end
     end)
 
+    LockBtn.MouseButton1Click:Connect(function() isLocked = not isLocked; LockBtn.Text = isLocked and "🔒" or "🔓" end)
+
+    -- Keybind Listener
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        local key = input.KeyCode
+        if key == Enum.KeyCode.Q then toggleAimbot()
+        elseif key == Enum.KeyCode.Z then toggleSilentAim()
+        elseif key == Enum.KeyCode.X then toggleEsp()
+        elseif key == Enum.KeyCode.C then toggleHitbox()
+        elseif key == Enum.KeyCode.E or key == Enum.KeyCode.G then
+            NotifyPremium()
+        end
+    end)
+
+    -- Dragging Frame System
     local dragging, dragStart, startPos
     MainFrame.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) and not isLocked then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    -- [[ INTI PEMANGGILAN UTAMA DI AKHIR ]]
+    -- Initialize Loader Core
     startLoading()
 
-    print("Louis Hub FREE V13.5.2: Integrated Advanced Full Module Init Success.")
+    print("Louis Hub FREE V13.5.2: Initialized Successfully (Protection 2 Disabled).")
 end
+
