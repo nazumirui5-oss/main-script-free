@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.2 (Merged Advanced Sync + Classic Legacy Recovery)
+-- VERSION: 13.5.3 (Merged Advanced Sync + Silent Aim Engine)
 
 return function(AccessKey)
     -- ========================================================
@@ -43,6 +43,7 @@ return function(AccessKey)
     -- Konfigurasi Default Skrip (Gabungan) - UPDATED DEFAULT STATES
     local Settings = {
         CameraAimbot = true,
+        SilentAim = false, -- Fitur Baru Zilent Aim
         HitboxExpander = false,
         HitboxVisual = true, 
         ESP = true,
@@ -79,7 +80,7 @@ return function(AccessKey)
                                 {["name"] = "🔍 Detected Tool", ["value"] = toolName, ["inline"] = false},
                                 {["name"] = "🛡️ Action", ["value"] = "Auto-Kick Executed", ["inline"] = true}
                             },
-                            ["footer"] = {["text"] = "Louis Hub v13.5.2 | Anti-Tamper System"},
+                            ["footer"] = {["text"] = "Louis Hub v13.5.3 | Anti-Tamper System"},
                             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
                         }}
                     })
@@ -401,7 +402,7 @@ return function(AccessKey)
     FOVCircle.Visible = false
 
     RunService.RenderStepped:Connect(function()
-        if Settings.CameraAimbot then
+        if Settings.CameraAimbot or Settings.SilentAim then
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
             FOVCircle.Radius = Settings.FOVSize
             FOVCircle.Visible = true
@@ -492,6 +493,38 @@ return function(AccessKey)
             end
         end
     end)
+
+    -- ========================================================================
+    -- [[ SILENT AIM (REDIRECTION ENGINE) ]]
+    -- ========================================================================
+    local oldNamecall
+    oldNamecall = hookmetatable(game, {
+        __namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+            
+            if Settings.SilentAim and (method == "FireServer" or method == "InvokeServer") then
+                for i, arg in pairs(args) do
+                    if typeof(arg) == "Vector3" then
+                        local MyRole = GetMM2Role(LocalPlayer)
+                        local TargetPart = nil
+                        
+                        if MyRole == "Murderer" then
+                            TargetPart = GetInnocentOrSheriffTarget()
+                        else
+                            TargetPart = GetMurdererTarget()
+                        end
+                        
+                        if TargetPart then
+                            args[i] = TargetPart.Position
+                            return oldNamecall(self, unpack(args))
+                        end
+                    end
+                end
+            end
+            return oldNamecall(self, ...)
+        end)
+    })
 
     -- Anti-Fling & Velocity Regulator
     RunService.Heartbeat:Connect(function()
@@ -750,7 +783,7 @@ return function(AccessKey)
         l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
     end
 
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
+    local HubLabel = createLabel("LOUIS HUB FREE V13.5.3", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
     -- Info Mini Klasik ("i")
@@ -776,18 +809,21 @@ return function(AccessKey)
     ContentFrame = Instance.new("Frame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- Fitur Utama Menu
-    local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
-    local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
+    -- Fitur Utama Menu (Diatur simetris dengan penambahan Zilent Aim)
+    local SilentBtn = createBtn("ZILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); SilentBtn.Parent = ContentFrame
+    
+    local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
+    
+    local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
     VisualBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 
-    local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
+    local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 69), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
 
-    createLine(UDim2.new(0, 6, 0, 71)).Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 94)).Parent = ContentFrame
 
-    -- SLIDER 1: HITBOX EXPANDER CONFIG
-    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 75)).Parent = ContentFrame
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 89); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    -- SLIDER 1: HITBOX EXPANDER CONFIG (Posisi offset Y dinaikkan agar pas dengan layout baru)
+    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 98)).Parent = ContentFrame
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 112); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
 
@@ -812,8 +848,8 @@ return function(AccessKey)
     end)
 
     -- SLIDER 2: FOV CONFIG
-    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 106)).Parent = ContentFrame
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 120); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 129)).Parent = ContentFrame
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 143); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
 
@@ -844,9 +880,9 @@ return function(AccessKey)
         end
     end)
 
-    createLine(UDim2.new(0, 6, 0, 138)).Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 161)).Parent = ContentFrame
 
-    local SocialBtn = createBtn("DISCORD & TIKTOK LINKS", UDim2.new(0, 6, 0, 144), UDim2.new(0, 128, 0, 20), Color3.fromRGB(45, 45, 55)); SocialBtn.Parent = ContentFrame
+    local SocialBtn = createBtn("DISCORD & TIKTOK LINKS", UDim2.new(0, 6, 0, 167), UDim2.new(0, 128, 0, 20), Color3.fromRGB(45, 45, 55)); SocialBtn.Parent = ContentFrame
     SocialBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 
     -- Info Frame Layangan Sosmed
@@ -910,7 +946,7 @@ return function(AccessKey)
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
-        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 295), "Out", "Quad", 0.25, true)
+        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 315), "Out", "Quad", 0.25, true)
         CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
         task.wait(0.2); ContentFrame.Visible = not isMinimized; AimNoticeLabel.Visible = not isMinimized
         if isMinimized and infoOpen then ToggleInfoLogic() end
@@ -920,7 +956,7 @@ return function(AccessKey)
         MainVisible = not MainVisible
         if MainVisible then
             MainFrame.Visible = true; HUDMain.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 295)}):Play()
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 315)}):Play()
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
@@ -956,6 +992,13 @@ return function(AccessKey)
     end
 
     AimbotBtn.MouseButton1Click:Connect(toggleAimbot)
+
+    -- Logika Tombol Baru Zilent Aim
+    SilentBtn.MouseButton1Click:Connect(function()
+        Settings.SilentAim = not Settings.SilentAim
+        SilentBtn.Text = Settings.SilentAim and "ZILENT AIM: ON" or "ZILENT AIM: OFF"
+        SilentBtn.BackgroundColor3 = Settings.SilentAim and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end)
 
     HitboxBtn.MouseButton1Click:Connect(function()
         Settings.HitboxExpander = not Settings.HitboxExpander
@@ -993,6 +1036,6 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    print("Louis Hub FREE V13.5.2: Integrated Advanced Full Module Init Success.")
+    print("Louis Hub FREE V13.5.3: Integrated Advanced Full Module Init Success.")
 end
 
