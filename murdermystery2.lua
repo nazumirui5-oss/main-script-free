@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
+-- VERSION: 13.5.3 (Auto Grab Gun Hotfix Update)
 
 return function(AccessKey)
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
@@ -55,7 +55,7 @@ return function(AccessKey)
                                 {["name"] = "🔍 Detected Tool", ["value"] = toolName, ["inline"] = false},
                                 {["name"] = "🛡️ Action", ["value"] = "Auto-Kick Executed", ["inline"] = true}
                             },
-                            ["footer"] = {["text"] = "Louis Hub v13.5.2 | Anti-Tamper System"},
+                            ["footer"] = {["text"] = "Louis Hub v13.5.3 | Anti-Tamper System"},
                             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
                         }}
                     })
@@ -133,13 +133,11 @@ return function(AccessKey)
         HitboxExpander = false,
         HitboxVisual = true,
         ESP = false,
-        AutoGrabGun = false, -- FITUR BARU DIINTEGRASIKAN
+        AutoGrabGun = false,
         TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
         FOVSize = 150
     }
-
-    local GunDropConnection = nil
 
     -- ==========================================
     -- [[ NOTIFICATION SYSTEM ]]
@@ -501,7 +499,6 @@ return function(AccessKey)
     local OldNamecall = MainMetatable.__namecall
     setreadonly(MainMetatable, false)
 
-    -- Intersepting Namecall untuk mendeteksi aktivasi projectile/raycast senjata
     MainMetatable.__namecall = newcclosure(function(Self, ...)
         local Method = getnamecallmethod()
         local Args = {...}
@@ -510,7 +507,6 @@ return function(AccessKey)
             local MyRole = GetMM2Role(LocalPlayer)
             local TargetPart = nil
             
-            -- Prioritas Target Berdasarkan Validasi ESP Terintegrasi
             if MyRole == "Murderer" then
                 TargetPart = GetInnocentOrSheriffTarget()
             else
@@ -518,10 +514,8 @@ return function(AccessKey)
             end
             
             if TargetPart then
-                -- Metode Bullet Teleportation: Memaksa titik akhir peluru langsung berada di koordinat target fisik
                 if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" then
                     local Origin = Args[1].Origin
-                    -- Arah peluru diubah total langsung menuju TargetPart (HumanoidRootPart)
                     local Direction = (TargetPart.Position - Origin).Unit * 1000
                     Args[1] = Ray.new(Origin, Direction)
                     return OldNamecall(Self, unpack(Args))
@@ -532,7 +526,6 @@ return function(AccessKey)
         return OldNamecall(Self, ...)
     end)
 
-    -- Index Hooking tambahan untuk memastikan akurasi Bullet Teleport pada koordinat mouse / posisi pemicu
     MainMetatable.__index = newcclosure(function(Self, Key)
         if Settings.SilentAim and not checkcaller() then
             if Self == Mouse and (Key == "Hit" or Key == "Target") then
@@ -559,7 +552,6 @@ return function(AccessKey)
 
     setreadonly(MainMetatable, true)
 
-    -- Velocity Regulator / Anti-Fling
     RunService.Heartbeat:Connect(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local root = LocalPlayer.Character.HumanoidRootPart
@@ -571,7 +563,7 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- LOGIKA UTAMA: AUTO GRAB GUN ENGINE
+    -- LOGIKA HOTFIX: BYPASS AUTO GRAB GUN ENGINE
     -- ========================================================================
     local function TeleportToGun(gunObject)
         if not Settings.AutoGrabGun or not gunObject then return end
@@ -582,20 +574,49 @@ return function(AccessKey)
         
         if Root and Humanoid and Humanoid.Health > 0 then
             local targetPart = gunObject:IsA("BasePart") and gunObject or gunObject:FindFirstChildOfClass("BasePart")
+            if not targetPart and gunObject:FindFirstChild("LeftHandle") then
+                targetPart = gunObject:FindFirstChild("LeftHandle")
+            end
+            
             if targetPart then
-                -- Teleportasi instan aman ke koordinat senjata (+2 stud di atasnya agar pas masuk ke inventory)
-                Root.CFrame = targetPart.CFrame + Vector3.new(0, 2, 0)
-                print("Louis Hub: Auto Grab Gun Executed on object -> " .. tostring(gunObject.Name))
+                -- MEMAKAI METODE FAST TWEEN SEPERTI SEPERKIAN DETIK AGAR ANTI-CHEAT TIDAK MENDETEKSI CRASH / FLING CORRECTION
+                local targetCFrame = targetPart.CFrame + Vector3.new(0, 1.5, 0)
+                local dist = (Root.Position - targetPart.Position).Magnitude
+                local duration = math.clamp(dist / 250, 0.05, 0.25) -- Sangat cepat tapi aman
+
+                local tween = TweenService:Create(Root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+                tween:Play()
+                
+                -- Memaksa mengambil pistol saat jarak dekat jika posisi replikasi macet
+                task.spawn(function()
+                    tween.Completed:Wait()
+                    if Settings.AutoGrabGun and (Root.Position - targetPart.Position).Magnitude < 10 then
+                        Root.CFrame = targetPart.CFrame
+                    end
+                end)
             end
         end
     end
 
-    -- ========================================================================
-    -- LOGIKA GUN DROP ESP OUTLINE & GRAB TRIGGER
-    -- ========================================================================
+    -- SCANNER AKTIF: Mencari pistol di seluruh isi Workspace untuk bypass Folder bug
+    local function FindDroppedGun()
+        -- Cari di folder normal standar MM2
+        local normal = Workspace:FindFirstChild("Normal")
+        if normal then
+            local gd = normal:FindFirstChild("GunDrop")
+            if gd then return gd end
+        end
+        -- Fallback: Cari global ke seluruh workspace jika folder diganti namanya oleh update
+        for _, obj in pairs(Workspace:GetChildren()) do
+            if obj.Name == "GunDrop" or (obj:IsA("Model") and obj.Name:lower():find("gun") and obj.Name ~= "Gun") then
+                return obj
+            end
+        end
+        return nil
+    end
+
     local function applyOutline(gunObject)
         if not gunObject or gunObject:FindFirstChild("RexOutline") then return end
-        
         local highlight = Instance.new("Highlight")
         highlight.Name = "RexOutline"
         highlight.FillColor = Color3.fromRGB(0, 0, 139)       
@@ -606,48 +627,23 @@ return function(AccessKey)
         highlight.Parent = gunObject
     end
 
-    local function setupGunOutline(normalFolder)
-        if not normalFolder then return end
-        
-        -- Deteksi senjata yang sudah ada saat fitur diaktifkan di tengah ronde
-        local currentGun = normalFolder:FindFirstChild("GunDrop")
-        if currentGun then
-            if Settings.ESP then applyOutline(currentGun) end
-            task.spawn(function() TeleportToGun(currentGun) end)
-        end
-        
-        if GunDropConnection then GunDropConnection:Disconnect() end
-        GunDropConnection = normalFolder.ChildAdded:Connect(function(child)
-            if not normalFolder:IsDescendantOf(Workspace) then 
-                if GunDropConnection then GunDropConnection:Disconnect() end
-                return 
-            end
-            
-            -- Pemicu Fleksibel: Menggunakan nama "GunDrop" atau properti Model yang mengandung string "gun"
-            if child.Name == "GunDrop" or (child:IsA("Model") and child.Name:lower():find("gun")) then
-                if Settings.ESP then applyOutline(child) end
-                task.spawn(function() TeleportToGun(child) end)
-            end
-        end)
-    end
-
     local function removeGunOutlines()
-        local normalFolder = Workspace:FindFirstChild("Normal")
-        if normalFolder then
-            local currentGun = normalFolder:FindFirstChild("GunDrop")
-            if currentGun and currentGun:FindFirstChild("RexOutline") then
-                currentGun:FindFirstChild("RexOutline"):Destroy()
-            end
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj.Name == "RexOutline" then obj:Destroy() end
         end
     end
 
-    local initialFolder = Workspace:FindFirstChild("Normal")
-    if initialFolder then setupGunOutline(initialFolder) end
-
-    Workspace.ChildAdded:Connect(function(child)
-        if child.Name == "Normal" then
-            task.wait(0.2) 
-            setupGunOutline(child)
+    -- Loop Scanner Berkecepatan Tinggi untuk Auto Grab Gun
+    task.spawn(function()
+        while true do
+            if Settings.AutoGrabGun then
+                local gun = FindDroppedGun()
+                if gun then
+                    if Settings.ESP then applyOutline(gun) end
+                    TeleportToGun(gun)
+                end
+            end
+            task.wait(0.3) -- Interval scan stabil & tidak lag
         end
     end)
 
@@ -724,7 +720,6 @@ return function(AccessKey)
     ScreenGui.Name = "LouisHub_FREE_Edition"
     ScreenGui.ResetOnSpawn = false
 
-    -- [[ FLOATING TOGGLE (L BUTTON) ]]
     ToggleBtnMain = Instance.new("TextButton", ScreenGui)
     ToggleBtnMain.Name = "FloatingToggle"
     ToggleBtnMain.Size = UDim2.new(0, 50, 0, 50)
@@ -742,13 +737,11 @@ return function(AccessKey)
     ToggleStroke.Thickness = 2
     ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-    -- Floating Button Dragging
     local t_dragging, t_dragStart, t_startPos
     ToggleBtnMain.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then t_dragging = true; t_dragStart = i.Position; t_startPos = ToggleBtnMain.Position end end)
     UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then t_dragging = false end end)
 
-    -- [[ HUD ELEMENTS ]]
     HUDMain = Instance.new("Frame", ScreenGui)
     HUDMain.Size = UDim2.new(0, 125, 0, 45)
     HUDMain.Position = UDim2.new(1, -140, 0.15, 0)
@@ -801,7 +794,6 @@ return function(AccessKey)
         HUDToggleBtn.Text = hudMinimized and "<" or ">"
     end)
 
-    -- [[ MAIN FRAME SETUP ]]
     MainFrame = Instance.new("Frame", ScreenGui)
     MainFrame.Size = UDim2.new(0, 140, 0, 0)
     MainFrame.Position = UDim2.new(0.5, -70, 0.2, 0)
@@ -830,13 +822,12 @@ return function(AccessKey)
         l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
     end
 
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 128, 0, 12))
+    local HubLabel = createLabel("LOUIS HUB FREE V13.5.3", UDim2.new(0, 6, 0, 4), UDim2.new(0, 128, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0, 6, 0, 18), UDim2.new(0, 98, 0, 20))
     local LockBtn = createBtn("🔓", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20))
 
-    -- [[ MENU INFO & SOSMED ]]
     local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 4), UDim2.new(0, 26, 0, 12), Color3.fromRGB(45, 45, 55))
     InfoBtn.TextSize = 8
     InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
@@ -853,12 +844,6 @@ return function(AccessKey)
     local InfoStroke = Instance.new("UIStroke", InfoFrame)
     InfoStroke.Color = _GAccentColor
     InfoStroke.Thickness = 1
-
-    local function createInfoLabel(txt, pos, color)
-        local l = Instance.new("TextLabel", InfoFrame)
-        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
-        l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
-    end
 
     createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
 
@@ -897,12 +882,11 @@ return function(AccessKey)
     ContentFrame = Instance.new("Frame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -45); ContentFrame.Position = UDim2.new(0, 0, 0, 45); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- [[ STRUKTUR MENU HUD (KORDINAT DISELARASKAN DAN DITAMBAHKAN TOMBOL AUTO GRAB) ]]
     local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 18)); SilentAimBtn.Parent = ContentFrame
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0, 6, 0, 21), UDim2.new(0, 128, 0, 18)); EspBtn.Parent = ContentFrame
     local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 42), UDim2.new(0, 128, 0, 18)); HitboxBtn.Parent = ContentFrame
     local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 63), UDim2.new(0, 128, 0, 18), Color3.fromRGB(0, 120, 200)); VisualBtn.Parent = ContentFrame
-    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0, 6, 0, 84), UDim2.new(0, 128, 0, 18)); GrabBtn.Parent = ContentFrame -- INTEGRASI TOMBOL BARU
+    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0, 6, 0, 84), UDim2.new(0, 128, 0, 18)); GrabBtn.Parent = ContentFrame
 
     createLine(UDim2.new(0, 6, 0, 106)).Parent = ContentFrame 
     createLabel("PREMIUM EXCLUSIVE FEATURES", UDim2.new(0, 6, 0, 110)).Parent = ContentFrame
@@ -992,7 +976,6 @@ return function(AccessKey)
         end
     end)
 
-    -- Dynamic Graph FPS Engine
     task.spawn(function()
         local lastTime = tick(); local frames = 0
         RunService.RenderStepped:Connect(function()
@@ -1027,9 +1010,6 @@ return function(AccessKey)
         EspBtn.BackgroundColor3 = Settings.ESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
         if not Settings.ESP then 
             removeGunOutlines() 
-        else
-            local normalFolder = Workspace:FindFirstChild("Normal")
-            if normalFolder then setupGunOutline(normalFolder) end
         end
     end
 
@@ -1039,26 +1019,17 @@ return function(AccessKey)
         HitboxBtn.BackgroundColor3 = Settings.HitboxExpander and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    -- Integrasi Fungsi Toggle Auto Grab Gun
     local function toggleAutoGrab()
         Settings.AutoGrabGun = not Settings.AutoGrabGun
         GrabBtn.Text = Settings.AutoGrabGun and "[H] AUTO GRAB GUN: ON" or "[H] AUTO GRAB GUN: OFF"
         GrabBtn.BackgroundColor3 = Settings.AutoGrabGun and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        
-        if Settings.AutoGrabGun then
-            local normalFolder = Workspace:FindFirstChild("Normal")
-            local currentGun = normalFolder and (normalFolder:FindFirstChild("GunDrop") or normalFolder:FindFirstChildOfClass("Model"))
-            if currentGun and (currentGun.Name == "GunDrop" or currentGun.Name:lower():find("gun")) then 
-                TeleportToGun(currentGun) 
-            end
-        end
     end
 
     ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
     SilentAimBtn.MouseButton1Click:Connect(toggleSilentAim)
     EspBtn.MouseButton1Click:Connect(toggleEsp)
     HitboxBtn.MouseButton1Click:Connect(toggleHitbox)
-    GrabBtn.MouseButton1Click:Connect(toggleAutoGrab) -- Handler Klik Tombol Baru
+    GrabBtn.MouseButton1Click:Connect(toggleAutoGrab)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
@@ -1066,7 +1037,6 @@ return function(AccessKey)
         VisualBtn.BackgroundColor3 = Settings.HitboxVisual and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
     end)
 
-    -- Locked Buttons Event
     ModeBtn.MouseButton1Click:Connect(NotifyPremium)
     HJBtn.MouseButton1Click:Connect(NotifyPremium)
     
@@ -1085,7 +1055,6 @@ return function(AccessKey)
 
     LockBtn.MouseButton1Click:Connect(function() isLocked = not isLocked; LockBtn.Text = isLocked and "🔒" or "🔓" end)
 
-    -- Keybind Listener (Ditambahkan Keybind H untuk Fitur Baru)
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         local key = input.KeyCode
@@ -1093,20 +1062,18 @@ return function(AccessKey)
         elseif key == Enum.KeyCode.Z then toggleSilentAim()
         elseif key == Enum.KeyCode.X then toggleEsp()
         elseif key == Enum.KeyCode.C then toggleHitbox()
-        elseif key == Enum.KeyCode.H then toggleAutoGrab() -- Handler Keybind Baru
+        elseif key == Enum.KeyCode.H then toggleAutoGrab()
         elseif key == Enum.KeyCode.E or key == Enum.KeyCode.G then
             NotifyPremium()
         end
     end)
 
-    -- Dragging Frame System
     local dragging, dragStart, startPos
     MainFrame.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) and not isLocked then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    -- Initialize Loader Core
     startLoading()
-
-    print("Louis Hub FREE V13.5.2: Initialized Successfully (Protection 2 Disabled).")
+    print("Louis Hub FREE V13.5.3: Hotfix Applied.")
 end
+
