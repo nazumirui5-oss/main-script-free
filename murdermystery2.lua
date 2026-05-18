@@ -137,27 +137,12 @@ return function(AccessKey)
         TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
         FOVSize = 150,
-        HideFOVCircle = false
+        HideFOVCircle = false,
+        AutoFlingMurder = false,
+        AutoFlingSheriff = false,
+        SpeedWalkEnabled = false,
+        SpeedWalkValue = 16
     }
-
-    -- ==========================================
-    -- [[ NOTIFICATION SYSTEM ]]
-    -- ==========================================
-    local function NotifyPremium()
-        local sg = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
-        local f = Instance.new("Frame", sg)
-        f.Size = UDim2.new(0, 200, 0, 40)
-        f.Position = UDim2.new(0.5, -100, 0, -50)
-        f.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        Instance.new("UICorner", f)
-        local t = Instance.new("TextLabel", f)
-        t.Size = UDim2.new(1, 0, 1, 0); t.BackgroundTransparency = 1; t.TextColor3 = Color3.new(1,1,1)
-        t.Font = Enum.Font.GothamBold; t.TextSize = 12; t.Text = "THIS FEATURE IS FOR PREMIUM ONLY!"
-        f:TweenPosition(UDim2.new(0.5, -100, 0, 50), "Out", "Back", 0.4)
-        task.delay(2, function()
-            f:TweenPosition(UDim2.new(0.5, -100, 0, -50), "In", "Back", 0.4, true, function() sg:Destroy() end)
-        end)
-    end
 
     -- ==========================================
     -- [[ POTATO GRAPHICS OPTIMIZATION ENGINE ]]
@@ -245,7 +230,7 @@ return function(AccessKey)
         userInfo.TextXAlignment = Enum.TextXAlignment.Left
         userInfo.RichText = true
         userInfo.TextTransparency = 1 
-        userInfo.Text = '<font color="rgb(200, 200, 200)">FREE MEMBER:</font>\n' .. LocalPlayer.Name:upper() .. '\n<font size="10" color="rgb(150, 150, 150)">ID: ' .. LocalPlayer.UserId .. '</font>'
+        userInfo.Text = '<font color="rgb(200, 200, 200)">MEMBER:</font>\n' .. LocalPlayer.Name:upper() .. '\n<font size="10" color="rgb(150, 150, 150)">ID: ' .. LocalPlayer.UserId .. '</font>'
 
         local title = Instance.new("TextLabel", bg)
         title.Size = UDim2.new(1, 0, 0.2, 0)
@@ -262,7 +247,7 @@ return function(AccessKey)
         welcome.Size = UDim2.new(1, 0, 0.1, 0)
         welcome.Position = UDim2.new(0, 0, 0.45, 0)
         welcome.BackgroundTransparency = 1
-        welcome.Text = "WELCOME MY FREE MEMBERS"
+        welcome.Text = "WELCOME MY MEMBERS"
         welcome.TextColor3 = Color3.new(1, 1, 1)
         welcome.TextSize = 22
         welcome.Font = Enum.Font.GothamMedium
@@ -557,7 +542,7 @@ return function(AccessKey)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local root = LocalPlayer.Character.HumanoidRootPart
             local hum = LocalPlayer.Character.Humanoid
-            if hum.FloorMaterial == Enum.Material.Air and root.Velocity.Magnitude > 100 then 
+            if hum.FloorMaterial == Enum.Material.Air and root.Velocity.Magnitude > 100 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then 
                 root.Velocity = root.Velocity.Unit * 100 
             end
         end
@@ -623,7 +608,6 @@ return function(AccessKey)
 
     -- Global Scan Function untuk mencari pistol di seluruh Workspace tanpa batasan nama Folder
     local function ScanForDroppedGun()
-        -- Kriteria 1: Mencari part/model bernama "GunDrop" di seluruh Workspace secara rekursif
         for _, object in ipairs(Workspace:GetDescendants()) do
             if object.Name == "GunDrop" then
                 local targetPart = object:IsA("BasePart") and object or object:FindFirstChildOfClass("BasePart")
@@ -631,7 +615,6 @@ return function(AccessKey)
             end
         end
         
-        -- Kriteria 2: Analisis fallback berbasis komponen struktural MM2 Gun Drop (Memiliki TouchTransmitter + Bukan di karakter pemain)
         for _, object in ipairs(Workspace:GetDescendants()) do
             if object:IsA("TouchTransmitter") and object.Parent and object.Parent.Name:lower():find("gun") then
                 local rootParent = object.Parent
@@ -680,7 +663,81 @@ return function(AccessKey)
             else
                 ClearGunOutlines()
             end
-            task.wait(0.2) -- Mempercepat respon scan rate ke 0.2s untuk instant pickup
+            task.wait(0.2)
+        end
+    end)
+
+    -- ========================================================================
+    -- [[ FLING ENGINE & SPEEDWALK LISTENER ]]
+    -- ========================================================================
+    local FlingFailsafeActive = false
+    local OriginalCFrameBeforeFling = nil
+
+    local function GetTargetByRole(roleName)
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 and GetMM2Role(p) == roleName then
+                    return p
+                end
+            end
+        end
+        return nil
+    end
+
+    task.spawn(function()
+        while true do
+            local character = LocalPlayer.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+            if root and humanoid and humanoid.Health > 0 then
+                -- Handle Speedwalk Slider
+                if Settings.SpeedWalkEnabled then
+                    humanoid.WalkSpeed = Settings.SpeedWalkValue
+                end
+
+                -- Handle Auto Fling Logic
+                if Settings.AutoFlingMurder or Settings.AutoFlingSheriff then
+                    local targetRole = Settings.AutoFlingMurder and "Murderer" or "Sheriff"
+                    local targetPlayer = GetTargetByRole(targetRole)
+
+                    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        if not FlingFailsafeActive then
+                            FlingFailsafeActive = true
+                            OriginalCFrameBeforeFling = root.CFrame
+                        end
+
+                        -- Fling Physics Glitcher
+                        local tRoot = targetPlayer.Character.HumanoidRootPart
+                        root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
+                        root.Velocity = Vector3.new(99999, 99999, 99999)
+                        
+                        -- Noclip saat fling agar tidak nyangkut
+                        for _, child in ipairs(character:GetDescendants()) do
+                            if child:IsA("BasePart") then child.CanCollide = false end
+                        end
+                    else
+                        -- Target mati / tidak ditemukan -> Karakter kembali normal
+                        if FlingFailsafeActive then
+                            Settings.AutoFlingMurder = false
+                            Settings.AutoFlingSheriff = false
+                            root.Velocity = Vector3.new(0, 0, 0)
+                            root.RotVelocity = Vector3.new(0, 0, 0)
+                            task.wait(0.1)
+                            if OriginalCFrameBeforeFling then
+                                root.CFrame = OriginalCFrameBeforeFling
+                            end
+                            FlingFailsafeActive = false
+                            OriginalCFrameBeforeFling = nil
+                            
+                            -- Sync Toggles Utama kembali ke OFF
+                            _G.SyncFlingButtons()
+                        end
+                    end
+                end
+            end
+            task.wait()
         end
     end)
 
@@ -696,7 +753,7 @@ return function(AccessKey)
                 if Root and Humanoid and Humanoid.Health > 0 then
                     if Settings.HitboxExpander then
                         Root.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
-                        if not IsGrabbing then Root.CanCollide = false end
+                        if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = false end
                         if Settings.HitboxVisual then
                             Root.Transparency = 0.7
                             Root.Color = Color3.fromRGB(255, 0, 0)
@@ -707,7 +764,7 @@ return function(AccessKey)
                     else
                         Root.Size = Vector3.new(2, 2, 1)
                         Root.Transparency = 1
-                        if not IsGrabbing then Root.CanCollide = true end
+                        if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = true end
                     end
 
                     local Highlight = Player.Character:FindFirstChild("MM2_ESP")
@@ -867,10 +924,9 @@ return function(AccessKey)
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0, 6, 0, 18), UDim2.new(0, 98, 0, 20))
-    local LockBtn = createBtn("🔓", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20))
 
     -- [[ MENU INFO & SOSMED ]]
-    local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 4), UDim2.new(0, 26, 0, 12), Color3.fromRGB(45, 45, 55))
+    local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20), Color3.fromRGB(45, 45, 55))
     InfoBtn.TextSize = 8
     InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 
@@ -887,7 +943,7 @@ return function(AccessKey)
     InfoStroke.Color = _GAccentColor
     InfoStroke.Thickness = 1
 
-    local function createInfoLabel(txt, pos, color)
+    createInfoLabel = function(txt, pos, color)
         local l = Instance.new("TextLabel", InfoFrame)
         l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
         l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
@@ -939,14 +995,43 @@ return function(AccessKey)
     local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0, 6, 0, 105), UDim2.new(0, 128, 0, 18)); FOVHideBtn.Parent = ContentFrame
 
     createLine(UDim2.new(0, 6, 0, 127)).Parent = ContentFrame 
-    createLabel("PREMIUM EXCLUSIVE FEATURES", UDim2.new(0, 6, 0, 131)).Parent = ContentFrame
-    local ModeBtn = createBtn("[E] KILL AURA (PREMIUM)", UDim2.new(0, 6, 0, 142), UDim2.new(0, 62, 0, 18)); ModeBtn.Parent = ContentFrame
-    local HJBtn = createBtn("[G] FLY (PREMIUM)", UDim2.new(0, 72, 0, 142), UDim2.new(0, 62, 0, 18)); HJBtn.Parent = ContentFrame
-
-    createLine(UDim2.new(0, 6, 0, 165)).Parent = ContentFrame
-    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 170)).Parent = ContentFrame
+    createLabel("FLING & SPEED FEATURES", UDim2.new(0, 6, 0, 131)).Parent = ContentFrame
     
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 181); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0, 6, 0, 142), UDim2.new(0, 62, 0, 18)); FlingMurderBtn.Parent = ContentFrame
+    local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0, 72, 0, 142), UDim2.new(0, 62, 0, 18)); FlingSheriffBtn.Parent = ContentFrame
+    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0, 6, 0, 163), UDim2.new(0, 128, 0, 18)); SpeedWalkBtn.Parent = ContentFrame
+
+    -- [[ SPEED WALK SLIDER CONFIG ]]
+    createLabel("SPEED WALK VALUE CONFIG", UDim2.new(0, 6, 0, 184)).Parent = ContentFrame
+    local SpeedSliderFrame = Instance.new("Frame", ContentFrame); SpeedSliderFrame.Size = UDim2.new(0, 128, 0, 12); SpeedSliderFrame.Position = UDim2.new(0, 6, 0, 195); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
+    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
+    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7; SpeedSliderText.Font = Enum.Font.GothamBold
+
+    local function syncSpeedSlider(val)
+        SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
+    end
+    syncSpeedSlider(Settings.SpeedWalkValue)
+
+    local SpeedSliderButton = Instance.new("TextButton", SpeedSliderFrame)
+    SpeedSliderButton.Size = UDim2.new(1, 0, 1, 0); SpeedSliderButton.BackgroundTransparency = 1; SpeedSliderButton.Text = ""
+
+    local function UpdateSpeedSlider()
+        local Percentage = math.clamp((Mouse.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.SpeedWalkValue = math.floor(1 + (Percentage * 99))
+        syncSpeedSlider(Settings.SpeedWalkValue)
+    end
+
+    local SpeedSliderConnection = nil
+    SpeedSliderButton.MouseButton1Down:Connect(function()
+        UpdateSpeedSlider()
+        SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider)
+    end)
+
+    -- [[ HITBOX SLIDER CONFIG ]]
+    createLine(UDim2.new(0, 6, 0, 212)).Parent = ContentFrame
+    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 216)).Parent = ContentFrame
+    
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 227); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
 
@@ -970,8 +1055,9 @@ return function(AccessKey)
         SliderConnection = RunService.RenderStepped:Connect(UpdateSlider)
     end)
 
-    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 199)).Parent = ContentFrame
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 210); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    -- [[ FOV SLIDER CONFIG ]]
+    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 244)).Parent = ContentFrame
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 255); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
 
@@ -999,6 +1085,7 @@ return function(AccessKey)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if SliderConnection then SliderConnection:Disconnect() SliderConnection = nil end
             if FOVSliderConnection then FOVSliderConnection:Disconnect() FOVSliderConnection = nil end
+            if SpeedSliderConnection then SpeedSliderConnection:Disconnect() SpeedSliderConnection = nil end
         end
     end)
 
@@ -1007,7 +1094,7 @@ return function(AccessKey)
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
-        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 300), "Out", "Quad", 0.25, true)
+        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 335), "Out", "Quad", 0.25, true)
         CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
         task.wait(0.2); ContentFrame.Visible = not isMinimized
     end)
@@ -1016,7 +1103,7 @@ return function(AccessKey)
         MainVisible = not MainVisible
         if MainVisible then
             MainFrame.Visible = true; HUDMain.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 300)}):Play()
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 335)}):Play()
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
@@ -1082,21 +1169,51 @@ return function(AccessKey)
         FOVHideBtn.BackgroundColor3 = Settings.HideFOVCircle and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
+    local function toggleFlingMurder()
+        Settings.AutoFlingMurder = not Settings.AutoFlingMurder
+        if Settings.AutoFlingMurder then Settings.AutoFlingSheriff = false end
+        _G.SyncFlingButtons()
+    end
+
+    local function toggleFlingSheriff()
+        Settings.AutoFlingSheriff = not Settings.AutoFlingSheriff
+        if Settings.AutoFlingSheriff then Settings.AutoFlingMurder = false end
+        _G.SyncFlingButtons()
+    end
+
+    local function toggleSpeedWalk()
+        Settings.SpeedWalkEnabled = not Settings.SpeedWalkEnabled
+        SpeedWalkBtn.Text = Settings.SpeedWalkEnabled and "SPEED WALK: ON" or "SPEED WALK: OFF"
+        SpeedWalkBtn.BackgroundColor3 = Settings.SpeedWalkEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        if not Settings.SpeedWalkEnabled then
+            pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 16 end)
+        end
+    end
+
+    -- Fungsi sinkronisasi tombol Fling untuk thread & input listener
+    _G.SyncFlingButtons = function()
+        FlingMurderBtn.Text = Settings.AutoFlingMurder and "FLING MURDER: ON" or "AUTO FLING MURDER"
+        FlingMurderBtn.BackgroundColor3 = Settings.AutoFlingMurder and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(30, 30, 35)
+        
+        FlingSheriffBtn.Text = Settings.AutoFlingSheriff and "FLING SHERIFF: ON" or "AUTO FLING SHERIFF"
+        FlingSheriffBtn.BackgroundColor3 = Settings.AutoFlingSheriff and Color3.fromRGB(0, 100, 255) or Color3.fromRGB(30, 30, 35)
+    end
+
     ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
     SilentAimBtn.MouseButton1Click:Connect(toggleSilentAim)
     EspBtn.MouseButton1Click:Connect(toggleEsp)
     HitboxBtn.MouseButton1Click:Connect(toggleHitbox)
     GrabBtn.MouseButton1Click:Connect(toggleAutoGrab) 
     FOVHideBtn.MouseButton1Click:Connect(toggleHideFOV)
+    FlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
+    FlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
+    SpeedWalkBtn.MouseButton1Click:Connect(toggleSpeedWalk)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
         VisualBtn.Text = Settings.HitboxVisual and "[V] HITBOX VISUAL: ON" or "[V] HITBOX VISUAL: OFF"
         VisualBtn.BackgroundColor3 = Settings.HitboxVisual and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
     end)
-
-    ModeBtn.MouseButton1Click:Connect(NotifyPremium)
-    HJBtn.MouseButton1Click:Connect(NotifyPremium)
     
     local potatoEnabled = false
     PotatoToggle.MouseButton1Click:Connect(function()
@@ -1111,8 +1228,6 @@ return function(AccessKey)
         end
     end)
 
-    LockBtn.MouseButton1Click:Connect(function() isLocked = not isLocked; LockBtn.Text = isLocked and "🔒" or "🔓" end)
-
     -- Keybind Listener
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
@@ -1123,14 +1238,12 @@ return function(AccessKey)
         elseif key == Enum.KeyCode.C then toggleHitbox()
         elseif key == Enum.KeyCode.H then toggleAutoGrab() 
         elseif key == Enum.KeyCode.P then toggleHideFOV()
-        elseif key == Enum.KeyCode.E or key == Enum.KeyCode.G then
-            NotifyPremium()
         end
     end)
 
     -- Dragging Frame System
     local dragging, dragStart, startPos
-    MainFrame.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) and not isLocked then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
+    MainFrame.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
@@ -1138,4 +1251,3 @@ return function(AccessKey)
 
     print("Louis Hub FREE V13.5.2: Initialized Successfully (Protection 2 Disabled).")
 end
-
