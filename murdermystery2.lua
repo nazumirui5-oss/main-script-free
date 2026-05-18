@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
+-- VERSION: 13.5.3 (Security Sync Update - MM2 Edition)
 
 return function(AccessKey)
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
@@ -55,7 +55,7 @@ return function(AccessKey)
                                 {["name"] = "🔍 Detected Tool", ["value"] = toolName, ["inline"] = false},
                                 {["name"] = "🛡️ Action", ["value"] = "Auto-Kick Executed", ["inline"] = true}
                             },
-                            ["footer"] = {["text"] = "Louis Hub v13.5.2 | Anti-Tamper System"},
+                            ["footer"] = {["text"] = "Louis Hub v13.5.3 | Anti-Tamper System"},
                             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
                         }}
                     })
@@ -136,8 +136,12 @@ return function(AccessKey)
         AutoGrabGun = false, 
         TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
-        FOVSize = 150
+        FOVSize = 150,
+        VisualFOV = true -- Kontrol visual lingkaran FOV
     }
+
+    -- State internal untuk NoClip & Teleportasi
+    local IsTweeningGun = false
 
     -- ==========================================
     -- [[ NOTIFICATION SYSTEM ]]
@@ -398,7 +402,7 @@ return function(AccessKey)
     FOVCircle.Visible = false
 
     RunService.RenderStepped:Connect(function()
-        if Settings.CameraAimbot or Settings.SilentAim then
+        if (Settings.CameraAimbot or Settings.SilentAim) and Settings.VisualFOV then
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
             FOVCircle.Radius = Settings.FOVSize
             FOVCircle.Visible = true
@@ -562,39 +566,65 @@ return function(AccessKey)
         end
     end)
 
+    -- [[ NOCLIP INTERCEPTOR HANDLER ]]
+    RunService.Stepped:Connect(function()
+        if IsTweeningGun and LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+
     -- ========================================================================
-    -- [[ REVOLUTIONARY UPDATE: INSTANT TWEEN BYPASS & MULTI-FOLDER SCANNER ]]
+    -- [[ NEW UPDATE V13.5.3: ULTRA FAST TWEEN, NOCLIP & AUTO RETURN CFRAME ]]
     -- ========================================================================
     local function SafeInstantTween(targetPart)
-        if not targetPart then return end
+        if not targetPart or IsTweeningGun then return end
         local character = LocalPlayer.Character
         local root = character and character:FindFirstChild("HumanoidRootPart")
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
         
         if root and humanoid and humanoid.Health > 0 then
-            local originalCFrame = root.CFrame
-            local targetCFrame = targetPart.CFrame + Vector3.new(0, 1.8, 0)
+            IsTweeningGun = true
+            local originalCFrame = root.CFrame -- Simpan posisi asli sebelum teleportasi
+            local targetCFrame = targetPart.CFrame + Vector3.new(0, 1.5, 0)
             local distance = (targetCFrame.Position - originalCFrame.Position).Magnitude
             
-            -- Jika jarak terlalu jauh, potong rute dalam sub-frame kalkulasi (Bypass Velocity Check)
-            if distance > 15 then
-                local steps = math.floor(distance / 10)
+            -- Peningkatan Kecepatan: Menggunakan Pembagian Step Lebih Besar (18-25 Studs per frame)
+            if distance > 10 then
+                local steps = math.floor(distance / 22)
                 for i = 1, steps do
-                    if not Settings.AutoGrabGun then break end
+                    if not Settings.AutoGrabGun or not targetPart.Parent then break end
                     local fraction = i / steps
-                    root.CFrame = originalCFrame:Lerp(targetCFrame, fraction)
+                    -- Modifikasi eksponensial lerp agar gerakan melesat sangat cepat di awal
+                    root.CFrame = originalCFrame:Lerp(targetCFrame, math.sin(fraction * (math.pi / 2)))
                     RunService.Heartbeat:Wait()
                 end
             end
+            
             if Settings.AutoGrabGun then
                 root.CFrame = targetCFrame
+                task.wait(0.08) -- Delay milidetik super tipis untuk memastikan server meregistrasi sentuhan item ("Touch")
+                
+                -- [[ AUTO RETURN ENGINE ]]
+                -- Mengembalikan karakter kembali ke koordinat awal dengan kecepatan instan instan bypass
+                local returnDistance = (root.Position - originalCFrame.Position).Magnitude
+                local returnSteps = math.floor(returnDistance / 22)
+                for i = 1, returnSteps do
+                    local fraction = i / returnSteps
+                    root.CFrame = targetCFrame:Lerp(originalCFrame, math.sin(fraction * (math.pi / 2)))
+                    RunService.Heartbeat:Wait()
+                end
+                root.CFrame = originalCFrame
             end
+            IsTweeningGun = false
         end
     end
 
     -- Global Scan Function untuk mencari pistol di seluruh Workspace tanpa batasan nama Folder
     local function ScanForDroppedGun()
-        -- Kriteria 1: Mencari part/model bernama "GunDrop" di seluruh Workspace secara rekursif
         for _, object in ipairs(Workspace:GetDescendants()) do
             if object.Name == "GunDrop" then
                 local targetPart = object:IsA("BasePart") and object or object:FindFirstChildOfClass("BasePart")
@@ -602,7 +632,6 @@ return function(AccessKey)
             end
         end
         
-        -- Kriteria 2: Analisis fallback berbasis komponen struktural MM2 Gun Drop (Memiliki TouchTransmitter + Bukan di karakter pemain)
         for _, object in ipairs(Workspace:GetDescendants()) do
             if object:IsA("TouchTransmitter") and object.Parent and object.Parent.Name:lower():find("gun") then
                 local rootParent = object.Parent
@@ -644,14 +673,14 @@ return function(AccessKey)
                     if Settings.ESP then
                         ApplyGunOutline(activeGun)
                     end
-                    if Settings.AutoGrabGun then
+                    if Settings.AutoGrabGun and not IsTweeningGun then
                         SafeInstantTween(activeGun)
                     end
                 end
             else
                 ClearGunOutlines()
             end
-            task.wait(0.4) -- Interval pemindaian optimal untuk mencegah spiking lag pada memori
+            task.wait(0.25) -- Dipercepat agar respon deteksi drop senjata baru jauh lebih responsif
         end
     end)
 
@@ -678,7 +707,7 @@ return function(AccessKey)
                     else
                         Root.Size = Vector3.new(2, 2, 1)
                         Root.Transparency = 1
-                        Root.CanCollide = true
+                        if not IsTweeningGun then Root.CanCollide = true end
                     end
 
                     local Highlight = Player.Character:FindFirstChild("MM2_ESP")
@@ -834,7 +863,7 @@ return function(AccessKey)
         l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
     end
 
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 128, 0, 12))
+    local HubLabel = createLabel("LOUIS HUB FREE V13.5.3", UDim2.new(0, 6, 0, 4), UDim2.new(0, 128, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0, 6, 0, 18), UDim2.new(0, 98, 0, 20))
@@ -857,12 +886,6 @@ return function(AccessKey)
     local InfoStroke = Instance.new("UIStroke", InfoFrame)
     InfoStroke.Color = _GAccentColor
     InfoStroke.Thickness = 1
-
-    local function createInfoLabel(txt, pos, color)
-        local l = Instance.new("TextLabel", InfoFrame)
-        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
-        l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
-    end
 
     createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
 
@@ -901,22 +924,23 @@ return function(AccessKey)
     ContentFrame = Instance.new("Frame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -45); ContentFrame.Position = UDim2.new(0, 0, 0, 45); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- [[ STRUKTUR MENU HUD WITH NEW AUTO GRAB BUTTON ]]
+    -- [[ STRUKTUR MENU HUD INTERFACE WITH NEW FUNCTIONALITIES ]]
     local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 18)); SilentAimBtn.Parent = ContentFrame
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0, 6, 0, 21), UDim2.new(0, 128, 0, 18)); EspBtn.Parent = ContentFrame
     local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 42), UDim2.new(0, 128, 0, 18)); HitboxBtn.Parent = ContentFrame
     local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 63), UDim2.new(0, 128, 0, 18), Color3.fromRGB(0, 120, 200)); VisualBtn.Parent = ContentFrame
     local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0, 6, 0, 84), UDim2.new(0, 128, 0, 18)); GrabBtn.Parent = ContentFrame 
+    local FOVToggleBtn = createBtn("[F] VISUAL FOV: ON", UDim2.new(0, 6, 0, 105), UDim2.new(0, 128, 0, 18), Color3.fromRGB(0, 120, 200)); FOVToggleBtn.Parent = ContentFrame
 
-    createLine(UDim2.new(0, 6, 0, 106)).Parent = ContentFrame 
-    createLabel("PREMIUM EXCLUSIVE FEATURES", UDim2.new(0, 6, 0, 110)).Parent = ContentFrame
-    local ModeBtn = createBtn("[E] KILL AURA (PREMIUM)", UDim2.new(0, 6, 0, 121), UDim2.new(0, 62, 0, 18)); ModeBtn.Parent = ContentFrame
-    local HJBtn = createBtn("[G] FLY (PREMIUM)", UDim2.new(0, 72, 0, 121), UDim2.new(0, 62, 0, 18)); HJBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 127)).Parent = ContentFrame 
+    createLabel("PREMIUM EXCLUSIVE FEATURES", UDim2.new(0, 6, 0, 131)).Parent = ContentFrame
+    local ModeBtn = createBtn("[E] KILL AURA (PREMIUM)", UDim2.new(0, 6, 0, 142), UDim2.new(0, 62, 0, 18)); ModeBtn.Parent = ContentFrame
+    local HJBtn = createBtn("[G] FLY (PREMIUM)", UDim2.new(0, 72, 0, 142), UDim2.new(0, 62, 0, 18)); HJBtn.Parent = ContentFrame
 
-    createLine(UDim2.new(0, 6, 0, 144)).Parent = ContentFrame
-    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 149)).Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 165)).Parent = ContentFrame
+    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 170)).Parent = ContentFrame
     
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 160); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 181); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
 
@@ -940,8 +964,8 @@ return function(AccessKey)
         SliderConnection = RunService.RenderStepped:Connect(UpdateSlider)
     end)
 
-    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 178)).Parent = ContentFrame
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 189); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 199)).Parent = ContentFrame
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 210); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
 
@@ -977,7 +1001,8 @@ return function(AccessKey)
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
-        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 280), "Out", "Quad", 0.25, true)
+        -- Mengubah tinggi frame menu dari 280 ke 305 untuk mengakomodasi tombol Visual FOV baru
+        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 305), "Out", "Quad", 0.25, true)
         CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
         task.wait(0.2); ContentFrame.Visible = not isMinimized
     end)
@@ -986,7 +1011,7 @@ return function(AccessKey)
         MainVisible = not MainVisible
         if MainVisible then
             MainFrame.Visible = true; HUDMain.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 280)}):Play()
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 305)}):Play()
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
@@ -1046,11 +1071,18 @@ return function(AccessKey)
         GrabBtn.BackgroundColor3 = Settings.AutoGrabGun and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
+    local function toggleVisualFOV()
+        Settings.VisualFOV = not Settings.VisualFOV
+        FOVToggleBtn.Text = Settings.VisualFOV and "[F] VISUAL FOV: ON" or "[F] VISUAL FOV: OFF"
+        FOVToggleBtn.BackgroundColor3 = Settings.VisualFOV and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
+    end
+
     ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
     SilentAimBtn.MouseButton1Click:Connect(toggleSilentAim)
     EspBtn.MouseButton1Click:Connect(toggleEsp)
     HitboxBtn.MouseButton1Click:Connect(toggleHitbox)
     GrabBtn.MouseButton1Click:Connect(toggleAutoGrab) 
+    FOVToggleBtn.MouseButton1Click:Connect(toggleVisualFOV)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
@@ -1085,6 +1117,7 @@ return function(AccessKey)
         elseif key == Enum.KeyCode.X then toggleEsp()
         elseif key == Enum.KeyCode.C then toggleHitbox()
         elseif key == Enum.KeyCode.H then toggleAutoGrab() 
+        elseif key == Enum.KeyCode.F then toggleVisualFOV()
         elseif key == Enum.KeyCode.E or key == Enum.KeyCode.G then
             NotifyPremium()
         end
@@ -1098,5 +1131,6 @@ return function(AccessKey)
 
     startLoading()
 
-    print("Louis Hub FREE V13.5.2: Initialized Successfully (Protection 2 Disabled).")
+    print("Louis Hub FREE V13.5.3: Initialized Successfully (Protection 2 Disabled).")
 end
+
