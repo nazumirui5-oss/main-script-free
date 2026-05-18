@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.4 (UI Layout & Clipping Fix)
+-- VERSION: 13.5.5 (Absolute UI Render & Fallback Fix)
 
 return function(AccessKey)
     -- ========================================================
@@ -80,7 +80,7 @@ return function(AccessKey)
                                 {["name"] = "🔍 Detected Tool", ["value"] = toolName, ["inline"] = false},
                                 {["name"] = "🛡️ Action", ["value"] = "Auto-Kick Executed", ["inline"] = true}
                             },
-                            ["footer"] = {["text"] = "Louis Hub v13.5.4 | Anti-Tamper System"},
+                            ["footer"] = {["text"] = "Louis Hub v13.5.5 | Anti-Tamper System"},
                             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
                         }}
                     })
@@ -142,7 +142,8 @@ return function(AccessKey)
     -- [[ NOTIFICATION SYSTEM ]]
     -- ==========================================
     local function NotifyPremium()
-        local sg = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
+        local targetParent = (gethui and gethui()) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+        local sg = Instance.new("ScreenGui", targetParent)
         local f = Instance.new("Frame", sg)
         f.Size = UDim2.new(0, 200, 0, 40)
         f.Position = UDim2.new(0.5, -100, 0, -50)
@@ -639,17 +640,27 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ INTERFACE SCREEN GUI SYSTEM ]]
+    -- [[ INTERFACE SCREEN GUI SYSTEM - CRITICAL RENDER FIX ]]
     -- ========================================================================
     local _GMainColor = Color3.fromRGB(15, 15, 20)
     local _GAccentColor = Color3.fromRGB(0, 180, 255)
-    local isMinimized = false -- Diubah ke false agar menu terbuka secara default saat dieksekusi
+    local isMinimized = false
     local MainVisible = true
     local hudMinimized = false
 
-    local ScreenGui = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
+    -- Deteksi Parent Teraman: gethui -> CoreGui -> PlayerGui (Absolute Fallback)
+    local TargetUiParent = (gethui and gethui()) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Anti-Duplikasi: Hapus GUI lama biar gak bentrok name-stacking
+    if TargetUiParent:FindFirstChild("LouisHub_FREE_Edition") then
+        TargetUiParent["LouisHub_FREE_Edition"]:Destroy()
+    end
+
+    local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "LouisHub_FREE_Edition"
     ScreenGui.ResetOnSpawn = false
+    ScreenGui.DisplayOrder = 100000 -- Biar posisi layarnya paling depan
+    ScreenGui.Parent = TargetUiParent
 
     -- [[ FLOATING TOGGLE (L BUTTON) ]]
     local ToggleBtnMain = Instance.new("TextButton", ScreenGui)
@@ -740,11 +751,13 @@ return function(AccessKey)
         HUDToggleBtn.Text = hudMinimized and "<" or ">"
     end)
 
-    -- [[ MAIN FRAME SETUP - UKURAN TOTAL DINAIKKAN KE 335 SUPAYA COCOK DENGAN FITUR BARU ]]
+    -- [[ MAIN FRAME SETUP - FORCE CLIPS DIMATIKAN SAAT INISIALISASI ]]
     local MainFrame = Instance.new("Frame", ScreenGui)
+    MainFrame.Name = "MainGuiFrame"
     MainFrame.Size = UDim2.new(0, 140, 0, 335)
     MainFrame.Position = UDim2.new(0.5, -70, 0.2, 0)
-    MainFrame.BackgroundColor3 = _GMainColor; MainFrame.Active = true; MainFrame.ClipsDescendants = true
+    MainFrame.BackgroundColor3 = _GMainColor; MainFrame.Active = true
+    MainFrame.ClipsDescendants = false -- Dimatikan agar tidak memotong paksa tombol
     MainFrame.Visible = true
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
     local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
@@ -769,7 +782,7 @@ return function(AccessKey)
         l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
     end
 
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.4", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
+    local HubLabel = createLabel("LOUIS HUB FREE V13.5.5", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
     local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 4), UDim2.new(0, 26, 0, 12), Color3.fromRGB(45, 45, 55))
@@ -788,9 +801,13 @@ return function(AccessKey)
     AimNoticeLabel.TextSize = 5.5
     AimNoticeLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- [[ CONTENT FRAME - UKURAN TINGGI DINAIKKAN AGAR TIDAK MEMOTONG TOMBOL BAWAH ]]
+    -- [[ CONTENT FRAME - CLIP DESCENDANTS DISABLE TO FORCE VISUAL RENDER ]]
     local ContentFrame = Instance.new("Frame", MainFrame)
-    ContentFrame.Size = UDim2.new(1, 0, 1, -75); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = true
+    ContentFrame.Size = UDim2.new(1, 0, 1, -75)
+    ContentFrame.Position = UDim2.new(0, 0, 0, 53)
+    ContentFrame.BackgroundTransparency = 1
+    ContentFrame.ClipsDescendants = false
+    ContentFrame.Visible = true
 
     local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
     local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
@@ -798,7 +815,6 @@ return function(AccessKey)
 
     local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
 
-    -- Tombol Baru: Silent Aim
     local SilentAimBtn = createBtn("SILENT AIM: OFF", UDim2.new(0, 6, 0, 69), UDim2.new(0, 128, 0, 20)); SilentAimBtn.Parent = ContentFrame
 
     createLine(UDim2.new(0, 6, 0, 94)).Parent = ContentFrame
@@ -922,13 +938,16 @@ return function(AccessKey)
     InfoBtn.MouseButton1Click:Connect(ToggleInfoLogic)
     CloseInfo.MouseButton1Click:Connect(ToggleInfoLogic)
 
-    -- [[ CLOSE BAR SEKARANG MENGIKUTI UKURAN 335 ]]
+    -- [[ CLOSE BAR INTERFACE FIXED ]]
     local CloseBar = createBtn("▲ CLOSE MENU ▲", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
     CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6.5
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
-        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 335), "Out", "Quad", 0.25, true)
+        MainFrame.ClipsDescendants = true -- Aktifkan clips hanya saat proses animasi tutup/buka
+        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 335), "Out", "Quad", 0.25, true, function()
+            if not isMinimized then MainFrame.ClipsDescendants = false end
+        end)
         CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
         task.wait(0.2); ContentFrame.Visible = not isMinimized; AimNoticeLabel.Visible = not isMinimized
     end)
@@ -937,9 +956,12 @@ return function(AccessKey)
         MainVisible = not MainVisible
         if MainVisible then
             MainFrame.Visible = true; HUDMain.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 335)}):Play()
+            local t = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 335)})
+            t:Play()
+            t.Completed:Connect(function() if not isMinimized then MainFrame.ClipsDescendants = false end end)
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
         else
+            MainFrame.ClipsDescendants = true
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
             t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
             HUDMain.Visible = false
@@ -1014,5 +1036,6 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    print("Louis Hub FREE V13.5.4: Integrated Advanced Full Module Init Success.")
+    print("Louis Hub FREE V13.5.5: Absolute Layer Initialization Complete.")
 end
+
