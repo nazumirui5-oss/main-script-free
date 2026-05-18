@@ -40,10 +40,10 @@ return function(AccessKey)
     local TweenService = game:GetService("TweenService")
     local Lighting = game:GetService("Lighting")
 
-    -- Konfigurasi Default Skrip (Gabungan) - UPDATED WITH SILENT AIM
+    -- Konfigurasi Default Skrip (Gabungan) - UPDATED DEFAULT STATES
     local Settings = {
         CameraAimbot = true,
-        SilentAim = true, -- Fitur Baru
+        SilentAim = false, -- Fitur Baru Redirection Engine
         HitboxExpander = false,
         HitboxVisual = true, 
         ESP = true,
@@ -424,7 +424,6 @@ return function(AccessKey)
         return "Innocent"
     end
 
-    -- Menggunakan Deteksi Berdasarkan ESP (Warna Highlight)
     local function GetMurdererTarget()
         local Target = nil
         local ShortestDistance = math.huge
@@ -436,7 +435,7 @@ return function(AccessKey)
                 local Hum = v.Character:FindFirstChildOfClass("Humanoid")
                 local ESP = v.Character:FindFirstChild("MM2_ESP")
                 
-                -- Memanfaatkan deteksi ESP: Murderer jika warna highlight merah
+                -- Memanfaatkan data ESP (Warna Merah untuk Murderer)
                 if Root and Hum and Hum.Health > 0 and ESP and ESP.FillColor == Color3.fromRGB(255, 0, 0) then
                     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
@@ -463,7 +462,7 @@ return function(AccessKey)
                 local Hum = v.Character:FindFirstChildOfClass("Humanoid")
                 local ESP = v.Character:FindFirstChild("MM2_ESP")
                 
-                -- Memanfaatkan deteksi ESP: Target non-murderer (Bukan Merah)
+                -- Memanfaatkan data ESP (Bukan Merah / Selain Murderer)
                 if Root and Hum and Hum.Health > 0 and (not ESP or ESP.FillColor ~= Color3.fromRGB(255, 0, 0)) then
                     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
@@ -479,8 +478,29 @@ return function(AccessKey)
         return Target
     end
 
-    -- Mendapatkan target fleksibel berdasarkan Role kita saat ini
-    local function GetClosestTarget()
+    -- [ Camera Aimbot Loop ]
+    RunService.RenderStepped:Connect(function()
+        if Settings.CameraAimbot and LocalPlayer.Character then
+            local MyRole = GetMM2Role(LocalPlayer)
+            
+            if MyRole == "Murderer" then
+                local TargetPart = GetInnocentOrSheriffTarget()
+                if TargetPart then
+                    Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, TargetPart.Position)
+                end
+            else
+                local TargetPart = GetMurdererTarget()
+                if TargetPart then
+                    Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, TargetPart.Position)
+                end
+            end
+        end
+    end)
+
+    -- ========================================================================
+    -- [[ FEATURE: SILENT AIM (REDIRECTION ENGINE) VIA HOOKMETATABLE ]]
+    -- ========================================================================
+    local function GetSilentAimTarget()
         local MyRole = GetMM2Role(LocalPlayer)
         if MyRole == "Murderer" then
             return GetInnocentOrSheriffTarget()
@@ -489,40 +509,27 @@ return function(AccessKey)
         end
     end
 
-    -- Camera Aimbot Loop
-    RunService.RenderStepped:Connect(function()
-        if Settings.CameraAimbot and LocalPlayer.Character then
-            local TargetPart = GetClosestTarget()
-            if TargetPart then
-                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, TargetPart.Position)
-            end
-        end
-    end)
+    local OldNamecall
+    OldNamecall = hookmetatable(game, {
+        __namecall = function(Self, ...)
+            local Args = {...}
+            local Method = getnamecallmethod()
 
-    -- ========================================================================
-    -- [[ FITUR BARU: SILENT AIM (REDIRECTION ENGINE) ]]
-    -- ========================================================================
-    local oldNamecall
-    oldNamecall = hookmetatable(game, {
-        __namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            local args = {...}
-            
-            if Settings.SilentAim and (method == "FireServer" or method == "InvokeServer") then
-                -- Cek apakah argumen mengandung Vector3 yang biasanya menandakan arah peluru/serangan
-                for i, arg in pairs(args) do
+            if Settings.SilentAim and (Method == "FireServer" or Method == "InvokeServer") then
+                -- Cegat jika argumen mengirimkan koordinat tembakan/peluru (Vector3)
+                for i, arg in pairs(Args) do
                     if typeof(arg) == "Vector3" then
-                        local TargetPart = GetClosestTarget()
-                        if TargetPart then
-                            -- Manipulasi data jaringan: Belokkan koordinat langsung ke target part
-                            args[i] = TargetPart.Position
+                        local SilentTarget = GetSilentAimTarget()
+                        if SilentTarget then
+                            -- Redirection Engine: Manipulasi data koordinat langsung ke posisi target
+                            Args[i] = SilentTarget.Position
                             break
                         end
                     end
                 end
             end
-            return oldNamecall(self, unpack(args))
-        end)
+            return OldNamecall(Self, unpack(Args))
+        end
     })
 
     -- Anti-Fling & Velocity Regulator
@@ -806,14 +813,15 @@ return function(AccessKey)
     AimNoticeLabel.Visible = false
 
     ContentFrame = Instance.new("Frame", MainFrame)
-    -- Diperlebar sizenya untuk memuat tombol baru dengan rapi
     ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- [[ TOMBOL BARU: SILENT AIM ]]
-    local SilentBtn = createBtn("SILENT AIM: ON", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20), _GAccentColor); SilentBtn.Parent = ContentFrame
-
-    -- Fitur Utama Menu (Geser kebawah sedikit untuk menyisipkan Silent Aim)
+    -- ========================================================================
+    -- [[ DAFTAR UTAMA FITUR MENU (YANG SUDAH DITAMBAHKAN SILENT AIM) ]]
+    -- ========================================================================
+    local SilentAimBtn = createBtn("SILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); SilentAimBtn.Parent = ContentFrame
+    
     local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
+    
     local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
     VisualBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 
@@ -874,7 +882,7 @@ return function(AccessKey)
     end)
 
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if SliderConnection then SliderConnection:Disconnect() SliderConnection = nil end
             if FOVSliderConnection then FOVSliderConnection:Disconnect() FOVSliderConnection = nil end
         end
@@ -946,7 +954,6 @@ return function(AccessKey)
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
-        -- Ditambah tingginya menjadi 315 saat terbuka agar menampung susunan tombol vertikal baru
         MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 315), "Out", "Quad", 0.25, true)
         CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
         task.wait(0.2); ContentFrame.Visible = not isMinimized; AimNoticeLabel.Visible = not isMinimized
@@ -992,14 +999,14 @@ return function(AccessKey)
         AimbotBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    local function toggleSilentAim()
-        Settings.SilentAim = not Settings.SilentAim
-        SilentBtn.Text = Settings.SilentAim and "SILENT AIM: ON" or "SILENT AIM: OFF"
-        SilentBtn.BackgroundColor3 = Settings.SilentAim and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end
-
     AimbotBtn.MouseButton1Click:Connect(toggleAimbot)
-    SilentBtn.MouseButton1Click:Connect(toggleSilentAim)
+
+    -- Trigger Logic Tombol Silent Aim Baru
+    SilentAimBtn.MouseButton1Click:Connect(function()
+        Settings.SilentAim = not Settings.SilentAim
+        SilentAimBtn.Text = Settings.SilentAim and "SILENT AIM: ON" or "SILENT AIM: OFF"
+        SilentAimBtn.BackgroundColor3 = Settings.SilentAim and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end)
 
     HitboxBtn.MouseButton1Click:Connect(function()
         Settings.HitboxExpander = not Settings.HitboxExpander
@@ -1029,8 +1036,6 @@ return function(AccessKey)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Q then 
             toggleAimbot()
-        elseif input.KeyCode == Enum.KeyCode.T then -- Keybind baru untuk Silent Aim
-            toggleSilentAim()
         end
     end)
 
@@ -1041,3 +1046,4 @@ return function(AccessKey)
 
     print("Louis Hub FREE V13.5.2: Integrated Advanced Full Module Init Success.")
 end
+
