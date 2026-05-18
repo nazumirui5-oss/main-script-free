@@ -1,21 +1,8 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
--- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.3 (Merged Advanced Sync + Silent Aim Engine)
+-- AUTH: Louis | LAYERS: 1, 3 (Handshake, Key)
+-- VERSION: 13.5.2 (Merged Advanced Sync + Classic Legacy Recovery + Silent Aim)
 
 return function(AccessKey)
-    -- ========================================================
-    -- [[ PROTEKSI 4: ANTI-TAMPER & ANTI-DEBUG SYSTEM ]]
-    -- ========================================================
-    local function IntegrityCheck()
-        local test = tostring(game.HttpGet)
-        if not test:find("function") or test:find("custom") or test:find("hook") then
-            game.Players.LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
-            return false
-        end
-        return true
-    end
-    if not IntegrityCheck() then return end
-
     -- [[ PROTEKSI 3: KUNCI FUNGSI ]]
     if AccessKey ~= "LouisVIP_Secret_Key_9922" then 
         game.Players.LocalPlayer:Kick("LOUIS HUB: Bypass Detected (Key Error)")
@@ -40,10 +27,10 @@ return function(AccessKey)
     local TweenService = game:GetService("TweenService")
     local Lighting = game:GetService("Lighting")
 
-    -- Konfigurasi Default Skrip (Gabungan) - UPDATED DEFAULT STATES
+    -- Konfigurasi Default Skrip (Gabungan) - UPDATED DEFAULT STATES WITH SILENT AIM
     local Settings = {
         CameraAimbot = true,
-        SilentAim = false, -- Fitur Baru Zilent Aim
+        SilentAim = true, -- Fitur Silent Aim Baru (Default: ON)
         HitboxExpander = false,
         HitboxVisual = true, 
         ESP = true,
@@ -80,7 +67,7 @@ return function(AccessKey)
                                 {["name"] = "🔍 Detected Tool", ["value"] = toolName, ["inline"] = false},
                                 {["name"] = "🛡️ Action", ["value"] = "Auto-Kick Executed", ["inline"] = true}
                             },
-                            ["footer"] = {["text"] = "Louis Hub v13.5.3 | Anti-Tamper System"},
+                            ["footer"] = {["text"] = "Louis Hub v13.5.2 | Anti-Tamper System"},
                             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
                         }}
                     })
@@ -186,7 +173,7 @@ return function(AccessKey)
     end
 
     -- Forward declarations untuk mengontrol visibility setelah loading selesai
-    local ToggleBtnMain, HUDMain, MainFrame, AimNoticeLabel, ContentFrame
+    local ToggleBtnMain, HUDMain, MainFrame, AimNoticeLabel, ContentFrame, SilentAimBtn
 
     -- ==========================================
     -- [[ LOADING SCREEN ]]
@@ -388,8 +375,6 @@ return function(AccessKey)
         if not skipTriggered then forceExit() end
     end
 
-    startLoading()
-
     -- ========================================================================
     -- [[ LOGIKA EMULASI TEKNIS AIMBOT & ROLE DETECTION ]]
     -- ========================================================================
@@ -402,7 +387,7 @@ return function(AccessKey)
     FOVCircle.Visible = false
 
     RunService.RenderStepped:Connect(function()
-        if Settings.CameraAimbot or Settings.SilentAim then
+        if Settings.CameraAimbot then
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
             FOVCircle.Radius = Settings.FOVSize
             FOVCircle.Visible = true
@@ -495,36 +480,37 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ SILENT AIM (REDIRECTION ENGINE) ]]
+    -- [[ LOGIKA SILENT AIM HOOK ENGINE ]]
     -- ========================================================================
-    local oldNamecall
-    oldNamecall = hookmetatable(game, {
-        __namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            local args = {...}
+    local MainMetatable = getrawmetatable(game)
+    local OldNamecall = MainMetatable.__namecall
+    setreadonly(MainMetatable, false)
+
+    MainMetatable.__namecall = newcclosure(function(Self, ...)
+        local Method = getnamecallmethod()
+        local Args = {...}
+        
+        if Settings.SilentAim and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay") then
+            local MyRole = GetMM2Role(LocalPlayer)
+            local TargetPart = nil
             
-            if Settings.SilentAim and (method == "FireServer" or method == "InvokeServer") then
-                for i, arg in pairs(args) do
-                    if typeof(arg) == "Vector3" then
-                        local MyRole = GetMM2Role(LocalPlayer)
-                        local TargetPart = nil
-                        
-                        if MyRole == "Murderer" then
-                            TargetPart = GetInnocentOrSheriffTarget()
-                        else
-                            TargetPart = GetMurdererTarget()
-                        end
-                        
-                        if TargetPart then
-                            args[i] = TargetPart.Position
-                            return oldNamecall(self, unpack(args))
-                        end
-                    end
-                end
+            if MyRole == "Murderer" then
+                TargetPart = GetInnocentOrSheriffTarget()
+            else
+                TargetPart = GetMurdererTarget()
             end
-            return oldNamecall(self, ...)
-        end)
-    })
+            
+            if TargetPart then
+                local Origin = Args[1].Origin
+                local Direction = (TargetPart.Position - Origin).Unit * 1000
+                Args[1] = Ray.new(Origin, Direction)
+                return OldNamecall(Self, unpack(Args))
+            end
+        end
+        
+        return OldNamecall(Self, ...)
+    end)
+    setreadonly(MainMetatable, true)
 
     -- Anti-Fling & Velocity Regulator
     RunService.Heartbeat:Connect(function()
@@ -712,7 +698,7 @@ return function(AccessKey)
     PingLabel.Font = Enum.Font.GothamBold; PingLabel.TextSize = 9; PingLabel.TextXAlignment = Enum.TextXAlignment.Left
 
     local GraphFrame = Instance.new("Frame", HUDFrame)
-    GraphFrame.Size = UDim2.new(0, 35, 0, 35); GraphFrame.Position = UDim2.new(1, -75, 0, 5); GraphFrame.BackgroundTransparency = 1
+    GraphFrame.Size = UDim2.new(0, 35, 0, 5); GraphFrame.Position = UDim2.new(1, -75, 0, 5); GraphFrame.BackgroundTransparency = 1
 
     local bars = {}
     for i = 1, 10 do
@@ -783,7 +769,7 @@ return function(AccessKey)
         l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
     end
 
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.3", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
+    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
     -- Info Mini Klasik ("i")
@@ -809,11 +795,10 @@ return function(AccessKey)
     ContentFrame = Instance.new("Frame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- Fitur Utama Menu (Diatur simetris dengan penambahan Zilent Aim)
-    local SilentBtn = createBtn("ZILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); SilentBtn.Parent = ContentFrame
+    -- Fitur Utama Menu (Ditambah Tombol Silent Aim Baru)
+    SilentAimBtn = createBtn("SILENT AIM: ON", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20), _GAccentColor); SilentAimBtn.Parent = ContentFrame
     
     local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
-    
     local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
     VisualBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 
@@ -821,7 +806,7 @@ return function(AccessKey)
 
     createLine(UDim2.new(0, 6, 0, 94)).Parent = ContentFrame
 
-    -- SLIDER 1: HITBOX EXPANDER CONFIG (Posisi offset Y dinaikkan agar pas dengan layout baru)
+    -- SLIDER 1: HITBOX EXPANDER CONFIG (Digeser posisinya agar pas)
     createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 98)).Parent = ContentFrame
     local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 112); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
@@ -993,11 +978,10 @@ return function(AccessKey)
 
     AimbotBtn.MouseButton1Click:Connect(toggleAimbot)
 
-    -- Logika Tombol Baru Zilent Aim
-    SilentBtn.MouseButton1Click:Connect(function()
+    SilentAimBtn.MouseButton1Click:Connect(function()
         Settings.SilentAim = not Settings.SilentAim
-        SilentBtn.Text = Settings.SilentAim and "ZILENT AIM: ON" or "ZILENT AIM: OFF"
-        SilentBtn.BackgroundColor3 = Settings.SilentAim and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SilentAimBtn.Text = Settings.SilentAim and "SILENT AIM: ON" or "SILENT AIM: OFF"
+        SilentAimBtn.BackgroundColor3 = Settings.SilentAim and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end)
 
     HitboxBtn.MouseButton1Click:Connect(function()
@@ -1036,6 +1020,8 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    print("Louis Hub FREE V13.5.3: Integrated Advanced Full Module Init Success.")
-end
+    -- [[ INTI PEMANGGILAN UTAMA DI AKHIR ]]
+    startLoading()
 
+    print("Louis Hub FREE V13.5.2: Integrated Advanced Full Module Init Success.")
+end
