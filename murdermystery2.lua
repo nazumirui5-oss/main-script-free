@@ -133,6 +133,7 @@ return function(AccessKey)
         HitboxExpander = false,
         HitboxVisual = true,
         ESP = false,
+        AutoGrabGun = false, -- FITUR BARU DIINTEGRASIKAN
         TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
         FOVSize = 150
@@ -570,7 +571,27 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- LOGIKA GUN DROP ESP OUTLINE
+    -- LOGIKA UTAMA: AUTO GRAB GUN ENGINE
+    -- ========================================================================
+    local function TeleportToGun(gunObject)
+        if not Settings.AutoGrabGun or not gunObject then return end
+        
+        local Character = LocalPlayer.Character
+        local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+        
+        if Root and Humanoid and Humanoid.Health > 0 then
+            local targetPart = gunObject:IsA("BasePart") and gunObject or gunObject:FindFirstChildOfClass("BasePart")
+            if targetPart then
+                -- Teleportasi instan aman ke koordinat senjata (+2 stud di atasnya agar pas masuk ke inventory)
+                Root.CFrame = targetPart.CFrame + Vector3.new(0, 2, 0)
+                print("Louis Hub: Auto Grab Gun Executed on object -> " .. tostring(gunObject.Name))
+            end
+        end
+    end
+
+    -- ========================================================================
+    -- LOGIKA GUN DROP ESP OUTLINE & GRAB TRIGGER
     -- ========================================================================
     local function applyOutline(gunObject)
         if not gunObject or gunObject:FindFirstChild("RexOutline") then return end
@@ -588,9 +609,11 @@ return function(AccessKey)
     local function setupGunOutline(normalFolder)
         if not normalFolder then return end
         
-        if Settings.ESP then
-            local currentGun = normalFolder:FindFirstChild("GunDrop")
-            if currentGun then applyOutline(currentGun) end
+        -- Deteksi senjata yang sudah ada saat fitur diaktifkan di tengah ronde
+        local currentGun = normalFolder:FindFirstChild("GunDrop")
+        if currentGun then
+            if Settings.ESP then applyOutline(currentGun) end
+            task.spawn(function() TeleportToGun(currentGun) end)
         end
         
         if GunDropConnection then GunDropConnection:Disconnect() end
@@ -599,8 +622,11 @@ return function(AccessKey)
                 if GunDropConnection then GunDropConnection:Disconnect() end
                 return 
             end
-            if child.Name == "GunDrop" and Settings.ESP then
-                applyOutline(child)
+            
+            -- Pemicu Fleksibel: Menggunakan nama "GunDrop" atau properti Model yang mengandung string "gun"
+            if child.Name == "GunDrop" or (child:IsA("Model") and child.Name:lower():find("gun")) then
+                if Settings.ESP then applyOutline(child) end
+                task.spawn(function() TeleportToGun(child) end)
             end
         end)
     end
@@ -871,21 +897,22 @@ return function(AccessKey)
     ContentFrame = Instance.new("Frame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -45); ContentFrame.Position = UDim2.new(0, 0, 0, 45); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- [[ STRUKTUR MENU HUD ]]
-    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); SilentAimBtn.Parent = ContentFrame
-    local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0, 6, 0, 25), UDim2.new(0, 128, 0, 20)); EspBtn.Parent = ContentFrame
-    local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 50), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
-    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 75), UDim2.new(0, 128, 0, 20), Color3.fromRGB(0, 120, 200)); VisualBtn.Parent = ContentFrame
+    -- [[ STRUKTUR MENU HUD (KORDINAT DISELARASKAN DAN DITAMBAHKAN TOMBOL AUTO GRAB) ]]
+    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 18)); SilentAimBtn.Parent = ContentFrame
+    local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0, 6, 0, 21), UDim2.new(0, 128, 0, 18)); EspBtn.Parent = ContentFrame
+    local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 42), UDim2.new(0, 128, 0, 18)); HitboxBtn.Parent = ContentFrame
+    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 63), UDim2.new(0, 128, 0, 18), Color3.fromRGB(0, 120, 200)); VisualBtn.Parent = ContentFrame
+    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0, 6, 0, 84), UDim2.new(0, 128, 0, 18)); GrabBtn.Parent = ContentFrame -- INTEGRASI TOMBOL BARU
 
-    createLine(UDim2.new(0, 6, 0, 100)).Parent = ContentFrame 
-    createLabel("PREMIUM EXCLUSIVE FEATURES", UDim2.new(0, 6, 0, 106)).Parent = ContentFrame
-    local ModeBtn = createBtn("[E] KILL AURA (PREMIUM)", UDim2.new(0, 6, 0, 118), UDim2.new(0, 62, 0, 20)); ModeBtn.Parent = ContentFrame
-    local HJBtn = createBtn("[G] FLY (PREMIUM)", UDim2.new(0, 72, 0, 118), UDim2.new(0, 62, 0, 20)); HJBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 106)).Parent = ContentFrame 
+    createLabel("PREMIUM EXCLUSIVE FEATURES", UDim2.new(0, 6, 0, 110)).Parent = ContentFrame
+    local ModeBtn = createBtn("[E] KILL AURA (PREMIUM)", UDim2.new(0, 6, 0, 121), UDim2.new(0, 62, 0, 18)); ModeBtn.Parent = ContentFrame
+    local HJBtn = createBtn("[G] FLY (PREMIUM)", UDim2.new(0, 72, 0, 121), UDim2.new(0, 62, 0, 18)); HJBtn.Parent = ContentFrame
 
     createLine(UDim2.new(0, 6, 0, 144)).Parent = ContentFrame
-    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 150)).Parent = ContentFrame
+    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 149)).Parent = ContentFrame
     
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 162); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 160); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
 
@@ -909,8 +936,8 @@ return function(AccessKey)
         SliderConnection = RunService.RenderStepped:Connect(UpdateSlider)
     end)
 
-    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 182)).Parent = ContentFrame
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 194); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 178)).Parent = ContentFrame
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 189); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
 
@@ -1012,10 +1039,26 @@ return function(AccessKey)
         HitboxBtn.BackgroundColor3 = Settings.HitboxExpander and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
+    -- Integrasi Fungsi Toggle Auto Grab Gun
+    local function toggleAutoGrab()
+        Settings.AutoGrabGun = not Settings.AutoGrabGun
+        GrabBtn.Text = Settings.AutoGrabGun and "[H] AUTO GRAB GUN: ON" or "[H] AUTO GRAB GUN: OFF"
+        GrabBtn.BackgroundColor3 = Settings.AutoGrabGun and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        
+        if Settings.AutoGrabGun then
+            local normalFolder = Workspace:FindFirstChild("Normal")
+            local currentGun = normalFolder and (normalFolder:FindFirstChild("GunDrop") or normalFolder:FindFirstChildOfClass("Model"))
+            if currentGun and (currentGun.Name == "GunDrop" or currentGun.Name:lower():find("gun")) then 
+                TeleportToGun(currentGun) 
+            end
+        end
+    end
+
     ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
     SilentAimBtn.MouseButton1Click:Connect(toggleSilentAim)
     EspBtn.MouseButton1Click:Connect(toggleEsp)
     HitboxBtn.MouseButton1Click:Connect(toggleHitbox)
+    GrabBtn.MouseButton1Click:Connect(toggleAutoGrab) -- Handler Klik Tombol Baru
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
@@ -1042,7 +1085,7 @@ return function(AccessKey)
 
     LockBtn.MouseButton1Click:Connect(function() isLocked = not isLocked; LockBtn.Text = isLocked and "🔒" or "🔓" end)
 
-    -- Keybind Listener
+    -- Keybind Listener (Ditambahkan Keybind H untuk Fitur Baru)
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         local key = input.KeyCode
@@ -1050,6 +1093,7 @@ return function(AccessKey)
         elseif key == Enum.KeyCode.Z then toggleSilentAim()
         elseif key == Enum.KeyCode.X then toggleEsp()
         elseif key == Enum.KeyCode.C then toggleHitbox()
+        elseif key == Enum.KeyCode.H then toggleAutoGrab() -- Handler Keybind Baru
         elseif key == Enum.KeyCode.E or key == Enum.KeyCode.G then
             NotifyPremium()
         end
