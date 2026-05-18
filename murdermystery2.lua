@@ -40,9 +40,10 @@ return function(AccessKey)
     local TweenService = game:GetService("TweenService")
     local Lighting = game:GetService("Lighting")
 
-    -- Konfigurasi Default Skrip (Gabungan) - UPDATED DEFAULT STATES
+    -- Konfigurasi Default Skrip (Gabungan) - UPDATED WITH SILENT AIM
     local Settings = {
         CameraAimbot = true,
+        SilentAim = true, -- Fitur Baru
         HitboxExpander = false,
         HitboxVisual = true, 
         ESP = true,
@@ -401,7 +402,7 @@ return function(AccessKey)
     FOVCircle.Visible = false
 
     RunService.RenderStepped:Connect(function()
-        if Settings.CameraAimbot then
+        if Settings.CameraAimbot or Settings.SilentAim then
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
             FOVCircle.Radius = Settings.FOVSize
             FOVCircle.Visible = true
@@ -423,6 +424,7 @@ return function(AccessKey)
         return "Innocent"
     end
 
+    -- Menggunakan Deteksi Berdasarkan ESP (Warna Highlight)
     local function GetMurdererTarget()
         local Target = nil
         local ShortestDistance = math.huge
@@ -434,6 +436,7 @@ return function(AccessKey)
                 local Hum = v.Character:FindFirstChildOfClass("Humanoid")
                 local ESP = v.Character:FindFirstChild("MM2_ESP")
                 
+                -- Memanfaatkan deteksi ESP: Murderer jika warna highlight merah
                 if Root and Hum and Hum.Health > 0 and ESP and ESP.FillColor == Color3.fromRGB(255, 0, 0) then
                     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
@@ -460,6 +463,7 @@ return function(AccessKey)
                 local Hum = v.Character:FindFirstChildOfClass("Humanoid")
                 local ESP = v.Character:FindFirstChild("MM2_ESP")
                 
+                -- Memanfaatkan deteksi ESP: Target non-murderer (Bukan Merah)
                 if Root and Hum and Hum.Health > 0 and (not ESP or ESP.FillColor ~= Color3.fromRGB(255, 0, 0)) then
                     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
@@ -475,23 +479,51 @@ return function(AccessKey)
         return Target
     end
 
+    -- Mendapatkan target fleksibel berdasarkan Role kita saat ini
+    local function GetClosestTarget()
+        local MyRole = GetMM2Role(LocalPlayer)
+        if MyRole == "Murderer" then
+            return GetInnocentOrSheriffTarget()
+        else
+            return GetMurdererTarget()
+        end
+    end
+
+    -- Camera Aimbot Loop
     RunService.RenderStepped:Connect(function()
         if Settings.CameraAimbot and LocalPlayer.Character then
-            local MyRole = GetMM2Role(LocalPlayer)
-            
-            if MyRole == "Murderer" then
-                local TargetPart = GetInnocentOrSheriffTarget()
-                if TargetPart then
-                    Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, TargetPart.Position)
-                end
-            else
-                local TargetPart = GetMurdererTarget()
-                if TargetPart then
-                    Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, TargetPart.Position)
-                end
+            local TargetPart = GetClosestTarget()
+            if TargetPart then
+                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, TargetPart.Position)
             end
         end
     end)
+
+    -- ========================================================================
+    -- [[ FITUR BARU: SILENT AIM (REDIRECTION ENGINE) ]]
+    -- ========================================================================
+    local oldNamecall
+    oldNamecall = hookmetatable(game, {
+        __namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+            
+            if Settings.SilentAim and (method == "FireServer" or method == "InvokeServer") then
+                -- Cek apakah argumen mengandung Vector3 yang biasanya menandakan arah peluru/serangan
+                for i, arg in pairs(args) do
+                    if typeof(arg) == "Vector3" then
+                        local TargetPart = GetClosestTarget()
+                        if TargetPart then
+                            -- Manipulasi data jaringan: Belokkan koordinat langsung ke target part
+                            args[i] = TargetPart.Position
+                            break
+                        end
+                    end
+                end
+            end
+            return oldNamecall(self, unpack(args))
+        end)
+    })
 
     -- Anti-Fling & Velocity Regulator
     RunService.Heartbeat:Connect(function()
@@ -774,20 +806,24 @@ return function(AccessKey)
     AimNoticeLabel.Visible = false
 
     ContentFrame = Instance.new("Frame", MainFrame)
+    -- Diperlebar sizenya untuk memuat tombol baru dengan rapi
     ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
 
-    -- Fitur Utama Menu
-    local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
-    local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
+    -- [[ TOMBOL BARU: SILENT AIM ]]
+    local SilentBtn = createBtn("SILENT AIM: ON", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20), _GAccentColor); SilentBtn.Parent = ContentFrame
+
+    -- Fitur Utama Menu (Geser kebawah sedikit untuk menyisipkan Silent Aim)
+    local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
+    local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
     VisualBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 
-    local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
+    local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 69), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
 
-    createLine(UDim2.new(0, 6, 0, 71)).Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 94)).Parent = ContentFrame
 
     -- SLIDER 1: HITBOX EXPANDER CONFIG
-    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 75)).Parent = ContentFrame
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 89); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 98)).Parent = ContentFrame
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 112); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
 
@@ -812,8 +848,8 @@ return function(AccessKey)
     end)
 
     -- SLIDER 2: FOV CONFIG
-    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 106)).Parent = ContentFrame
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 120); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 129)).Parent = ContentFrame
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 143); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
 
@@ -838,15 +874,15 @@ return function(AccessKey)
     end)
 
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
             if SliderConnection then SliderConnection:Disconnect() SliderConnection = nil end
             if FOVSliderConnection then FOVSliderConnection:Disconnect() FOVSliderConnection = nil end
         end
     end)
 
-    createLine(UDim2.new(0, 6, 0, 138)).Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 161)).Parent = ContentFrame
 
-    local SocialBtn = createBtn("DISCORD & TIKTOK LINKS", UDim2.new(0, 6, 0, 144), UDim2.new(0, 128, 0, 20), Color3.fromRGB(45, 45, 55)); SocialBtn.Parent = ContentFrame
+    local SocialBtn = createBtn("DISCORD & TIKTOK LINKS", UDim2.new(0, 6, 0, 167), UDim2.new(0, 128, 0, 20), Color3.fromRGB(45, 45, 55)); SocialBtn.Parent = ContentFrame
     SocialBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 
     -- Info Frame Layangan Sosmed
@@ -910,7 +946,8 @@ return function(AccessKey)
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
-        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 295), "Out", "Quad", 0.25, true)
+        -- Ditambah tingginya menjadi 315 saat terbuka agar menampung susunan tombol vertikal baru
+        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 315), "Out", "Quad", 0.25, true)
         CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
         task.wait(0.2); ContentFrame.Visible = not isMinimized; AimNoticeLabel.Visible = not isMinimized
         if isMinimized and infoOpen then ToggleInfoLogic() end
@@ -920,7 +957,7 @@ return function(AccessKey)
         MainVisible = not MainVisible
         if MainVisible then
             MainFrame.Visible = true; HUDMain.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 295)}):Play()
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 315)}):Play()
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
@@ -955,7 +992,14 @@ return function(AccessKey)
         AimbotBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
+    local function toggleSilentAim()
+        Settings.SilentAim = not Settings.SilentAim
+        SilentBtn.Text = Settings.SilentAim and "SILENT AIM: ON" or "SILENT AIM: OFF"
+        SilentBtn.BackgroundColor3 = Settings.SilentAim and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
     AimbotBtn.MouseButton1Click:Connect(toggleAimbot)
+    SilentBtn.MouseButton1Click:Connect(toggleSilentAim)
 
     HitboxBtn.MouseButton1Click:Connect(function()
         Settings.HitboxExpander = not Settings.HitboxExpander
@@ -985,6 +1029,8 @@ return function(AccessKey)
         if gameProcessed then return end
         if input.KeyCode == Enum.KeyCode.Q then 
             toggleAimbot()
+        elseif input.KeyCode == Enum.KeyCode.T then -- Keybind baru untuk Silent Aim
+            toggleSilentAim()
         end
     end)
 
@@ -995,4 +1041,3 @@ return function(AccessKey)
 
     print("Louis Hub FREE V13.5.2: Integrated Advanced Full Module Init Success.")
 end
-
