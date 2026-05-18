@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.2 (Merged Advanced Sync + Classic Legacy Recovery - Fixed Delta Boot Glitch)
+-- VERSION: 13.5.2 (Merged Advanced Sync + Classic Legacy Recovery)
 
 return function(AccessKey)
     -- ========================================================
@@ -184,319 +184,11 @@ return function(AccessKey)
         end)
     end
 
-    -- ========================================================================
-    -- [[ INTERFACE SCREEN GUI SYSTEM - PRE-SETUP LOGIC FOR SMOOTH TWEEN ]]
-    -- ========================================================================
-    local _GMainColor = Color3.fromRGB(15, 15, 20)
-    local _GAccentColor = Color3.fromRGB(0, 180, 255)
-    local isMinimized = false -- Diubah ke false default agar menu terbuka penuh saat trigger awal
-    local MainVisible = false  -- Status awal disembunyikan agar terpicu mulus pasca loading/toggle
-    local hudMinimized = false
-
-    local ScreenGui = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
-    ScreenGui.Name = "LouisHub_FREE_Edition"
-    ScreenGui.ResetOnSpawn = false
-
-    -- [[ FLOATING TOGGLE (L BUTTON) ]]
-    local ToggleBtnMain = Instance.new("TextButton", ScreenGui)
-    ToggleBtnMain.Name = "FloatingToggle"
-    ToggleBtnMain.Size = UDim2.new(0, 50, 0, 50)
-    ToggleBtnMain.Position = UDim2.new(0, 20, 0.5, -25)
-    ToggleBtnMain.BackgroundColor3 = Color3.fromRGB(30, 30, 30) -- Default standby color
-    ToggleBtnMain.Text = "L"
-    ToggleBtnMain.TextColor3 = _GAccentColor
-    ToggleBtnMain.Font = Enum.Font.GothamBlack
-    ToggleBtnMain.TextSize = 25
-    ToggleBtnMain.AutoButtonColor = false
-    Instance.new("UICorner", ToggleBtnMain).CornerRadius = UDim.new(1, 0)
-    local ToggleStroke = Instance.new("UIStroke", ToggleBtnMain)
-    ToggleStroke.Color = _GAccentColor
-    ToggleStroke.Thickness = 2
-    ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-    -- Floating Button Dragging
-    local t_dragging, t_dragStart, t_startPos
-    ToggleBtnMain.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then t_dragging = true; t_dragStart = i.Position; t_startPos = ToggleBtnMain.Position end end)
-    UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
-    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then t_dragging = false end end)
-
-    -- [[ HUD ELEMENTS ]]
-    local HUDMain = Instance.new("Frame", ScreenGui)
-    HUDMain.Size = UDim2.new(0, 125, 0, 45)
-    HUDMain.Position = UDim2.new(1, -140, 0.15, 0)
-    HUDMain.BackgroundTransparency = 1
-    HUDMain.Visible = false -- Ikut disembunyikan sampai loading screen beres
-
-    local HUDFrame = Instance.new("Frame", HUDMain)
-    HUDFrame.Size = UDim2.new(1, -20, 1, 0)
-    HUDFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-    HUDFrame.BackgroundTransparency = 0.6
-    HUDFrame.ClipsDescendants = true
-    Instance.new("UICorner", HUDFrame).CornerRadius = UDim.new(0, 6)
-
-    local FPSLabel = Instance.new("TextLabel", HUDFrame)
-    FPSLabel.Size = UDim2.new(0, 60, 0.4, 0); FPSLabel.Position = UDim2.new(0, 5, 0, 4)
-    FPSLabel.BackgroundTransparency = 1; FPSLabel.TextColor3 = Color3.new(1, 1, 1)
-    FPSLabel.Font = Enum.Font.GothamBold; FPSLabel.TextSize = 9; FPSLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local PingLabel = Instance.new("TextLabel", HUDFrame)
-    PingLabel.Size = UDim2.new(0, 60, 0.4, 0); PingLabel.Position = UDim2.new(0, 5, 0.4, 0)
-    PingLabel.BackgroundTransparency = 1; PingLabel.TextColor3 = _GAccentColor
-    PingLabel.Font = Enum.Font.GothamBold; PingLabel.TextSize = 9; PingLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local GraphFrame = Instance.new("Frame", HUDFrame)
-    GraphFrame.Size = UDim2.new(0, 35, 0, 35); GraphFrame.Position = UDim2.new(1, -75, 0, 5); GraphFrame.BackgroundTransparency = 1
-
-    local bars = {}
-    for i = 1, 10 do
-        local b = Instance.new("Frame", GraphFrame)
-        b.Size = UDim2.new(0, 2, 0, 10); b.Position = UDim2.new(0, i*3, 1, -10)
-        b.BackgroundColor3 = _GAccentColor; b.BorderSizePixel = 0; bars[i] = b
-    end
-
-    local PotatoToggle = Instance.new("TextButton", HUDFrame)
-    PotatoToggle.Size = UDim2.new(0, 30, 0, 25); PotatoToggle.Position = UDim2.new(1, -35, 0.5, -12.5)
-    PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30); PotatoToggle.Text = "🍃"; PotatoToggle.TextColor3 = Color3.new(1, 1, 1)
-    Instance.new("UICorner", PotatoToggle)
-    local PotatoStroke = Instance.new("UIStroke", PotatoToggle)
-    PotatoStroke.Color = Color3.fromRGB(0, 180, 255)
-    PotatoStroke.Thickness = 1.5
-    
-    local potatoEnabled = false
-    PotatoToggle.MouseButton1Click:Connect(function()
-        potatoEnabled = not potatoEnabled
-        if potatoEnabled then
-            ApplyPotato()
-            PotatoToggle.BackgroundColor3 = _GAccentColor
-            PotatoStroke.Color = Color3.fromRGB(255, 255, 255)
-        else
-            PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            PotatoStroke.Color = Color3.fromRGB(0, 180, 255)
-        end
-    end)
-
-    local HUDToggleBtn = Instance.new("TextButton", HUDMain)
-    HUDToggleBtn.Size = UDim2.new(0, 15, 1, 0); HUDToggleBtn.Position = UDim2.new(1, -15, 0, 0)
-    HUDToggleBtn.BackgroundColor3 = Color3.new(0,0,0); HUDToggleBtn.BackgroundTransparency = 0.8; HUDToggleBtn.Text = ">"
-    HUDToggleBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", HUDToggleBtn)
-
-    HUDToggleBtn.MouseButton1Click:Connect(function()
-        hudMinimized = not hudMinimized
-        HUDFrame:TweenSize(hudMinimized and UDim2.new(0, 0, 1, 0) or UDim2.new(1, -20, 1, 0), "Out", "Quad", 0.3, true)
-        HUDToggleBtn.Text = hudMinimized and "<" or ">"
-    end)
-
-    -- [[ MAIN FRAME SETUP - FIXED SIZE FOR TWEEN RESIZE ]]
-    local MainFrame = Instance.new("Frame", ScreenGui)
-    MainFrame.Size = UDim2.new(0, 140, 0, 0) -- Mulai dari ukuran 0 biar aman saat re-render Delta
-    MainFrame.Position = UDim2.new(0.5, -70, 0.2, 0)
-    MainFrame.BackgroundColor3 = _GMainColor; MainFrame.Active = true; MainFrame.ClipsDescendants = true
-    MainFrame.Visible = false -- Standby false
-    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
-    local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
-
-    local function createBtn(txt, pos, size, color)
-        local b = Instance.new("TextButton", MainFrame)
-        b.Size = size; b.Position = pos; b.BackgroundColor3 = color or Color3.fromRGB(30, 30, 35); b.TextColor3 = Color3.new(1,1,1)
-        b.Text = txt; b.Font = Enum.Font.GothamBold; b.TextSize = 6.5; b.ClipsDescendants = true
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4); return b
-    end
-
-    local function createLabel(txt, pos, size)
-        local l = Instance.new("TextLabel", MainFrame)
-        l.Size = size or UDim2.new(0, 128, 0, 10); l.Position = pos
-        l.BackgroundTransparency = 1; l.Text = txt; l.TextColor3 = Color3.fromRGB(200, 200, 200)
-        l.TextSize = 7; l.Font = Enum.Font.GothamBold; return l
-    end
-
-    local function createLine(pos)
-        local l = Instance.new("Frame", MainFrame)
-        l.Size = UDim2.new(0, 128, 0, 1); l.Position = pos
-        l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
-    end
-
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
-    HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
-
-    local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 4), UDim2.new(0, 26, 0, 12), Color3.fromRGB(45, 45, 55))
-    InfoBtn.TextSize = 8
-    InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
-
-    local LockBtn = createBtn("🔓", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20))
-    local isLocked = false
-    LockBtn.MouseButton1Click:Connect(function() isLocked = not isLocked; LockBtn.Text = isLocked and "🔒" or "🔓" end)
-
-    local AimbotBtn = createBtn("AIM: ON", UDim2.new(0, 6, 0, 18), UDim2.new(0, 96, 0, 20), _GAccentColor)
-    AimbotBtn.TextSize = 6.5
-
-    local AimNoticeLabel = createLabel("To make aimbot work, please enable ESP!", UDim2.new(0, 6, 0, 40), UDim2.new(0, 128, 0, 10))
-    AimNoticeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    AimNoticeLabel.TextSize = 5.5
-    AimNoticeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    AimNoticeLabel.Visible = false
-
-    local ContentFrame = Instance.new("Frame", MainFrame)
-    ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
-
-    local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
-    local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
-    VisualBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-
-    local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
-
-    createLine(UDim2.new(0, 6, 0, 71)).Parent = ContentFrame
-
-    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 75)).Parent = ContentFrame
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 89); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
-    local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
-    local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
-
-    local function syncSlider(val)
-        SliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); SliderText.Text = string.format("SIZE: %d STUDS", val)
-    end
-    syncSlider(Settings.HitboxSize)
-
-    local SliderButton = Instance.new("TextButton", SliderFrame)
-    SliderButton.Size = UDim2.new(1, 0, 1, 0); SliderButton.BackgroundTransparency = 1; SliderButton.Text = ""
-
-    local function UpdateSlider()
-        local Percentage = math.clamp((Mouse.X - SliderFrame.AbsolutePosition.X) / SliderFrame.AbsoluteSize.X, 0, 1)
-        Settings.HitboxSize = math.floor(1 + (Percentage * 199))
-        syncSlider(Settings.HitboxSize)
-    end
-
-    local SliderConnection = nil
-    SliderButton.MouseButton1Down:Connect(function()
-        UpdateSlider()
-        SliderConnection = RunService.RenderStepped:Connect(UpdateSlider)
-    end)
-
-    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 106)).Parent = ContentFrame
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 120); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
-    local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
-    local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
-
-    local function syncFOVSlider(val)
-        FOVSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); FOVSliderText.Text = string.format("FOV: %d RAD", val)
-    end
-    syncFOVSlider(Settings.FOVSize)
-
-    local FOVSliderButton = Instance.new("TextButton", FOVSliderFrame)
-    FOVSliderButton.Size = UDim2.new(1, 0, 1, 0); FOVSliderButton.BackgroundTransparency = 1; FOVSliderButton.Text = ""
-
-    local function UpdateFOVSlider()
-        local Percentage = math.clamp((Mouse.X - FOVSliderFrame.AbsolutePosition.X) / FOVSliderFrame.AbsoluteSize.X, 0, 1)
-        Settings.FOVSize = math.floor(1 + (Percentage * 199))
-        syncFOVSlider(Settings.FOVSize)
-    end
-
-    local FOVSliderConnection = nil
-    FOVSliderButton.MouseButton1Down:Connect(function()
-        UpdateFOVSlider()
-        FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider)
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if SliderConnection then SliderConnection:Disconnect() SliderConnection = nil end
-            if FOVSliderConnection then FOVSliderConnection:Disconnect() FOVSliderConnection = nil end
-        end
-    end)
-
-    createLine(UDim2.new(0, 6, 0, 138)).Parent = ContentFrame
-
-    local SocialBtn = createBtn("DISCORD & TIKTOK LINKS", UDim2.new(0, 6, 0, 144), UDim2.new(0, 128, 0, 20), Color3.fromRGB(45, 45, 55)); SocialBtn.Parent = ContentFrame
-    SocialBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
-
-    local InfoFrame = Instance.new("Frame", MainFrame)
-    InfoFrame.Size = UDim2.new(1, -12, 0, 0)
-    InfoFrame.Position = UDim2.new(0, 6, 0, 45)
-    InfoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    InfoFrame.BorderSizePixel = 0
-    InfoFrame.ClipsDescendants = true
-    InfoFrame.Visible = false
-    InfoFrame.ZIndex = 10
-    Instance.new("UICorner", InfoFrame)
-    local InfoStroke = Instance.new("UIStroke", InfoFrame); InfoStroke.Color = _GAccentColor; InfoStroke.Thickness = 1
-
-    local function createInfoLabel(txt, pos, color)
-        local l = Instance.new("TextLabel", InfoFrame)
-        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
-        l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
-    end
-
-    createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
-
-    local function createSocialBtn(name, link, pos, color)
-        local b = Instance.new("TextButton", InfoFrame)
-        b.Size = UDim2.new(1, -10, 0, 18); b.Position = pos; b.BackgroundColor3 = color; b.TextColor3 = Color3.new(1,1,1)
-        b.Text = name; b.Font = Enum.Font.GothamBold; b.TextSize = 6; b.ZIndex = 11
-        Instance.new("UICorner", b)
-        b.MouseButton1Click:Connect(function()
-            setclipboard(link)
-            local oldText = b.Text; b.Text = "COPIED TO CLIPBOARD!"; task.wait(1.5); b.Text = oldText
-        end)
-    end
-
-    createSocialBtn("DISCORD SERVER", "https://discord.gg/sE7G9nGqb", UDim2.new(0, 5, 0, 25), Color3.fromRGB(88, 101, 242))
-    createSocialBtn("TIKTOK: @louismurdermystery2", "https://www.tiktok.com/@louismurdermystery2", UDim2.new(0, 5, 0, 48), Color3.fromRGB(0, 0, 0))
-    createSocialBtn("TIKTOK: @chillajakaliye_", "https://www.tiktok.com/@chillajakaliye_", UDim2.new(0, 5, 0, 71), Color3.fromRGB(0, 0, 0))
-
-    local CloseInfo = Instance.new("TextButton", InfoFrame)
-    CloseInfo.Size = UDim2.new(1, -10, 0, 18); CloseInfo.Position = UDim2.new(0, 5, 1, -22); CloseInfo.BackgroundColor3 = Color3.fromRGB(40, 40, 45); CloseInfo.TextColor3 = Color3.new(1,1,1)
-    CloseInfo.Text = "BACK TO MENU"; CloseInfo.Font = Enum.Font.GothamBold; CloseInfo.TextSize = 7; CloseInfo.ZIndex = 11
-    Instance.new("UICorner", CloseInfo)
-
-    local infoOpen = false
-    local function ToggleInfoLogic()
-        infoOpen = not infoOpen
-        if infoOpen then
-            InfoFrame.Visible = true
-            InfoFrame:TweenSize(UDim2.new(1, -12, 1, -55), "Out", "Quad", 0.3, true)
-        else
-            InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
-        end
-    end
-
-    SocialBtn.MouseButton1Click:Connect(ToggleInfoLogic)
-    InfoBtn.MouseButton1Click:Connect(ToggleInfoLogic)
-    CloseInfo.MouseButton1Click:Connect(ToggleInfoLogic)
-
-    local CloseBar = createBtn("▲ CLOSE MENU ▲", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
-    CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6.5
-
-    CloseBar.MouseButton1Click:Connect(function()
-        isMinimized = not isMinimized
-        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 295), "Out", "Quad", 0.25, true)
-        CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
-        task.wait(0.2); ContentFrame.Visible = not isMinimized; AimNoticeLabel.Visible = not isMinimized
-    end)
-
-    -- [[ TRIGER UTAMA ANIMASI PEMBUKA (EFEK FIX UNTUK DELTA EXEC) ]]
-    local function OpenMenuSmoothly()
-        MainVisible = true
-        MainFrame.Visible = true
-        HUDMain.Visible = true
-        ContentFrame.Visible = true
-        AimNoticeLabel.Visible = true
-        TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 140, 0, 295)}):Play()
-        TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
-    end
-
-    ToggleBtnMain.MouseButton1Click:Connect(function()
-        if not MainVisible then
-            OpenMenuSmoothly()
-        else
-            MainVisible = false
-            local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
-            t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
-            HUDMain.Visible = false
-            TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
-        end
-    end)
+    -- Forward declarations untuk mengontrol visibility setelah loading selesai
+    local ToggleBtnMain, HUDMain, MainFrame, AimNoticeLabel, ContentFrame
 
     -- ==========================================
-    -- [[ LOADING SCREEN UTAMA ]]
+    -- [[ LOADING SCREEN ]]
     -- ==========================================
     local function startLoading()
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -645,9 +337,18 @@ return function(AccessKey)
                     end
                 end)
             end
+            
+            -- Munculkan GUI Utama dan Tombol L setelah Loading Selesai
             task.delay(0.45, function() 
                 loadingGui:Destroy() 
-                OpenMenuSmoothly() -- Memanggil fungsi pembuka menu utama otomatis setelah loading selesai
+                if ToggleBtnMain and MainFrame and HUDMain then
+                    ToggleBtnMain.Visible = true
+                    MainFrame.Visible = true
+                    HUDMain.Visible = true
+                    -- Animasi masuk secara halus (Smooth pop-up)
+                    MainFrame.Size = UDim2.new(0, 140, 0, 0)
+                    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 140, 0, 58)}):Play()
+                end
             end)
         end
 
@@ -916,13 +617,330 @@ return function(AccessKey)
         end
     end)
 
-    -- Dynamic Graph FPS Engine Loop
+    -- ========================================================================
+    -- [[ INTERFACE SCREEN GUI SYSTEM ]]
+    -- ========================================================================
+    local _GMainColor = Color3.fromRGB(15, 15, 20)
+    local _GAccentColor = Color3.fromRGB(0, 180, 255)
+    local isMinimized = true
+    local MainVisible = true
+    local hudMinimized = false
+
+    local ScreenGui = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
+    ScreenGui.Name = "LouisHub_FREE_Edition"
+    ScreenGui.ResetOnSpawn = false
+
+    -- [[ FLOATING TOGGLE (L BUTTON) ]]
+    ToggleBtnMain = Instance.new("TextButton", ScreenGui)
+    ToggleBtnMain.Name = "FloatingToggle"
+    ToggleBtnMain.Size = UDim2.new(0, 50, 0, 50)
+    ToggleBtnMain.Position = UDim2.new(0, 20, 0.5, -25)
+    ToggleBtnMain.BackgroundColor3 = _GMainColor
+    ToggleBtnMain.Text = "L"
+    ToggleBtnMain.TextColor3 = _GAccentColor
+    ToggleBtnMain.Font = Enum.Font.GothamBlack
+    ToggleBtnMain.TextSize = 25
+    ToggleBtnMain.AutoButtonColor = false
+    ToggleBtnMain.Visible = false -- Sembunyikan di awal, muncul setelah loading selesai
+    Instance.new("UICorner", ToggleBtnMain).CornerRadius = UDim.new(1, 0)
+    local ToggleStroke = Instance.new("UIStroke", ToggleBtnMain)
+    ToggleStroke.Color = _GAccentColor
+    ToggleStroke.Thickness = 2
+    ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    -- Floating Button Dragging
+    local t_dragging, t_dragStart, t_startPos
+    ToggleBtnMain.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then t_dragging = true; t_dragStart = i.Position; t_startPos = ToggleBtnMain.Position end end)
+    UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then t_dragging = false end end)
+
+    -- [[ HUD ELEMENTS - MURNI MENJADI TEXT LABEL ]]
+    HUDMain = Instance.new("Frame", ScreenGui)
+    HUDMain.Size = UDim2.new(0, 125, 0, 45)
+    HUDMain.Position = UDim2.new(1, -140, 0.15, 0)
+    HUDMain.BackgroundTransparency = 1
+    HUDMain.Visible = false -- Sembunyikan di awal, muncul setelah loading selesai
+
+    local HUDFrame = Instance.new("Frame", HUDMain)
+    HUDFrame.Size = UDim2.new(1, -20, 1, 0)
+    HUDFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+    HUDFrame.BackgroundTransparency = 0.6
+    HUDFrame.ClipsDescendants = true
+    Instance.new("UICorner", HUDFrame).CornerRadius = UDim.new(0, 6)
+
+    local FPSLabel = Instance.new("TextLabel", HUDFrame)
+    FPSLabel.Size = UDim2.new(0, 60, 0.4, 0); FPSLabel.Position = UDim2.new(0, 5, 0, 4)
+    FPSLabel.BackgroundTransparency = 1; FPSLabel.TextColor3 = Color3.new(1, 1, 1)
+    FPSLabel.Font = Enum.Font.GothamBold; FPSLabel.TextSize = 9; FPSLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local PingLabel = Instance.new("TextLabel", HUDFrame)
+    PingLabel.Size = UDim2.new(0, 60, 0.4, 0); PingLabel.Position = UDim2.new(0, 5, 0.4, 0)
+    PingLabel.BackgroundTransparency = 1; PingLabel.TextColor3 = _GAccentColor
+    PingLabel.Font = Enum.Font.GothamBold; PingLabel.TextSize = 9; PingLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local GraphFrame = Instance.new("Frame", HUDFrame)
+    GraphFrame.Size = UDim2.new(0, 35, 0, 35); GraphFrame.Position = UDim2.new(1, -75, 0, 5); GraphFrame.BackgroundTransparency = 1
+
+    local bars = {}
+    for i = 1, 10 do
+        local b = Instance.new("Frame", GraphFrame)
+        b.Size = UDim2.new(0, 2, 0, 10); b.Position = UDim2.new(0, i*3, 1, -10)
+        b.BackgroundColor3 = _GAccentColor; b.BorderSizePixel = 0; bars[i] = b
+    end
+
+    -- UNLOCKED: Potato Mode Toggle UI (Direct Action)
+    local PotatoToggle = Instance.new("TextButton", HUDFrame)
+    PotatoToggle.Size = UDim2.new(0, 30, 0, 25); PotatoToggle.Position = UDim2.new(1, -35, 0.5, -12.5)
+    PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30); PotatoToggle.Text = "🍃"; PotatoToggle.TextColor3 = Color3.new(1, 1, 1)
+    Instance.new("UICorner", PotatoToggle)
+    local PotatoStroke = Instance.new("UIStroke", PotatoToggle)
+    PotatoStroke.Color = Color3.fromRGB(0, 180, 255)
+    PotatoStroke.Thickness = 1.5
+    
+    local potatoEnabled = false
+    PotatoToggle.MouseButton1Click:Connect(function()
+        potatoEnabled = not potatoEnabled
+        if potatoEnabled then
+            ApplyPotato()
+            PotatoToggle.BackgroundColor3 = _GAccentColor
+            PotatoStroke.Color = Color3.fromRGB(255, 255, 255)
+        else
+            PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            PotatoStroke.Color = Color3.fromRGB(0, 180, 255)
+        end
+    end)
+
+    local HUDToggleBtn = Instance.new("TextButton", HUDMain)
+    HUDToggleBtn.Size = UDim2.new(0, 15, 1, 0); HUDToggleBtn.Position = UDim2.new(1, -15, 0, 0)
+    HUDToggleBtn.BackgroundColor3 = Color3.new(0,0,0); HUDToggleBtn.BackgroundTransparency = 0.8; HUDToggleBtn.Text = ">"
+    HUDToggleBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", HUDToggleBtn)
+
+    HUDToggleBtn.MouseButton1Click:Connect(function()
+        hudMinimized = not hudMinimized
+        HUDFrame:TweenSize(hudMinimized and UDim2.new(0, 0, 1, 0) or UDim2.new(1, -20, 1, 0), "Out", "Quad", 0.3, true)
+        HUDToggleBtn.Text = hudMinimized and "<" or ">"
+    end)
+
+    -- [[ MAIN FRAME SETUP ]]
+    MainFrame = Instance.new("Frame", ScreenGui)
+    MainFrame.Size = UDim2.new(0, 140, 0, 58) -- Diatur ke ukuran minimum di awal agar singkron saat animasi masuk
+    MainFrame.Position = UDim2.new(0.5, -70, 0.2, 0)
+    MainFrame.BackgroundColor3 = _GMainColor; MainFrame.Active = true; MainFrame.ClipsDescendants = true
+    MainFrame.Visible = false -- Sembunyikan di awal, muncul setelah loading selesai
+    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+    local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
+
+    local function createBtn(txt, pos, size, color)
+        local b = Instance.new("TextButton", MainFrame)
+        b.Size = size; b.Position = pos; b.BackgroundColor3 = color or Color3.fromRGB(30, 30, 35); b.TextColor3 = Color3.new(1,1,1)
+        b.Text = txt; b.Font = Enum.Font.GothamBold; b.TextSize = 6.5; b.ClipsDescendants = true
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4); return b
+    end
+
+    local function createLabel(txt, pos, size)
+        local l = Instance.new("TextLabel", MainFrame)
+        l.Size = size or UDim2.new(0, 128, 0, 10); l.Position = pos
+        l.BackgroundTransparency = 1; l.Text = txt; l.TextColor3 = Color3.fromRGB(200, 200, 200)
+        l.TextSize = 7; l.Font = Enum.Font.GothamBold; return l
+    end
+
+    local function createLine(pos)
+        local l = Instance.new("Frame", MainFrame)
+        l.Size = UDim2.new(0, 128, 0, 1); l.Position = pos
+        l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
+    end
+
+    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 98, 0, 12))
+    HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
+
+    -- RECOVERED: Tombol Info Mini Klasik ("i")
+    local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 4), UDim2.new(0, 26, 0, 12), Color3.fromRGB(45, 45, 55))
+    InfoBtn.TextSize = 8
+    InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
+
+    -- [[ BAGIAN ATAS REVISI: LOCK UTILITY & AIMBOT TOGGLE SIDE-BY-SIDE ]]
+    local LockBtn = createBtn("🔓", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20))
+    local isLocked = false
+    LockBtn.MouseButton1Click:Connect(function() isLocked = not isLocked; LockBtn.Text = isLocked and "🔒" or "🔓" end)
+
+    -- Tombol Aimbot (Default Active: ON, Accent Color Color Background)
+    local AimbotBtn = createBtn("AIM: ON", UDim2.new(0, 6, 0, 18), UDim2.new(0, 96, 0, 20), _GAccentColor)
+    AimbotBtn.TextSize = 6.5
+
+    -- [[ EN-NOTICE LABEL (Tepat Di Bawah Tombol Aimbot) ]]
+    AimNoticeLabel = createLabel("To make aimbot work, please enable ESP!", UDim2.new(0, 6, 0, 40), UDim2.new(0, 128, 0, 10))
+    AimNoticeLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    AimNoticeLabel.TextSize = 5.5
+    AimNoticeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    AimNoticeLabel.Visible = false -- Sesuai state awal menu minimized
+
+    ContentFrame = Instance.new("Frame", MainFrame)
+    ContentFrame.Size = UDim2.new(1, 0, 1, -55); ContentFrame.Position = UDim2.new(0, 0, 0, 53); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false -- Sesuai state awal menu minimized
+
+    -- Fitur Utama Menu
+    local HitboxBtn = createBtn("HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); HitboxBtn.Parent = ContentFrame
+    local VisualBtn = createBtn("HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 23), UDim2.new(0, 128, 0, 20)); VisualBtn.Parent = ContentFrame
+    VisualBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+
+    -- Tombol ESP (Default Active: ON, Accent Color Background)
+    local EspBtn = createBtn("ESP + GUN DROP: ON", UDim2.new(0, 6, 0, 46), UDim2.new(0, 128, 0, 20), _GAccentColor); EspBtn.Parent = ContentFrame
+
+    createLine(UDim2.new(0, 6, 0, 71)).Parent = ContentFrame
+
+    -- [[ SLIDER 1: HITBOX EXPANDER CONFIG (1 - 200) ]]
+    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 75)).Parent = ContentFrame
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 89); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
+    local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
+
+    local function syncSlider(val)
+        SliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); SliderText.Text = string.format("SIZE: %d STUDS", val)
+    end
+    syncSlider(Settings.HitboxSize)
+
+    local SliderButton = Instance.new("TextButton", SliderFrame)
+    SliderButton.Size = UDim2.new(1, 0, 1, 0); SliderButton.BackgroundTransparency = 1; SliderButton.Text = ""
+
+    local function UpdateSlider()
+        local Percentage = math.clamp((Mouse.X - SliderFrame.AbsolutePosition.X) / SliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.HitboxSize = math.floor(1 + (Percentage * 199))
+        syncSlider(Settings.HitboxSize)
+    end
+
+    local SliderConnection = nil
+    SliderButton.MouseButton1Down:Connect(function()
+        UpdateSlider()
+        SliderConnection = RunService.RenderStepped:Connect(UpdateSlider)
+    end)
+
+    -- [[ SLIDER 2: FOV CONFIG (1 - 200) ]]
+    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 106)).Parent = ContentFrame
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 120); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
+    local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
+
+    local function syncFOVSlider(val)
+        FOVSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); FOVSliderText.Text = string.format("FOV: %d RAD", val)
+    end
+    syncFOVSlider(Settings.FOVSize)
+
+    local FOVSliderButton = Instance.new("TextButton", FOVSliderFrame)
+    FOVSliderButton.Size = UDim2.new(1, 0, 1, 0); FOVSliderButton.BackgroundTransparency = 1; FOVSliderButton.Text = ""
+
+    local function UpdateFOVSlider()
+        local Percentage = math.clamp((Mouse.X - FOVSliderFrame.AbsolutePosition.X) / FOVSliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.FOVSize = math.floor(1 + (Percentage * 199))
+        syncFOVSlider(Settings.FOVSize)
+    end
+
+    local FOVSliderConnection = nil
+    FOVSliderButton.MouseButton1Down:Connect(function()
+        UpdateFOVSlider()
+        FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider)
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if SliderConnection then SliderConnection:Disconnect() SliderConnection = nil end
+            if FOVSliderConnection then FOVSliderConnection:Disconnect() FOVSliderConnection = nil end
+        end
+    end)
+
+    createLine(UDim2.new(0, 6, 0, 138)).Parent = ContentFrame
+
+    local SocialBtn = createBtn("DISCORD & TIKTOK LINKS", UDim2.new(0, 6, 0, 144), UDim2.new(0, 128, 0, 20), Color3.fromRGB(45, 45, 55)); SocialBtn.Parent = ContentFrame
+    SocialBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
+
+    -- Info Frame Layangan Sosmed
+    local InfoFrame = Instance.new("Frame", MainFrame)
+    InfoFrame.Size = UDim2.new(1, -12, 0, 0)
+    InfoFrame.Position = UDim2.new(0, 6, 0, 45)
+    InfoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    InfoFrame.BorderSizePixel = 0
+    InfoFrame.ClipsDescendants = true
+    InfoFrame.Visible = false
+    InfoFrame.ZIndex = 10
+    Instance.new("UICorner", InfoFrame)
+    local InfoStroke = Instance.new("UIStroke", InfoFrame); InfoStroke.Color = _GAccentColor; InfoStroke.Thickness = 1
+
+    local function createInfoLabel(txt, pos, color)
+        local l = Instance.new("TextLabel", InfoFrame)
+        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
+        l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
+    end
+
+    createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
+
+    local function createSocialBtn(name, link, pos, color)
+        local b = Instance.new("TextButton", InfoFrame)
+        b.Size = UDim2.new(1, -10, 0, 18); b.Position = pos; b.BackgroundColor3 = color; b.TextColor3 = Color3.new(1,1,1)
+        b.Text = name; b.Font = Enum.Font.GothamBold; b.TextSize = 6; b.ZIndex = 11
+        Instance.new("UICorner", b)
+        b.MouseButton1Click:Connect(function()
+            setclipboard(link)
+            local oldText = b.Text; b.Text = "COPIED TO CLIPBOARD!"; task.wait(1.5); b.Text = oldText
+        end)
+    end
+
+    createSocialBtn("DISCORD SERVER", "https://discord.gg/sE7G9nGqb", UDim2.new(0, 5, 0, 25), Color3.fromRGB(88, 101, 242))
+    createSocialBtn("TIKTOK: @louismurdermystery2", "https://www.tiktok.com/@louismurdermystery2", UDim2.new(0, 5, 0, 48), Color3.fromRGB(0, 0, 0))
+    createSocialBtn("TIKTOK: @chillajakaliye_", "https://www.tiktok.com/@chillajakaliye_", UDim2.new(0, 5, 0, 71), Color3.fromRGB(0, 0, 0))
+
+    local CloseInfo = Instance.new("TextButton", InfoFrame)
+    CloseInfo.Size = UDim2.new(1, -10, 0, 18); CloseInfo.Position = UDim2.new(0, 5, 1, -22); CloseInfo.BackgroundColor3 = Color3.fromRGB(40, 40, 45); CloseInfo.TextColor3 = Color3.new(1,1,1)
+    CloseInfo.Text = "BACK TO MENU"; CloseInfo.Font = Enum.Font.GothamBold; CloseInfo.TextSize = 7; CloseInfo.ZIndex = 11
+    Instance.new("UICorner", CloseInfo)
+
+    local infoOpen = false
+    local function ToggleInfoLogic()
+        if isMinimized then return end -- Cegah info terbuka jika menu sedang ditutup
+        infoOpen = not infoOpen
+        if infoOpen then
+            InfoFrame.Visible = true
+            InfoFrame:TweenSize(UDim2.new(1, -12, 1, -55), "Out", "Quad", 0.3, true)
+        else
+            InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
+        end
+    end
+
+    SocialBtn.MouseButton1Click:Connect(ToggleInfoLogic)
+    InfoBtn.MouseButton1Click:Connect(ToggleInfoLogic)
+    CloseInfo.MouseButton1Click:Connect(ToggleInfoLogic)
+
+    local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
+    CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6.5
+
+    CloseBar.MouseButton1Click:Connect(function()
+        isMinimized = not isMinimized
+        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 295), "Out", "Quad", 0.25, true)
+        CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
+        task.wait(0.2); ContentFrame.Visible = not isMinimized; AimNoticeLabel.Visible = not isMinimized
+        if isMinimized and infoOpen then ToggleInfoLogic() end -- Tutup panel sosmed otomatis jika menu di-minimize
+    end)
+
+    ToggleBtnMain.MouseButton1Click:Connect(function()
+        MainVisible = not MainVisible
+        if MainVisible then
+            MainFrame.Visible = true; HUDMain.Visible = true
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 295)}):Play()
+            TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
+        else
+            local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
+            t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
+            HUDMain.Visible = false
+            TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
+        end
+    end)
+
+    -- Dynamic Graph FPS Engine
     task.spawn(function()
         local lastTime = tick(); local frames = 0
         RunService.RenderStepped:Connect(function()
             frames += 1
             if tick() - lastTime >= 1 then
-                FPSLabel.Text = "FPS: " .. frames; PingLabel.Text = "PING: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms"
+                if FPSLabel and PingLabel then
+                    FPSLabel.Text = "FPS: " .. frames; PingLabel.Text = "PING: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms"
+                end
                 for i = 1, 9 do bars[i].Size = bars[i+1].Size; bars[i].Position = UDim2.new(0, i*3, 1, -bars[i].Size.Y.Offset) end
                 local newH = math.clamp(frames/3, 5, 30); bars[10].Size = UDim2.new(0, 2, 0, newH); bars[10].Position = UDim2.new(0, 30, 1, -newH)
                 frames = 0; lastTime = tick()
