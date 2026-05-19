@@ -681,12 +681,11 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ FLY ENGINE, NOCLIP, INVISIBLE & SPEEDWALK LISTENER ]]
+    -- [[ FIXED: FLY ENGINE, NOCLIP, INVISIBLE & SPEEDWALK LISTENER ]]
     -- ========================================================================
     local FlingFailsafeActive = false
     local OriginalCFrameBeforeFling = nil
-    local FlyBodyGyro, FlyBodyVelocity
-
+    
     local function GetTargetByRole(roleName)
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
@@ -699,15 +698,16 @@ return function(AccessKey)
         return nil
     end
 
-    -- Fitur Invisible Simpel via Teleport & Clone Model Bawah Tanah
-    local RealCharacter = LocalPlayer.Character
+    -- [[ INVISIBLE HACK REBUILD: LOCAL SHIFT METHOD ]]
     RunService.Heartbeat:Connect(function()
-        if Settings.InvisibleEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local root = LocalPlayer.Character.HumanoidRootPart
-            -- Menggeser posisi rendering visual tubuh asli ke area bawah map secara loop
-            for _, v in pairs(LocalPlayer.Character:GetChildren()) do
-                if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
-                    v.CanCollide = false
+        local character = LocalPlayer.Character
+        if Settings.InvisibleEnabled and character and character:FindFirstChild("HumanoidRootPart") then
+            -- Menyembunyikan seluruh part visual lokal agar transparan/tidak dirender
+            for _, child in ipairs(character:GetDescendants()) do
+                if child:IsA("BasePart") or child:IsA("Decal") then
+                    if child.Name ~= "HumanoidRootPart" then
+                        child.Transparency = 1
+                    end
                 end
             end
         end
@@ -734,7 +734,7 @@ return function(AccessKey)
                 end
 
                 -- Handle Noclip Core System
-                if Settings.NoclipEnabled then
+                if Settings.NoclipEnabled or Settings.FlyEnabled then
                     for _, child in ipairs(character:GetDescendants()) do
                         if child:IsA("BasePart") then child.CanCollide = false end
                     end
@@ -747,34 +747,35 @@ return function(AccessKey)
                     Camera.FieldOfView = OriginalFOV
                 end
 
-                -- Handle Fly Core Logic
+                -- [[ REBUILT: DETACHED REFRESHABLE FLY ENGINE ]]
                 if Settings.FlyEnabled then
-                    if not root:FindFirstChild("FlyGyro") then
-                        FlyBodyGyro = Instance.new("BodyGyro", root)
-                        FlyBodyGyro.Name = "FlyGyro"
-                        FlyBodyGyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-                        FlyBodyGyro.cframe = root.CFrame
+                    local bGyro = root:FindFirstChild("LouisFlyGyro") or Instance.new("BodyGyro", root)
+                    bGyro.Name = "LouisFlyGyro"
+                    bGyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+                    bGyro.cframe = Camera.CFrame
 
-                        FlyBodyVelocity = Instance.new("BodyVelocity", root)
-                        FlyBodyVelocity.Name = "FlyVelocity"
-                        FlyBodyVelocity.maxForce = Vector3.new(9e9, 9e9, 9e9)
-                        FlyBodyVelocity.velocity = Vector3.new(0, 0.1, 0)
-                    end
-                    
-                    FlyBodyGyro.cframe = Camera.CFrame
+                    local bVelocity = root:FindFirstChild("LouisFlyVelocity") or Instance.new("BodyVelocity", root)
+                    bVelocity.Name = "LouisFlyVelocity"
+                    bVelocity.maxForce = Vector3.new(9e9, 9e9, 9e9)
+
                     local moveDirection = humanoid.MoveDirection
                     local flySpeed = Settings.FlySpeedValue
-                    
-                    local vel = moveDirection * flySpeed
+                    local velocityVector = moveDirection * flySpeed
+
                     if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                        vel = vel + Vector3.new(0, flySpeed, 0)
+                        velocityVector = velocityVector + Vector3.new(0, flySpeed, 0)
                     elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                        vel = vel + Vector3.new(0, -flySpeed, 0)
+                        velocityVector = velocityVector + Vector3.new(0, -flySpeed, 0)
                     end
-                    FlyBodyVelocity.velocity = vel
+                    
+                    if moveDirection.Magnitude == 0 and not UserInputService:IsKeyDown(Enum.KeyCode.Space) and not UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                        bVelocity.velocity = Vector3.new(0, 0, 0)
+                    else
+                        bVelocity.velocity = velocityVector
+                    end
                 else
-                    if root:FindFirstChild("FlyGyro") then root.FlyGyro:Destroy() end
-                    if root:FindFirstChild("FlyVelocity") then root.FlyVelocity:Destroy() end
+                    if root:FindFirstChild("LouisFlyGyro") then root.LouisFlyGyro:Destroy() end
+                    if root:FindFirstChild("LouisFlyVelocity") then root.LouisFlyVelocity:Destroy() end
                 end
 
                 -- Handle Auto Fling Logic
@@ -1333,7 +1334,7 @@ return function(AccessKey)
     ManualGrabToggleBtn.Parent = BoxGrab; ManualGrabToggleBtn.LayoutOrder = 2
 
 
-    -- FITUR BARU: BOX 6 (PLAYER - Dimasukkan ke dalam Tab Combat paling bawah)
+    -- BOX 6: PLAYER MECHANICS
     local BoxPlayer = createGroupContainer("Combat", "Player Mechanics", 118)
 
     local FlyToggleBtn = createBtn("FLY HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1580,7 +1581,6 @@ return function(AccessKey)
         if not Settings.ESP then ClearGunOutlines() end
     end
 
-    -- TOGGLE BARU: TRACERS LINE ESP
     local function toggleTracersEsp()
         Settings.TracersESP = not Settings.TracersESP
         TracersEspBtn.Text = Settings.TracersESP and "TRACERS ESP LINE: ON" or "TRACERS ESP LINE: OFF"
@@ -1620,39 +1620,45 @@ return function(AccessKey)
         FOVHideBtn.BackgroundColor3 = Settings.HideFOVCircle and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    -- TOGGLE BARU: CAMERA FOV MODIFIER
     local function toggleCameraFOV()
         Settings.CameraFOVEnabled = not Settings.CameraFOVEnabled
         CamFOVToggleBtn.Text = Settings.CameraFOVEnabled and "CAMERA FOV MODIFIER: ON" or "CAMERA FOV MODIFIER: OFF"
         CamFOVToggleBtn.BackgroundColor3 = Settings.CameraFOVEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    -- TOGGLE BARU: FLY MODIFIER
     local function toggleFly()
         Settings.FlyEnabled = not Settings.FlyEnabled
         FlyToggleBtn.Text = Settings.FlyEnabled and "FLY HACK: ON" or "FLY HACK: OFF"
         FlyToggleBtn.BackgroundColor3 = Settings.FlyEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    -- TOGGLE BARU: JUMP HEIGHT MODIFIER
     local function toggleJumpHeight()
         Settings.JumpPowerEnabled = not Settings.JumpPowerEnabled
         JumpToggleBtn.Text = Settings.JumpPowerEnabled and "JUMP HEIGHT MOD: ON" or "JUMP HEIGHT MOD: OFF"
         JumpToggleBtn.BackgroundColor3 = Settings.JumpPowerEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    -- TOGGLE BARU: NOCLIP MODIFIER
     local function toggleNoclip()
         Settings.NoclipEnabled = not Settings.NoclipEnabled
         NoclipToggleBtn.Text = Settings.NoclipEnabled and "NOCLIP: ON" or "NOCLIP (WALK THRU WALLS): OFF"
         NoclipToggleBtn.BackgroundColor3 = Settings.NoclipEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    -- TOGGLE BARU: INVISIBLE MODIFIER
+    -- [[ RESET MODEL TRANSPARENCY ON TOGGLE OFF ]]
     local function toggleInvisible()
         Settings.InvisibleEnabled = not Settings.InvisibleEnabled
         InvisibleToggleBtn.Text = Settings.InvisibleEnabled and "INVISIBLE HACK: ON" or "INVISIBLE HACK: OFF"
         InvisibleToggleBtn.BackgroundColor3 = Settings.InvisibleEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        
+        if not Settings.InvisibleEnabled and LocalPlayer.Character then
+            for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if child:IsA("BasePart") or child:IsA("Decal") then
+                    if child.Name ~= "HumanoidRootPart" then
+                        child.Transparency = 0
+                    end
+                end
+            end
+        end
     end
 
     _G.SyncFlingButtons = function()
@@ -1747,3 +1753,4 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems Initialized Successfully.")
 end
+
