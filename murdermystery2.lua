@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.2 (Security Sync Update - MM2 Edition Fixed Click)
+-- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
 
 return function(AccessKey)
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
@@ -173,7 +173,7 @@ return function(AccessKey)
     end
 
     -- Forward declaration komponen UI agar sinkron dengan loader exit
-    local ToggleBtnMain, HUDMain, MainFrame, ContentFrame
+    local ToggleBtnMain, HUDMain, MainFrame, MainContentArea
 
     -- ==========================================
     -- [[ 1. LOADING SCREEN ]]
@@ -331,8 +331,8 @@ return function(AccessKey)
                     ToggleBtnMain.Visible = true
                     MainFrame.Visible = true
                     HUDMain.Visible = true
-                    MainFrame.Size = UDim2.new(0, 140, 0, 0)
-                    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 140, 0, 58)}):Play()
+                    MainFrame.Size = UDim2.new(0, 150, 0, 0)
+                    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 150, 0, 340)}):Play()
                 end
             end)
         end
@@ -477,7 +477,7 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ FIXED INTEGRATION SILENT AIM: RE-HOOK ENGINE ]]
+    -- [[ INTEGRASI SILENT AIM: BULLET TELEPORTATION & ESP METHOD ]]
     -- ========================================================================
     local MainMetatable = getrawmetatable(game)
     local OldIndex = MainMetatable.__index
@@ -485,72 +485,48 @@ return function(AccessKey)
     local OldNamecall = MainMetatable.__namecall
     setreadonly(MainMetatable, false)
 
-    local function GetClosestTargetForSilentAim()
-        local Target = nil
-        local ShortestDistance = math.huge
-        local CenterScreen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-        local MyRole = GetMM2Role(LocalPlayer)
-
-        for _, v in pairs(Players:GetPlayers()) do
-            if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                local Root = v.Character.HumanoidRootPart
-                local Hum = v.Character:FindFirstChildOfClass("Humanoid")
-                
-                if Hum and Hum.Health > 0 then
-                    local TargetRole = GetMM2Role(v)
-                    local IsValidTarget = false
-                    
-                    if MyRole == "Murderer" and TargetRole ~= "Murderer" then
-                        IsValidTarget = true
-                    elseif MyRole == "Sheriff" and TargetRole == "Murderer" then
-                        IsValidTarget = true
-                    elseif MyRole == "Innocent" and TargetRole == "Murderer" then
-                        IsValidTarget = true
-                    end
-                    
-                    if IsValidTarget then
-                        local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
-                        if OnScreen then
-                            local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
-                            if Magnitude <= Settings.FOVSize and Magnitude < ShortestDistance then
-                                ShortestDistance = Magnitude
-                                Target = Root
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        return Target
-    end
-
     MainMetatable.__namecall = newcclosure(function(Self, ...)
         local Method = getnamecallmethod()
         local Args = {...}
         
-        if Settings.SilentAim and not checkcaller() then
-            if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FireServer" then
-                local TargetPart = GetClosestTargetForSilentAim()
-                if TargetPart then
-                    if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" then
-                        local Origin = Args[1].Origin
-                        local Direction = (TargetPart.Position - Origin).Unit * 1000
-                        Args[1] = Ray.new(Origin, Direction)
-                        return OldNamecall(Self, unpack(Args))
-                    end
+        if Settings.SilentAim and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FireServer") then
+            local MyRole = GetMM2Role(LocalPlayer)
+            local TargetPart = nil
+            
+            if MyRole == "Murderer" then
+                TargetPart = GetInnocentOrSheriffTarget()
+            else
+                TargetPart = GetMurdererTarget()
+            end
+            
+            if TargetPart then
+                if Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" then
+                    local Origin = Args[1].Origin
+                    local Direction = (TargetPart.Position - Origin).Unit * 1000
+                    Args[1] = Ray.new(Origin, Direction)
+                    return OldNamecall(Self, unpack(Args))
                 end
             end
         end
+        
         return OldNamecall(Self, ...)
     end)
 
     MainMetatable.__index = newcclosure(function(Self, Key)
         if Settings.SilentAim and not checkcaller() then
             if Self == Mouse and (Key == "Hit" or Key == "Target") then
-                local TargetPart = GetClosestTargetForSilentAim()
+                local MyRole = GetMM2Role(LocalPlayer)
+                local TargetPart = nil
+                
+                if MyRole == "Murderer" then
+                    TargetPart = GetInnocentOrSheriffTarget()
+                else
+                    TargetPart = GetMurdererTarget()
+                end
+                
                 if TargetPart then
                     if Key == "Hit" then
-                        return TargetPart.CFrame + Vector3.new(math.random(-1,1)/100, 0, math.random(-1,1)/100)
+                        return TargetPart.CFrame
                     elseif Key == "Target" then
                         return TargetPart
                     end
@@ -561,27 +537,6 @@ return function(AccessKey)
     end)
 
     setreadonly(MainMetatable, true)
-
-    -- [[ CLICK TRIGGER ENGINE: MEMAKSA SENJATA MM2 MENEMBAK ]]
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and Settings.SilentAim then
-            local char = LocalPlayer.Character
-            local gun = char and char:FindFirstChild("Gun")
-            if gun and gun:FindFirstChild("KnifeServer") and gun.KnifeServer:FindFirstChild("ShootGun") then
-                local TargetPart = GetClosestTargetForSilentAim()
-                if TargetPart then
-                    -- Trigger remote tembakan bawaan MM2 langsung ke server dengan kalkulasi offset target part
-                    gun.KnifeServer.ShootGun:InvokeServer({
-                        ["Normal"] = Vector3.new(0, 1, 0),
-                        ["Direction"] = (TargetPart.Position - char.HumanoidRootPart.Position).Unit,
-                        ["Position"] = TargetPart.Position,
-                        ["Hit"] = TargetPart
-                    })
-                end
-            end
-        end
-    end)
 
     RunService.Heartbeat:Connect(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -605,9 +560,10 @@ return function(AccessKey)
         
         if root and humanoid and humanoid.Health > 0 then
             IsGrabbing = true
-            local originalCFrame = root.CFrame
+            local originalCFrame = root.CFrame  -- Catat koordinat asal (Return Point)
             local targetCFrame = targetPart.CFrame + Vector3.new(0, 1.5, 0)
             
+            -- Aktivasi Sistem Noclip Terfokus
             local noclipConnection
             noclipConnection = RunService.Stepped:Connect(function()
                 if character then
@@ -619,32 +575,38 @@ return function(AccessKey)
                 end
             end)
             
+            -- Teleport Instan ke Objek Pistol
             root.CFrame = targetCFrame
             
+            -- Menunggu Verifikasi Penyerapan Senjata Masuk ke Inventory
             local timeout = 0
             while timeout < 1.5 and Settings.AutoGrabGun do
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
                 if character:FindFirstChild("Gun") or (backpack and backpack:FindFirstChild("Gun")) then
                     break
                 end
-                root.CFrame = targetCFrame
+                root.CFrame = targetCFrame -- Menjaga posisi stabil saat grabbing
                 task.wait(0.05)
                 timeout = timeout + 0.05
             end
             
+            -- Kembalikan Posisi Player secara Instan ke Tempat Semula
             if character and character:FindFirstChild("HumanoidRootPart") then
                 root.CFrame = originalCFrame
             end
             
+            -- Matikan Koneksi Noclip Fisik
             if noclipConnection then 
                 noclipConnection:Disconnect() 
             end
             
+            -- Penundaan Cooldown Kecil untuk Stabilitas Engine
             task.wait(0.3)
             IsGrabbing = false
         end
     end
 
+    -- Global Scan Function untuk mencari pistol di seluruh Workspace tanpa batasan nama Folder
     local function ScanForDroppedGun()
         for _, object in ipairs(Workspace:GetDescendants()) do
             if object.Name == "GunDrop" then
@@ -664,6 +626,7 @@ return function(AccessKey)
         return nil
     end
 
+    -- Logic Hook Outline pada Target Senjata Drop
     local function ApplyGunOutline(gunPart)
         if not gunPart or gunPart:FindFirstChild("LouisGunOutline") then return end
         local highlight = Instance.new("Highlight")
@@ -684,6 +647,7 @@ return function(AccessKey)
         end
     end
 
+    -- Thread Loop Pemindaian Mandiri Tanpa Tergantung Folder Event "Normal"
     task.spawn(function()
         while true do
             if Settings.AutoGrabGun or Settings.ESP then
@@ -728,10 +692,12 @@ return function(AccessKey)
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
             if root and humanoid and humanoid.Health > 0 then
+                -- Handle Speedwalk Slider
                 if Settings.SpeedWalkEnabled then
                     humanoid.WalkSpeed = Settings.SpeedWalkValue
                 end
 
+                -- Handle Auto Fling Logic
                 if Settings.AutoFlingMurder or Settings.AutoFlingSheriff then
                     local targetRole = Settings.AutoFlingMurder and "Murderer" or "Sheriff"
                     local targetPlayer = GetTargetByRole(targetRole)
@@ -742,14 +708,17 @@ return function(AccessKey)
                             OriginalCFrameBeforeFling = root.CFrame
                         end
 
+                        -- Fling Physics Glitcher
                         local tRoot = targetPlayer.Character.HumanoidRootPart
                         root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
                         root.Velocity = Vector3.new(99999, 99999, 99999)
                         
+                        -- Noclip saat fling agar tidak nyangkut
                         for _, child in ipairs(character:GetDescendants()) do
                             if child:IsA("BasePart") then child.CanCollide = false end
                         end
                     else
+                        -- Target mati / tidak ditemukan -> Karakter kembali normal
                         if FlingFailsafeActive then
                             Settings.AutoFlingMurder = false
                             Settings.AutoFlingSheriff = false
@@ -762,7 +731,8 @@ return function(AccessKey)
                             FlingFailsafeActive = false
                             OriginalCFrameBeforeFling = nil
                             
-                            _G.SyncFlingButtons()
+                            -- Sync Toggles Utama kembali ke OFF
+                            if _G.SyncFlingButtons then _G.SyncFlingButtons() end
                         end
                     end
                 end
@@ -833,7 +803,6 @@ return function(AccessKey)
     -- ==========================================
     local _GMainColor = Color3.fromRGB(15, 15, 20)
     local _GAccentColor = Color3.fromRGB(0, 180, 255)
-    local isMinimized = true
     local MainVisible = false
     local hudMinimized = false
 
@@ -862,6 +831,7 @@ return function(AccessKey)
     ToggleStroke.Thickness = 2
     ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
+    -- Floating Button Dragging
     local t_dragging, t_dragStart, t_startPos
     ToggleBtnMain.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then t_dragging = true; t_dragStart = i.Position; t_startPos = ToggleBtnMain.Position end end)
     UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
@@ -920,196 +890,211 @@ return function(AccessKey)
         HUDToggleBtn.Text = hudMinimized and "<" or ">"
     end)
 
-    -- [[ MAIN FRAME SETUP ]]
+    -- [[ MAIN FRAME SETUP (NEW STRUCTURE) ]]
     MainFrame = Instance.new("Frame", ScreenGui)
-    MainFrame.Size = UDim2.new(0, 140, 0, 0)
-    MainFrame.Position = UDim2.new(0.5, -70, 0.2, 0)
+    MainFrame.Size = UDim2.new(0, 150, 0, 340)
+    MainFrame.Position = UDim2.new(0.5, -75, 0.2, 0)
     MainFrame.BackgroundColor3 = _GMainColor; MainFrame.Active = true; MainFrame.ClipsDescendants = true
     MainFrame.Visible = false
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
     local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
 
-    local function createBtn(txt, pos, size, color)
-        local b = Instance.new("TextButton", MainFrame)
+    -- Helper Functions for UI Creation
+    local function createLabel(parent, txt, pos, size)
+        local l = Instance.new("TextLabel", parent)
+        l.Size = size or UDim2.new(1, 0, 0, 12); l.Position = pos
+        l.BackgroundTransparency = 1; l.Text = txt; l.TextColor3 = Color3.fromRGB(200, 200, 200)
+        l.TextSize = 7.5; l.Font = Enum.Font.GothamBold; return l
+    end
+
+    local function createBtn(parent, txt, pos, size, color)
+        local b = Instance.new("TextButton", parent)
         b.Size = size; b.Position = pos; b.BackgroundColor3 = color or Color3.fromRGB(30, 30, 35); b.TextColor3 = Color3.new(1,1,1)
-        b.Text = txt; b.Font = Enum.Font.GothamBold; b.TextSize = 6.5; b.ClipsDescendants = true
+        b.Text = txt; b.Font = Enum.Font.GothamBold; b.TextSize = 7; b.ClipsDescendants = true
         Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4); return b
     end
 
-    local function createLabel(txt, pos, size)
-        local l = Instance.new("TextLabel", MainFrame)
-        l.Size = size or UDim2.new(0, 128, 0, 10); l.Position = pos
-        l.BackgroundTransparency = 1; l.Text = txt; l.TextColor3 = Color3.fromRGB(200, 200, 200)
-        l.TextSize = 7; l.Font = Enum.Font.GothamBold; return l
-    end
-
-    local function createLine(pos)
-        local l = Instance.new("Frame", MainFrame)
-        l.Size = UDim2.new(0, 128, 0, 1); l.Position = pos
+    local function createLine(parent, pos)
+        local l = Instance.new("Frame", parent)
+        l.Size = UDim2.new(1, 0, 0, 1); l.Position = pos
         l.BackgroundColor3 = Color3.fromRGB(45, 45, 55); l.BorderSizePixel = 0; return l
     end
 
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 128, 0, 12))
-    HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
+    -- Title Bar
+    local HubLabel = createLabel(MainFrame, "LOUIS HUB FREE V13.5.2", UDim2.new(0, 0, 0, 4), UDim2.new(1, 0, 0, 14))
+    HubLabel.TextColor3 = _GAccentColor
+    HubLabel.TextSize = 8
 
-    local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0, 6, 0, 18), UDim2.new(0, 98, 0, 20))
+    -- [[ SIDEBAR / NAVIGATION MENU (TOP HORIZONTAL BAR) ]]
+    local NavBar = Instance.new("ScrollingFrame", MainFrame)
+    NavBar.Size = UDim2.new(1, -10, 0, 22)
+    NavBar.Position = UDim2.new(0, 5, 0, 22)
+    NavBar.BackgroundTransparency = 1
+    NavBar.CanvasSize = UDim2.new(1.6, 0, 0, 0)
+    NavBar.ScrollBarThickness = 0
+    NavBar.ScrollingDirection = Enum.ScrollingDirection.Horizontal
 
-    -- [[ MENU INFO & SOSMED ]]
-    local InfoBtn = createBtn("i", UDim2.new(0, 108, 0, 18), UDim2.new(0, 26, 0, 20), Color3.fromRGB(45, 45, 55))
-    InfoBtn.TextSize = 8
-    InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
+    local NavLayout = Instance.new("UIListLayout", NavBar)
+    NavLayout.FillDirection = Enum.FillDirection.Horizontal
+    NavLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    NavLayout.Padding = UDim.new(0, 4)
 
-    local InfoFrame = Instance.new("Frame", MainFrame)
-    InfoFrame.Size = UDim2.new(1, -12, 0, 0)
-    InfoFrame.Position = UDim2.new(0, 6, 0, 45)
-    InfoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    InfoFrame.BorderSizePixel = 0
-    InfoFrame.ClipsDescendants = true
-    InfoFrame.Visible = false
-    InfoFrame.ZIndex = 10
-    Instance.new("UICorner", InfoFrame)
-    local InfoStroke = Instance.new("UIStroke", InfoFrame)
-    InfoStroke.Color = _GAccentColor
-    InfoStroke.Thickness = 1
+    -- [[ CONTAINER AREA FOR TABS ]]
+    MainContentArea = Instance.new("Frame", MainFrame)
+    MainContentArea.Size = UDim2.new(1, -10, 1, -52)
+    MainContentArea.Position = UDim2.new(0, 5, 0, 48)
+    MainContentArea.BackgroundTransparency = 1
 
-    local function createInfoLabel(txt, pos, color)
-        local l = Instance.new("TextLabel", InfoFrame)
-        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos
-        l.BackgroundTransparency = 1; l.Text = txt; l.TextColor3 = color or Color3.new(1,1,1)
-        l.TextSize = 7; l.Font = Enum.Font.GothamBold; return l
-    end
+    local Tabs = {}
+    local TabButtons = {}
 
-    createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
+    local function CreateTab(name, layoutOrder)
+        local tabFrame = Instance.new("ScrollingFrame", MainContentArea)
+        tabFrame.Name = name .. "Tab"
+        tabFrame.Size = UDim2.new(1, 0, 1, 0)
+        tabFrame.BackgroundTransparency = 1
+        tabFrame.CanvasSize = UDim2.new(0, 0, 1.3, 0)
+        tabFrame.ScrollBarThickness = 2
+        tabFrame.Visible = false
 
-    local function createSocialBtn(name, link, pos, color)
-        local b = createBtn(name, pos, UDim2.new(1, -10, 0, 18), color)
-        b.Parent = InfoFrame; b.TextSize = 6; b.ZIndex = 11
-        b.MouseButton1Click:Connect(function()
-            setclipboard(link)
-            local oldText = b.Text; b.Text = "COPIED TO CLIPBOARD!"; task.wait(1.5); b.Text = oldText
+        local listLayout = Instance.new("UIListLayout", tabFrame)
+        listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        listLayout.Padding = UDim.new(0, 6)
+
+        local tabBtn = Instance.new("TextButton", NavBar)
+        tabBtn.Name = name .. "Btn"
+        tabBtn.Size = UDim2.new(0, 52, 1, 0)
+        tabBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+        tabBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+        tabBtn.Text = name:upper()
+        tabBtn.Font = Enum.Font.GothamBold
+        tabBtn.TextSize = 6.5
+        tabBtn.LayoutOrder = layoutOrder
+        Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 4)
+        local bStroke = Instance.new("UIStroke", tabBtn)
+        bStroke.Color = Color3.fromRGB(45, 45, 55)
+        bStroke.Thickness = 1
+
+        tabBtn.MouseButton1Click:Connect(function()
+            for _, t in pairs(Tabs) do t.Visible = false end
+            for _, b in pairs(TabButtons) do 
+                b.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+                b.TextColor3 = Color3.fromRGB(150, 150, 150)
+                b.UIStroke.Color = Color3.fromRGB(45, 45, 55)
+            end
+            tabFrame.Visible = true
+            tabBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 50)
+            tabBtn.TextColor3 = _GAccentColor
+            bStroke.Color = _GAccentColor
         end)
+
+        Tabs[name] = tabFrame
+        TabButtons[name] = tabBtn
+        return tabFrame
     end
 
-    createSocialBtn("DISCORD SERVER", "https://discord.gg/sE7G9nGqb", UDim2.new(0, 5, 0, 25), Color3.fromRGB(88, 101, 242))
-    createSocialBtn("TIKTOK: @louismurdermystery2", "https://www.tiktok.com/@louismurdermystery2", UDim2.new(0, 5, 0, 48), Color3.fromRGB(0, 0, 0))
-    createSocialBtn("TIKTOK: @chillajakaliye_", "https://www.tiktok.com/@chillajakaliye_", UDim2.new(0, 5, 0, 71), Color3.fromRGB(0, 0, 0))
+    -- Instansiasi 5 Kategori Menu Utama
+    local EspTab = CreateTab("ESP", 1)
+    local CombatTab = CreateTab("Combat", 2)
+    local FarmingTab = CreateTab("Farming", 3)
+    local ConfigTab = CreateTab("Server", 4)
+    local InfoTab = CreateTab("Info", 5)
 
-    local CloseInfo = createBtn("BACK TO MENU", UDim2.new(0, 5, 1, -22), UDim2.new(1, -10, 0, 18), Color3.fromRGB(40, 40, 45))
-    CloseInfo.Parent = InfoFrame; CloseInfo.ZIndex = 11
+    -- ==========================================
+    -- [[ 1. ESP MENU TAB INTERFACES ]]
+    -- ==========================================
+    createLabel(EspTab, "--- ESP VISUALIZATION ---", UDim2.new(0,0,0,0))
+    local EspBtn = createBtn(EspTab, "[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
+    local FOVHideBtn = createBtn(EspTab, "[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
 
-    local infoOpen = false
-    InfoBtn.MouseButton1Click:Connect(function()
-        infoOpen = not infoOpen
-        if infoOpen then
-            InfoFrame.Visible = true
-            InfoFrame:TweenSize(UDim2.new(1, -12, 1, -55), "Out", "Quad", 0.3, true)
-        else
-            InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
-        end
-    end)
-
-    CloseInfo.MouseButton1Click:Connect(function()
-        infoOpen = false
-        InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
-    end)
-
-    ContentFrame = Instance.new("Frame", MainFrame)
-    ContentFrame.Size = UDim2.new(1, 0, 1, -45); ContentFrame.Position = UDim2.new(0, 0, 0, 45); ContentFrame.BackgroundTransparency = 1; ContentFrame.Visible = false
-
-    -- [[ STRUKTUR MENU HUD WITH TOGGLES ]]
-    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 18)); SilentAimBtn.Parent = ContentFrame
-    local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0, 6, 0, 21), UDim2.new(0, 128, 0, 18)); EspBtn.Parent = ContentFrame
-    local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0, 6, 0, 42), UDim2.new(0, 128, 0, 18)); HitboxBtn.Parent = ContentFrame
-    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0, 6, 0, 63), UDim2.new(0, 128, 0, 18), Color3.fromRGB(0, 120, 200)); VisualBtn.Parent = ContentFrame
-    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0, 6, 0, 84), UDim2.new(0, 128, 0, 18)); GrabBtn.Parent = ContentFrame 
-    local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0, 6, 0, 105), UDim2.new(0, 128, 0, 18)); FOVHideBtn.Parent = ContentFrame
-
-    createLine(UDim2.new(0, 6, 0, 127)).Parent = ContentFrame 
-    createLabel("FLING & SPEED FEATURES", UDim2.new(0, 6, 0, 131)).Parent = ContentFrame
+    -- ==========================================
+    -- [[ 2. COMBAT MENU TAB INTERFACES ]]
+    -- ==========================================
+    createLabel(CombatTab, "--- TARGETING ENGINES ---", UDim2.new(0,0,0,0))
+    local ToggleBtn = createBtn(CombatTab, "[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
+    local SilentAimBtn = createBtn(CombatTab, "[Z] SILENT AIM: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
     
-    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0, 6, 0, 142), UDim2.new(0, 62, 0, 18)); FlingMurderBtn.Parent = ContentFrame
-    local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0, 72, 0, 142), UDim2.new(0, 62, 0, 18)); FlingSheriffBtn.Parent = ContentFrame
-    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0, 6, 0, 163), UDim2.new(0, 128, 0, 18)); SpeedWalkBtn.Parent = ContentFrame
+    createLine(CombatTab, UDim2.new(0,0,0,0))
+    createLabel(CombatTab, "--- AUTOMATION LOOT ---", UDim2.new(0,0,0,0))
+    local GrabBtn = createBtn(CombatTab, "[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
 
-    -- [[ SPEED WALK SLIDER CONFIG ]]
-    createLabel("SPEED WALK VALUE CONFIG", UDim2.new(0, 6, 0, 184)).Parent = ContentFrame
-    local SpeedSliderFrame = Instance.new("Frame", ContentFrame); SpeedSliderFrame.Size = UDim2.new(0, 128, 0, 12); SpeedSliderFrame.Position = UDim2.new(0, 6, 0, 195); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
-    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
-    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7; SpeedSliderText.Font = Enum.Font.GothamBold
+    createLine(CombatTab, UDim2.new(0,0,0,0))
+    createLabel(CombatTab, "--- HITBOX MODIFICATIONS ---", UDim2.new(0,0,0,0))
+    local HitboxBtn = createBtn(CombatTab, "[C] HITBOX EXPANDER: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
+    local VisualBtn = createBtn(CombatTab, "[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22), Color3.fromRGB(0, 120, 200))
 
-    local function syncSpeedSlider(val)
-        SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
-    end
-    syncSpeedSlider(Settings.SpeedWalkValue)
-
-    local SpeedSliderButton = Instance.new("TextButton", SpeedSliderFrame)
-    SpeedSliderButton.Size = UDim2.new(1, 0, 1, 0); SpeedSliderButton.BackgroundTransparency = 1; SpeedSliderButton.Text = ""
-
-    local function UpdateSpeedSlider()
-        local Percentage = math.clamp((Mouse.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
-        Settings.SpeedWalkValue = math.floor(1 + (Percentage * 99))
-        syncSpeedSlider(Settings.SpeedWalkValue)
-    end
-
-    local SpeedSliderConnection = nil
-    SpeedSliderButton.MouseButton1Down:Connect(function()
-        UpdateSpeedSlider()
-        SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider)
-    end)
-
-    -- [[ HITBOX SLIDER CONFIG ]]
-    createLine(UDim2.new(0, 6, 0, 212)).Parent = ContentFrame
-    createLabel("HITBOX SIZE CONFIG", UDim2.new(0, 6, 0, 216)).Parent = ContentFrame
-    
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 227); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    -- Slider Hitbox Size
+    createLabel(CombatTab, "HITBOX SIZE CONFIG", UDim2.new(0,0,0,0))
+    local SliderFrame = Instance.new("Frame", CombatTab); SliderFrame.Size = UDim2.new(1, 0, 0, 15); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
-    local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
+    local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7.5; SliderText.Font = Enum.Font.GothamBold
+    local SliderButton = Instance.new("TextButton", SliderFrame); SliderButton.Size = UDim2.new(1, 0, 1, 0); SliderButton.BackgroundTransparency = 1; SliderButton.Text = ""
 
     local function syncSlider(val)
         SliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); SliderText.Text = string.format("SIZE: %d STUDS", val)
     end
     syncSlider(Settings.HitboxSize)
 
-    local SliderButton = Instance.new("TextButton", SliderFrame)
-    SliderButton.Size = UDim2.new(1, 0, 1, 0); SliderButton.BackgroundTransparency = 1; SliderButton.Text = ""
-
     local function UpdateSlider()
         local Percentage = math.clamp((Mouse.X - SliderFrame.AbsolutePosition.X) / SliderFrame.AbsoluteSize.X, 0, 1)
         Settings.HitboxSize = math.floor(1 + (Percentage * 199))
         syncSlider(Settings.HitboxSize)
     end
-
     local SliderConnection = nil
-    SliderButton.MouseButton1Down:Connect(function()
-        UpdateSlider()
-        SliderConnection = RunService.RenderStepped:Connect(UpdateSlider)
-    end)
+    SliderButton.MouseButton1Down:Connect(function() UpdateSlider(); SliderConnection = RunService.RenderStepped:Connect(UpdateSlider) end)
 
-    -- [[ FOV SLIDER CONFIG ]]
-    createLabel("AIM FOV SIZE CONFIG", UDim2.new(0, 6, 0, 244)).Parent = ContentFrame
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 255); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    -- Slider FOV Size
+    createLabel(CombatTab, "AIM FOV SIZE CONFIG", UDim2.new(0,0,0,0))
+    local FOVSliderFrame = Instance.new("Frame", CombatTab); FOVSliderFrame.Size = UDim2.new(1, 0, 0, 15); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
-    local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
+    local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7.5; FOVSliderText.Font = Enum.Font.GothamBold
+    local FOVSliderButton = Instance.new("TextButton", FOVSliderFrame); FOVSliderButton.Size = UDim2.new(1, 0, 1, 0); FOVSliderButton.BackgroundTransparency = 1; FOVSliderButton.Text = ""
 
     local function syncFOVSlider(val)
         FOVSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); FOVSliderText.Text = string.format("FOV: %d RAD", val)
     end
     syncFOVSlider(Settings.FOVSize)
 
-    local FOVSliderButton = Instance.new("TextButton", FOVSliderFrame)
-    FOVSliderButton.Size = UDim2.new(1, 0, 1, 0); FOVSliderButton.BackgroundTransparency = 1; FOVSliderButton.Text = ""
-
     local function UpdateFOVSlider()
         local Percentage = math.clamp((Mouse.X - FOVSliderFrame.AbsolutePosition.X) / FOVSliderFrame.AbsoluteSize.X, 0, 1)
         Settings.FOVSize = math.floor(1 + (Percentage * 199))
         syncFOVSlider(Settings.FOVSize)
     end
-
     local FOVSliderConnection = nil
-    FOVSliderButton.MouseButton1Down:Connect(function()
-        UpdateFOVSlider()
-        FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider)
-    end)
+    FOVSliderButton.MouseButton1Down:Connect(function() UpdateFOVSlider(); FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider) end)
+
+    createLine(CombatTab, UDim2.new(0,0,0,0))
+    createLabel(CombatTab, "--- MOVEMENT ENGINES ---", UDim2.new(0,0,0,0))
+    local SpeedWalkBtn = createBtn(CombatTab, "SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
+
+    -- Slider Speed Value
+    createLabel(CombatTab, "SPEED WALK VALUE CONFIG", UDim2.new(0,0,0,0))
+    local SpeedSliderFrame = Instance.new("Frame", CombatTab); SpeedSliderFrame.Size = UDim2.new(1, 0, 0, 15); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
+    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
+    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7.5; SpeedSliderText.Font = Enum.Font.GothamBold
+    local SpeedSliderButton = Instance.new("TextButton", SpeedSliderFrame); SpeedSliderButton.Size = UDim2.new(1, 0, 1, 0); SpeedSliderButton.BackgroundTransparency = 1; SpeedSliderButton.Text = ""
+
+    local function syncSpeedSlider(val)
+        SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
+    end
+    syncSpeedSlider(Settings.SpeedWalkValue)
+
+    local function UpdateSpeedSlider()
+        local Percentage = math.clamp((Mouse.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.SpeedWalkValue = math.floor(1 + (Percentage * 99))
+        syncSpeedSlider(Settings.SpeedWalkValue)
+    end
+    local SpeedSliderConnection = nil
+    SpeedSliderButton.MouseButton1Down:Connect(function() UpdateSpeedSlider(); SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider) end)
+
+    -- ==========================================
+    -- [[ 3. FARMING MENU TAB INTERFACES ]]
+    -- ==========================================
+    createLabel(FarmingTab, "--- EXPLOITS & PHYSICALS ---", UDim2.new(0,0,0,0))
+    
+    local FlingContainer = Instance.new("Frame", FarmingTab); FlingContainer.Size = UDim2.new(1, 0, 0, 22); FlingContainer.BackgroundTransparency = 1
+    local FlingMurderBtn = createBtn(FlingContainer, "FLING MURD", UDim2.new(0,0,0,0), UDim2.new(0.48, 0, 1, 0))
+    local FlingSheriffBtn = createBtn(FlingContainer, "FLING SHER", UDim2.new(0.52,0,0,0), UDim2.new(0.48, 0, 1, 0))
 
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -1119,30 +1104,57 @@ return function(AccessKey)
         end
     end)
 
-    local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
-    CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6
+    -- ==========================================
+    -- [[ 4. SERVER CONFIG MENU TAB INTERFACES ]]
+    -- ==========================================
+    createLabel(ConfigTab, "--- CLIENT OPTIMIZATION ---", UDim2.new(0,0,0,0))
+    local ServerPotatoBtn = createBtn(ConfigTab, "ACTIVATE POTATO GRAPHICS", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 24), Color3.fromRGB(35, 45, 35))
+    createLabel(ConfigTab, "Optimize memory and rendering frames.", UDim2.new(0,0,0,0))
 
-    CloseBar.MouseButton1Click:Connect(function()
-        isMinimized = not isMinimized
-        MainFrame:TweenSize(isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 335), "Out", "Quad", 0.25, true)
-        CloseBar.Text = isMinimized and "▼ OPEN MENU ▼" or "▲ CLOSE MENU ▲"
-        task.wait(0.2); ContentFrame.Visible = not isMinimized
-    end)
+    -- ==========================================
+    -- [[ 5. INFO MENU TAB INTERFACES ]]
+    -- ==========================================
+    createLabel(InfoTab, "--- SECURITY ALERT INFOS ---", UDim2.new(0,0,0,0)).TextColor3 = _GAccentColor
+    createLabel(InfoTab, "System status synchronized natively.", UDim2.new(0,0,0,0))
+    
+    createLine(InfoTab, UDim2.new(0,0,0,0))
+    createLabel(InfoTab, "--- LOUIS SOCIAL MEDIA ---", UDim2.new(0,0,0,0))
 
+    local function createSocialBtn(tab, name, link, color)
+        local b = createBtn(tab, name, UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 20), color)
+        b.MouseButton1Click:Connect(function()
+            if setclipboard then
+                setclipboard(link)
+                local oldText = b.Text; b.Text = "COPIED TO CLIPBOARD!"; task.wait(1.5); b.Text = oldText
+            end
+        end)
+    end
+
+    createSocialBtn(InfoTab, "JOIN DISCORD SERVER", "https://discord.gg/sE7G9nGqb", Color3.fromRGB(88, 101, 242))
+    createSocialBtn(InfoTab, "TIKTOK: @louismurdermystery2", "https://www.tiktok.com/@louismurdermystery2", Color3.fromRGB(20, 20, 20))
+    createSocialBtn(InfoTab, "TIKTOK: @chillajakaliye_", "https://www.tiktok.com/@chillajakaliye_", Color3.fromRGB(20, 20, 20))
+
+    -- Default Active Tab Focus
+    TabButtons["ESP"].MouseButton1Click:Fire()
+
+    -- ==========================================
+    -- [[ MAIN CONTROLLER ACTION BINDINGS ]]
+    -- ==========================================
     ToggleBtnMain.MouseButton1Click:Connect(function()
         MainVisible = not MainVisible
         if MainVisible then
             MainFrame.Visible = true; HUDMain.Visible = true
-            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 140, 0, 58) or UDim2.new(0, 140, 0, 335)}):Play()
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 150, 0, 340)}):Play()
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = _GMainColor}):Play()
         else
-            local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 140, 0, 0)})
+            local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 150, 0, 0)})
             t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
             HUDMain.Visible = false
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
         end
     end)
 
+    -- Dynamic Graph FPS Engine
     task.spawn(function()
         local lastTime = tick(); local frames = 0
         RunService.RenderStepped:Connect(function()
@@ -1156,9 +1168,7 @@ return function(AccessKey)
         end)
     end)
 
-    -- ==========================================
-    -- [[ BUTTON FUNCTIONALITIES & INTEGRATION ]]
-    -- ==========================================
+    -- Toggles Implementation Functions
     local function toggleAimbot()
         Settings.CameraAimbot = not Settings.CameraAimbot
         ToggleBtn.Text = Settings.CameraAimbot and "[Q] AIMBOT: ON" or "[Q] AIMBOT: OFF"
@@ -1175,9 +1185,7 @@ return function(AccessKey)
         Settings.ESP = not Settings.ESP
         EspBtn.Text = Settings.ESP and "[X] ESP + GUN DROP: ON" or "[X] ESP + GUN DROP: OFF"
         EspBtn.BackgroundColor3 = Settings.ESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        if not Settings.ESP then 
-            ClearGunOutlines() 
-        end
+        if not Settings.ESP then ClearGunOutlines() end
     end
 
     local function toggleHitbox()
@@ -1220,10 +1228,10 @@ return function(AccessKey)
     end
 
     _G.SyncFlingButtons = function()
-        FlingMurderBtn.Text = Settings.AutoFlingMurder and "FLING MURDER: ON" or "AUTO FLING MURDER"
+        FlingMurderBtn.Text = Settings.AutoFlingMurder and "MURD: ON" or "FLING MURD"
         FlingMurderBtn.BackgroundColor3 = Settings.AutoFlingMurder and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(30, 30, 35)
         
-        FlingSheriffBtn.Text = Settings.AutoFlingSheriff and "FLING SHERIFF: ON" or "AUTO FLING SHERIFF"
+        FlingSheriffBtn.Text = Settings.AutoFlingSheriff and "SHER: ON" or "FLING SHER"
         FlingSheriffBtn.BackgroundColor3 = Settings.AutoFlingSheriff and Color3.fromRGB(0, 100, 255) or Color3.fromRGB(30, 30, 35)
     end
 
@@ -1244,18 +1252,25 @@ return function(AccessKey)
     end)
     
     local potatoEnabled = false
-    PotatoToggle.MouseButton1Click:Connect(function()
+    local function handlePotato()
         potatoEnabled = not potatoEnabled
         if potatoEnabled then
             ApplyPotato()
+            ServerPotatoBtn.BackgroundColor3 = _GAccentColor
+            ServerPotatoBtn.Text = "POTATO ENGINE ACTIVE"
             PotatoToggle.BackgroundColor3 = _GAccentColor
             PotatoStroke.Color = Color3.fromRGB(255, 255, 255)
         else
+            ServerPotatoBtn.BackgroundColor3 = Color3.fromRGB(35, 45, 35)
+            ServerPotatoBtn.Text = "ACTIVATE POTATO GRAPHICS"
             PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
             PotatoStroke.Color = Color3.fromRGB(100, 100, 100)
         end
-    end)
+    end
+    ServerPotatoBtn.MouseButton1Click:Connect(handlePotato)
+    PotatoToggle.MouseButton1Click:Connect(handlePotato)
 
+    -- Keybind Listener
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         local key = input.KeyCode
@@ -1268,6 +1283,7 @@ return function(AccessKey)
         end
     end)
 
+    -- Dragging Frame System
     local dragging, dragStart, startPos
     MainFrame.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
@@ -1275,5 +1291,6 @@ return function(AccessKey)
 
     startLoading()
 
-    print("Louis Hub FREE V13.5.2: Initialized Successfully (Protection 2 Disabled).")
+    print("Louis Hub FREE V13.5.2: Initialized Successfully Tabs UI System.")
 end
+
