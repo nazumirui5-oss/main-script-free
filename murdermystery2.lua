@@ -972,6 +972,13 @@ return function(AccessKey)
     InfoStroke.Color = _GAccentColor
     InfoStroke.Thickness = 1
 
+    local function createInfoLabel(txt, pos, color)
+        local l = Instance.new("TextLabel", InfoFrame)
+        l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos
+        l.BackgroundTransparency = 1; l.Text = txt; l.TextColor3 = color or Color3.new(1,1,1)
+        l.TextSize = 7; l.Font = Enum.Font.GothamBold; return l
+    end
+
     createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
 
     local function createSocialBtn(name, link, pos, color)
@@ -1270,4 +1277,3 @@ return function(AccessKey)
 
     print("Louis Hub FREE V13.5.2: Initialized Successfully (Protection 2 Disabled).")
 end
-
