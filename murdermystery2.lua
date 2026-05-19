@@ -22,7 +22,7 @@ return function(AccessKey)
 
     -- [[ PROTEKSI 1: SESSION HANDSHAKE (Updated to genv) ]]
     local MyID = game.Players.LocalPlayer.UserId
-    if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. MyID then
+    if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. tostring(MyID) then
         game.Players.LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
         return
     end
@@ -1359,7 +1359,7 @@ return function(AccessKey)
 
     -- Tombol Pemilih Bagian Tubuh (Dropdown Siklus Kepala -> Badan -> Tangan -> Kaki)
     local TargetPartBtn = createBtn("TARGET PART: BADAN", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(45, 45, 55))
-    TargetPartBtn.Parent = BoxAim; TargetPartBtn.LayoutOrder = 4
+    TargetPartBtn.Parent = BoxAim; TargetPartBtn.LayoutPartBtn = 4
 
 
     -- BOX 2: FIELD OF VIEW (FOV)
