@@ -152,7 +152,10 @@ return function(AccessKey)
         JumpPowerEnabled = false,
         JumpPowerValue = 50,
         NoclipEnabled = false,
-        InvisibleEnabled = false
+        InvisibleEnabled = false,
+        -- Fitur Baru Kill Player
+        KillAuraEnabled = false,
+        KillAuraRadius = 15
     }
 
     local OriginalFOV = Camera.FieldOfView
@@ -679,6 +682,70 @@ return function(AccessKey)
             task.wait(0.2)
         end
     end)
+
+    -- ========================================================================
+    -- [[ LOGIKA EMULASI TEKNIS ENGINE: KILL AURA & TELEPORT ALL ]]
+    -- ========================================================================
+    task.spawn(function()
+        while true do
+            task.wait(0.1)
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            
+            if Settings.KillAuraEnabled and char and root then
+                local knife = char:FindFirstChild("Knife")
+                -- Hanya berjalan jika bertindak sebagai Murderer dan memegang pisau
+                if knife and GetMM2Role(LocalPlayer) == "Murderer" then
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                            local tRoot = p.Character.HumanoidRootPart
+                            local tHum = p.Character:FindFirstChildOfClass("Humanoid")
+                            
+                            if tHum and tHum.Health > 0 then
+                                local distance = (root.Position - tRoot.Position).Magnitude
+                                if distance <= Settings.KillAuraRadius then
+                                    -- Simulasi slash pisau menggunakan fireactivation secara mekanis
+                                    pcall(function()
+                                        knife:Activate()
+                                        -- Mengirimkan trigger hitbox pisau ke target part terdekat
+                                        firetouchinterest(tRoot, knife.Handle, 0)
+                                        firetouchinterest(tRoot, knife.Handle, 1)
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    local function TeleportAllPlayersToMe()
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        
+        if not char or not root then return end
+        if GetMM2Role(LocalPlayer) ~= "Murderer" then return end
+        
+        -- Aktivasi bypass cancollide lokal sesaat agar player tumpuk tidak mental jauh
+        for _, child in ipairs(char:GetDescendants()) do
+            if child:IsA("BasePart") then child.CanCollide = false end
+        end
+        
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local tRoot = p.Character.HumanoidRootPart
+                local tHum = p.Character:FindFirstChildOfClass("Humanoid")
+                
+                if tHum and tHum.Health > 0 then
+                    pcall(function()
+                        -- Menteleportasikan posisi player target tepat 2 stud di depan koordinat wajah kita
+                        tRoot.CFrame = root.CFrame * CFrame.new(0, 0, -2)
+                    end)
+                end
+            end
+        end
+    end
 
     -- ========================================================================
     -- [[ FIXED: FLY ENGINE, NOCLIP, INVISIBLE & SPEEDWALK LISTENER ]]
@@ -1244,6 +1311,29 @@ return function(AccessKey)
 
     -- --- TAB 2: COMBAT ---
     
+    -- BOX FITUR BARU: KILL PLAYER (Murderer Only)
+    local BoxKillPlayer = createGroupContainer("Combat", "Kill Player", 64)
+
+    local KillAuraToggleBtn = createBtn("KILL AURA: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    KillAuraToggleBtn.Parent = BoxKillPlayer; KillAuraToggleBtn.LayoutOrder = 1
+
+    local KARadiusSliderFrame = Instance.new("Frame")
+    KARadiusSliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    KARadiusSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    KARadiusSliderFrame.LayoutOrder = 2
+    Instance.new("UICorner", KARadiusSliderFrame)
+
+    local KARadiusSliderFill = Instance.new("Frame", KARadiusSliderFrame)
+    KARadiusSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", KARadiusSliderFill)
+
+    local KARadiusSliderText = Instance.new("TextLabel", KARadiusSliderFrame)
+    KARadiusSliderText.Size = UDim2.new(1, 0, 1, 0); KARadiusSliderText.BackgroundTransparency = 1; KARadiusSliderText.TextColor3 = Color3.new(1, 1, 1); KARadiusSliderText.TextSize = 6.5; KARadiusSliderText.Font = Enum.Font.GothamBold; KARadiusSliderText.ZIndex = 3
+    KARadiusSliderFrame.Parent = BoxKillPlayer
+
+    local KillAllBtn = createBtn("KILL ALL PLAYER (TP ALL)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(180, 0, 0))
+    KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
+
+
     -- BOX 1: AIM UTAMA
     local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 64)
     
@@ -1405,6 +1495,21 @@ return function(AccessKey)
     -- ========================================================================
     -- SLIDERS LOGIC & SYNCHRONIZATION ENGINE
     -- ========================================================================
+    -- LOGIC SLIDER BARU: RADIUS KILL AURA
+    local function syncKARadiusSlider(val)
+        KARadiusSliderFill.Size = UDim2.new(math.clamp((val - 1) / 49, 0, 1), 0, 1, 0); KARadiusSliderText.Text = string.format("KA RADIUS: %d STUDS", val)
+    end
+    syncKARadiusSlider(Settings.KillAuraRadius)
+    local KARadiusSliderButton = Instance.new("TextButton", KARadiusSliderFrame); KARadiusSliderButton.Size = UDim2.new(1, 0, 1, 0); KARadiusSliderButton.BackgroundTransparency = 1; KARadiusSliderButton.Text = ""; KARadiusSliderButton.ZIndex = 4
+
+    local function UpdateKARadiusSlider()
+        local Percentage = math.clamp((Mouse.X - KARadiusSliderFrame.AbsolutePosition.X) / KARadiusSliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.KillAuraRadius = math.floor(1 + (Percentage * 49))
+        syncKARadiusSlider(Settings.KillAuraRadius)
+    end
+    local KARadiusSliderConnection = nil
+    KARadiusSliderButton.MouseButton1Down:Connect(function() UpdateKARadiusSlider() KARadiusSliderConnection = RunService.RenderStepped:Connect(UpdateKARadiusSlider) end)
+
     local function syncFOVSlider(val)
         FOVSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); FOVSliderText.Text = string.format("FOV: %d RAD", val)
     end
@@ -1500,6 +1605,7 @@ return function(AccessKey)
             if SpeedSliderConnection then SpeedSliderConnection:Disconnect() SpeedSliderConnection = nil end
             if FlySliderConnection then FlySliderConnection:Disconnect() FlySliderConnection = nil end
             if JumpSliderConnection then JumpSliderConnection:Disconnect() JumpSliderConnection = nil end
+            if KARadiusSliderConnection then KARadiusSliderConnection:Disconnect() KARadiusSliderConnection = nil end
         end
     end)
 
@@ -1551,6 +1657,12 @@ return function(AccessKey)
     -- ==========================================
     -- [[ TOGGLES BEHAVIOR & INTEGRATION ]]
     -- ==========================================
+    local function toggleKillAura()
+        Settings.KillAuraEnabled = not Settings.KillAuraEnabled
+        KillAuraToggleBtn.Text = Settings.KillAuraEnabled and "KILL AURA: ON" or "KILL AURA: OFF"
+        KillAuraToggleBtn.BackgroundColor3 = Settings.KillAuraEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
     local function syncAimbotVisual()
         ToggleBtn.Text = Settings.CameraAimbot and "[Q] AIMBOT: ON" or "[Q] AIMBOT: OFF"
         ToggleBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
@@ -1700,6 +1812,10 @@ return function(AccessKey)
         SpeedWalkBtn.BackgroundColor3 = Settings.SpeedWalkEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
         if not Settings.SpeedWalkEnabled then pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 16 end) end
     end
+
+    -- Koneksi tombol ke behavior fungsi
+    KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
+    KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
 
     ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
     ExtAimbotToggleBtn.MouseButton1Click:Connect(toggleExtAimbotMaster)
