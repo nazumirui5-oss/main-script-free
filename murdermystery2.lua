@@ -1016,7 +1016,8 @@ return function(AccessKey)
     local TabFrames = {}
     local CurrentTab = "Main"
 
-    local TabNames = {"Main", "Combat", "ESP"}
+    -- Menu Utility & Farm ditambahkan di sini agar strukturnya tetap ada
+    local TabNames = {"Main", "Combat", "ESP", "Utility", "Farm"}
     local TabWidth = 1 / #TabNames
 
     ContentFrame = Instance.new("Frame", MainFrame)
@@ -1058,7 +1059,7 @@ return function(AccessKey)
         btn.Position = UDim2.new((i-1)*TabWidth, 0, 0, 0)
         btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
         btn.Text = name:upper()
-        btn.Font = Enum.Font.GothamBold; btn.TextSize = 5.5
+        btn.Font = Enum.Font.GothamBold; btn.TextSize = 5.2
         btn.TextColor3 = Color3.new(1,1,1)
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 3)
         TabButtons[name] = btn
@@ -1076,6 +1077,16 @@ return function(AccessKey)
         obj.Position = UDim2.new(0, 0, 0, 0)
     end
 
+    -- Fungsi Pembuat Garis Pemisah UI Horizontal
+    local function addSeparatorLine(tab)
+        local line = Instance.new("Frame")
+        line.Size = UDim2.new(1, -4, 0, 2)
+        line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        line.BackgroundTransparency = 0.85
+        line.BorderSizePixel = 0
+        addTabElement(tab, line)
+    end
+
     -- --- TAB 1: MAIN ---
     local WelcomeLabel = Instance.new("TextLabel"); WelcomeLabel.Size = UDim2.new(0,0,0,15); WelcomeLabel.BackgroundTransparency = 1
     WelcomeLabel.Text = "Welcome to Louis Hub, " .. LocalPlayer.Name; WelcomeLabel.TextColor3 = Color3.new(1,1,1); WelcomeLabel.Font = Enum.Font.GothamMedium; WelcomeLabel.TextSize = 7
@@ -1085,13 +1096,13 @@ return function(AccessKey)
     InfoStatusLabel.Text = "Status: ACTIVE\nPress 'L' button on left screen\nto hide/open this main UI window."; InfoStatusLabel.TextColor3 = Color3.fromRGB(150,255,150); InfoStatusLabel.Font = Enum.Font.Gotham; InfoStatusLabel.TextSize = 6.5
     addTabElement("Main", InfoStatusLabel)
 
-    -- --- TAB 2: COMBAT (INTEGRATED TAB) ---
-    local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ToggleBtn)
-    local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ExtAimbotToggleBtn)
-    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", SilentAimBtn)
-    local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FOVHideBtn)
 
-    -- Fix Slider & Tulisan Menyatu (FOV Slider)
+    -- --- TAB 2: COMBAT (INTEGRATED & RE-ARRANGED TAB) ---
+    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", SilentAimBtn)
+    addSeparatorLine("Combat")
+
+    -- [ GRUP FOV ]: Hide FOV dengan Slider FOV
+    local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FOVHideBtn)
     local FOVSliderFrame = Instance.new("Frame"); FOVSliderFrame.Size = UDim2.new(0,0,0,14); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
@@ -1110,19 +1121,20 @@ return function(AccessKey)
     end
     local FOVSliderConnection = nil
     FOVSliderButton.MouseButton1Down:Connect(function() UpdateFOVSlider() FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider) end)
+    addSeparatorLine("Combat")
 
-    -- Fitur Grab Gun (2 Metode: Otomatis & Manual/External)
-    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", GrabBtn)
-    local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ManualGrabToggleBtn)
+    -- [ GRUP AIMBOT ]: Aimbot dengan Aimbot Ext
+    local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ToggleBtn)
+    local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ExtAimbotToggleBtn)
+    addSeparatorLine("Combat")
 
-    -- Fitur Fling
-    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FlingMurderBtn)
+    -- [ GRUP FLING ]: Fling Sheriff dengan Fling Murder
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FlingSheriffBtn)
+    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FlingMurderBtn)
+    addSeparatorLine("Combat")
     
-    -- Deketin Tombol Walkspeed sama Slider Walkspeed nya
+    -- [ GRUP WALK SPEED ]: Tombol Walk Speed dengan Slider Walk Speed
     local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", SpeedWalkBtn)
-
-    -- Fix Slider & Tulisan Menyatu (Speed Slider)
     local SpeedSliderFrame = Instance.new("Frame"); SpeedSliderFrame.Size = UDim2.new(0,0,0,14); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
     local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
     local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
@@ -1141,6 +1153,12 @@ return function(AccessKey)
     end
     local SpeedSliderConnection = nil
     SpeedSliderButton.MouseButton1Down:Connect(function() UpdateSpeedSlider() SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider) end)
+    addSeparatorLine("Combat")
+
+    -- [ GRUP GRAB GUN ]: Tombol Grab Gun Otomatis dengan Tombol Grab Gun Ext
+    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", GrabBtn)
+    local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ManualGrabToggleBtn)
+    addSeparatorLine("Combat")
 
 
     -- --- TAB 3: ESP ---
@@ -1167,6 +1185,10 @@ return function(AccessKey)
     end
     local SliderConnection = nil
     SliderButton.MouseButton1Down:Connect(function() UpdateSlider() SliderConnection = RunService.RenderStepped:Connect(UpdateSlider) end)
+
+
+    -- --- TAB 4 & 5: UTILITY & FARM (KOSONG SESUAI PERMINTAAN) ---
+    -- Sengaja dibiarkan kosong tanpa element didalamnya agar user bisa mengisinya nanti.
 
 
     -- Pemutus input slider saat klik mouse dilepas
