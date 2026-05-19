@@ -135,14 +135,14 @@ return function(AccessKey)
         ESP = false,
         TracersESP = false,
         AutoGrabGun = false, 
-        TargetPart = "HumanoidRootPart",
+        TargetPart = "HumanoidRootPart", -- Basis Fleksibilitas Target Aimbot (Head/Torso/RootPart)
         HitboxSize = 20,
         FOVSize = 150,
         HideFOVCircle = false,
         AutoFlingMurder = false,
         AutoFlingSheriff = false,
-        AutoFlingTarget = false,      
-        SelectedFlingPlayer = "",     
+        AutoFlingTarget = false,      -- Fitur Baru: Fling Target Spesifik Toggle
+        SelectedFlingPlayer = "",     -- Fitur Baru: Nama Target Fling Spesifik
         SpeedWalkEnabled = false,
         SpeedWalkValue = 16,
         AimbotExtEnabled = false,
@@ -155,6 +155,7 @@ return function(AccessKey)
         JumpPowerValue = 50,
         NoclipEnabled = false,
         InvisibleEnabled = false,
+        -- Fitur Baru Kill Player
         KillAuraEnabled = false,
         KillAuraRadius = 15
     }
@@ -189,6 +190,7 @@ return function(AccessKey)
         end)
     end
 
+    -- Forward declaration komponen UI agar sinkron dengan loader exit
     local ToggleBtnMain, HUDMain, MainFrame, ContentFrame
 
     -- ==========================================
@@ -422,6 +424,7 @@ return function(AccessKey)
         return "Innocent"
     end
 
+    -- Menggunakan Settings.TargetPart secara fleksibel pada pemindaian target Aimbot
     local function GetMurdererTarget()
         local Target = nil
         local ShortestDistance = math.huge
@@ -576,9 +579,10 @@ return function(AccessKey)
         
         if root and humanoid and humanoid.Health > 0 then
             IsGrabbing = true
-            local originalCFrame = root.CFrame  
+            local originalCFrame = root.CFrame  -- Catat koordinat asal (Return Point)
             local targetCFrame = targetPart.CFrame + Vector3.new(0, 1.5, 0)
             
+            -- Aktivasi Sistem Noclip Terfokus
             local noclipConnection
             noclipConnection = RunService.Stepped:Connect(function()
                 if character then
@@ -590,32 +594,38 @@ return function(AccessKey)
                 end
             end)
             
+            -- Teleport Instan ke Objek Pistol
             root.CFrame = targetCFrame
             
+            -- Menunggu Verifikasi Penyerapan Senjata Masuk ke Inventory
             local timeout = 0
             while timeout < 1.5 do
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
                 if character:FindFirstChild("Gun") or (backpack and backpack:FindFirstChild("Gun")) then
                     break
                 end
-                root.CFrame = targetCFrame 
+                root.CFrame = targetCFrame -- Menjaga posisi stabil saat grabbing
                 task.wait(0.05)
                 timeout = timeout + 0.05
             end
             
+            -- Kembalikan Posisi Player secara Instan ke Tempat Semula
             if character and character:FindFirstChild("HumanoidRootPart") then
                 root.CFrame = originalCFrame
             end
             
+            -- Matikan Koneksi Noclip Fisik
             if noclipConnection then 
                 noclipConnection:Disconnect() 
             end
             
+            -- Penundaan Cooldown Kecil untuk Stabilitas Engine
             task.wait(0.3)
             IsGrabbing = false
         end
     end
 
+    -- Global Scan Function untuk mencari pistol di seluruh Workspace tanpa batasan nama Folder
     local function ScanForDroppedGun()
         for _, object in ipairs(Workspace:GetDescendants()) do
             if object.Name == "GunDrop" then
@@ -635,6 +645,7 @@ return function(AccessKey)
         return nil
     end
 
+    -- Logic Hook Outline pada Target Senjata Drop
     local function ApplyGunOutline(gunPart)
         if not gunPart or gunPart:FindFirstChild("LouisGunOutline") then return end
         local highlight = Instance.new("Highlight")
@@ -655,6 +666,7 @@ return function(AccessKey)
         end
     end
 
+    -- Thread Loop Pemindaian Mandiri Tanpa Tergantung Folder Event "Normal"
     task.spawn(function()
         while true do
             if Settings.AutoGrabGun or Settings.ESP then
@@ -751,6 +763,7 @@ return function(AccessKey)
         return nil
     end
 
+    -- Mendapatkan player target fling spesifik berdasarkan partial name string
     local function GetSpecificFlingTarget()
         if Settings.SelectedFlingPlayer == "" then return nil end
         for _, p in pairs(Players:GetPlayers()) do
@@ -764,6 +777,7 @@ return function(AccessKey)
         return nil
     end
 
+    -- [[ INVISIBLE HACK REBUILD: LOCAL SHIFT METHOD ]]
     RunService.Heartbeat:Connect(function()
         local character = LocalPlayer.Character
         if Settings.InvisibleEnabled and character and character:FindFirstChild("HumanoidRootPart") then
@@ -837,6 +851,7 @@ return function(AccessKey)
                     if root:FindFirstChild("LouisFlyVelocity") then root.LouisFlyVelocity:Destroy() end
                 end
 
+                -- Handle Auto Fling Logic (Global & Spesifik Target)
                 if Settings.AutoFlingMurder or Settings.AutoFlingSheriff or Settings.AutoFlingTarget then
                     local targetPlayer = nil
                     if Settings.AutoFlingTarget then
@@ -990,6 +1005,7 @@ return function(AccessKey)
     ScreenGui.Name = "LouisHub_FREE_Edition"
     ScreenGui.ResetOnSpawn = false
 
+    -- [[ FLOATING TOGGLE (L BUTTON) ]]
     ToggleBtnMain = Instance.new("TextButton", ScreenGui)
     ToggleBtnMain.Name = "FloatingToggle"
     ToggleBtnMain.Size = UDim2.new(0, 50, 0, 50)
@@ -1009,9 +1025,10 @@ return function(AccessKey)
 
     local t_dragging, t_dragStart, t_startPos
     ToggleBtnMain.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then t_dragging = true; t_dragStart = i.Position; t_startPos = ToggleBtnMain.Position end end)
-    UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
+    UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then t_dragging = false end end)
 
+    -- [[ TOMBOL EXTERNAL MELAYANG (AIMBOT & GRAB GUN) ]]
     local ExtAimbotBtn = Instance.new("TextButton", ScreenGui)
     ExtAimbotBtn.Name = "ExtAimbot"
     ExtAimbotBtn.Size = UDim2.new(0, 40, 0, 40)
@@ -1052,6 +1069,7 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if extG_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - extG_dragStart; ExtGrabBtn.Position = UDim2.new(extG_startPos.X.Scale, extG_startPos.X.Offset + d.X, extG_startPos.Y.Scale, extG_startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then extG_dragging = false end end)
 
+    -- [[ HUD ELEMENTS ]]
     HUDMain = Instance.new("Frame", ScreenGui)
     HUDMain.Size = UDim2.new(0, 125, 0, 45)
     HUDMain.Position = UDim2.new(1, -140, 0.15, 0)
@@ -1104,6 +1122,7 @@ return function(AccessKey)
         HUDToggleBtn.Text = hudMinimized and "<" or ">"
     end)
 
+    -- [[ MAIN FRAME SETUP WITH TABS SYSTEM ]]
     MainFrame = Instance.new("Frame", ScreenGui)
     MainFrame.Size = UDim2.new(0, 160, 0, 0)
     MainFrame.Position = UDim2.new(0.5, -80, 0.2, 0)
@@ -1132,6 +1151,7 @@ return function(AccessKey)
     local InfoBtn = createBtn("i", UDim2.new(0, 128, 0, 4), UDim2.new(0, 26, 0, 14), Color3.fromRGB(45, 45, 55))
     InfoBtn.Parent = MainFrame; InfoBtn.TextSize = 8; InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 
+    -- [[ SOSMED / INFO PANEL ]]
     local InfoFrame = Instance.new("Frame", MainFrame)
     InfoFrame.Size = UDim2.new(1, -12, 0, 0); InfoFrame.Position = UDim2.new(0, 6, 0, 45)
     InfoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25); InfoFrame.BorderSizePixel = 0
@@ -1176,6 +1196,7 @@ return function(AccessKey)
         InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
     end)
 
+    -- [[ SISTEM INTEGRASI NAVIGASI TAB ]]
     local TabBar = Instance.new("Frame", MainFrame)
     TabBar.Size = UDim2.new(1, -12, 0, 18); TabBar.Position = UDim2.new(0, 6, 0, 21)
     TabBar.BackgroundTransparency = 1
@@ -1213,7 +1234,7 @@ return function(AccessKey)
     for _, name in ipairs(TabNames) do CreateTabFrame(name) end
 
     local function ShowTab(tabName)
-        CurrentTab = tabName
+        currentTab = tabName
         for name, frame in pairs(TabFrames) do frame.Visible = (name == tabName) end
         for name, btn in pairs(TabButtons) do
             btn.BackgroundColor3 = (name == tabName) and _GAccentColor or Color3.fromRGB(25, 25, 30)
@@ -1293,6 +1314,8 @@ return function(AccessKey)
 
 
     -- --- TAB 2: COMBAT ---
+    
+    -- BOX FITUR BARU: KILL PLAYER (Murderer Only)
     local BoxKillPlayer = createGroupContainer("Combat", "Kill Player", 64)
 
     local KillAuraToggleBtn = createBtn("KILL AURA: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1315,6 +1338,7 @@ return function(AccessKey)
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
 
+    -- BOX 1: AIM UTAMA (Ukuran diperbesar menjadi 100 untuk menampung konfigurasi TargetPart)
     local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 100)
     
     local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1326,10 +1350,12 @@ return function(AccessKey)
     local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ExtAimbotToggleBtn.Parent = BoxAim; ExtAimbotToggleBtn.LayoutOrder = 3
 
+    -- FITUR BARU: Tombol Fleksibilitas Target Aimbot (TargetPart Selector)
     local TargetPartBtn = createBtn("TARGET PART: ROOTPART", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(45, 45, 50))
     TargetPartBtn.Parent = BoxAim; TargetPartBtn.LayoutOrder = 4
 
 
+    -- BOX 2: FIELD OF VIEW (FOV)
     local BoxFOV = createGroupContainer("Combat", "Field of View (FOV)", 82)
     
     local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1365,6 +1391,7 @@ return function(AccessKey)
     CamFOVSliderFrame.Parent = BoxFOV
 
 
+    -- BOX 3: FLING SYSTEM (Ukuran diperbesar menjadi 100 untuk menampung Fling Target Spesifik TextBox & Button)
     local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 100)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1373,6 +1400,7 @@ return function(AccessKey)
     local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
 
+    -- FITUR BARU: Input Box Nama Player untuk Spesifik Fling
     local FlingTargetTextBox = Instance.new("TextBox")
     FlingTargetTextBox.Size = UDim2.new(1, -10, 0, 14)
     FlingTargetTextBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
@@ -1390,10 +1418,12 @@ return function(AccessKey)
         Settings.SelectedFlingPlayer = FlingTargetTextBox.Text
     end)
 
+    -- FITUR BARU: Tombol Toggle Fling Target Spesifik
     local FlingTargetToggleBtn = createBtn("AUTO FLING TARGET: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingTargetToggleBtn.Parent = BoxFling; FlingTargetToggleBtn.LayoutOrder = 4
 
 
+    -- BOX 4: WALKSPEED MODIFIER
     local BoxSpeed = createGroupContainer("Combat", "Walkspeed Modifier", 46)
     
     local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1413,6 +1443,7 @@ return function(AccessKey)
     SpeedSliderFrame.Parent = BoxSpeed
 
 
+    -- BOX 5: GRAB GUN SYSTEM
     local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 46)
     
     local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1422,6 +1453,7 @@ return function(AccessKey)
     ManualGrabToggleBtn.Parent = BoxGrab; ManualGrabToggleBtn.LayoutOrder = 2
 
 
+    -- BOX 6: PLAYER MECHANICS
     local BoxPlayer = createGroupContainer("Combat", "Player Mechanics", 118)
 
     local FlyToggleBtn = createBtn("FLY HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1601,6 +1633,7 @@ return function(AccessKey)
         end
     end)
 
+    -- [[ CLOSING / OPENING BAR MAIN CONTROLLER ]]
     local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
     CloseBar.Parent = MainFrame; CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6
 
@@ -1630,6 +1663,7 @@ return function(AccessKey)
         end
     end)
 
+    -- Dynamic Graph FPS Engine
     task.spawn(function()
         local lastTime = tick(); local frames = 0
         RunService.RenderStepped:Connect(function()
@@ -1671,6 +1705,7 @@ return function(AccessKey)
         ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
     end
 
+    -- Fungsi Siklus Rotasi Pemilihan TargetPart (Fleksibilitas Aimbot)
     local function cycleTargetPart()
         if Settings.TargetPart == "HumanoidRootPart" then
             Settings.TargetPart = "Head"
@@ -1803,6 +1838,7 @@ return function(AccessKey)
         _G.SyncFlingButtons()
     end
 
+    -- Toggle Fungsi Fitur Baru: Fling Target Spesifik Player
     local function toggleFlingTarget()
         Settings.AutoFlingTarget = not Settings.AutoFlingTarget
         if Settings.AutoFlingTarget then
@@ -1819,13 +1855,14 @@ return function(AccessKey)
         if not Settings.SpeedWalkEnabled then pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 16 end) end
     end
 
+    -- Koneksi tombol ke behavior fungsi
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
 
     ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
     ExtAimbotToggleBtn.MouseButton1Click:Connect(toggleExtAimbotMaster)
     ExtAimbotBtn.MouseButton1Click:Connect(toggleAimbot)
-    TargetPartBtn.MouseButton1Click:Connect(cycleTargetPart) 
+    TargetPartBtn.MouseButton1Click:Connect(cycleTargetPart) -- Koneksi Selector TargetPart
     
     SilentAimBtn.MouseButton1Click:Connect(toggleSilentAim)
     EspBtn.MouseButton1Click:Connect(toggleEsp)
@@ -1841,7 +1878,7 @@ return function(AccessKey)
 
     FlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     FlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
-    FlingTargetToggleBtn.MouseButton1Click:Connect(toggleFlingTarget) 
+    FlingTargetToggleBtn.MouseButton1Click:Connect(toggleFlingTarget) -- Koneksi Toggle Fling Spesifik Target
     SpeedWalkBtn.MouseButton1Click:Connect(toggleSpeedWalk)
 
     FlyToggleBtn.MouseButton1Click:Connect(toggleFly)
@@ -1868,6 +1905,7 @@ return function(AccessKey)
         end
     end)
 
+    -- Keybind Listener
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         local key = input.KeyCode
@@ -1880,6 +1918,7 @@ return function(AccessKey)
         end
     end)
 
+    -- Dragging Frame System
     local dragging, dragStart, startPos
     MainFrame.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
@@ -1888,4 +1927,3 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems Initialized Successfully.")
 end
-
