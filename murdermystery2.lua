@@ -840,19 +840,20 @@ return function(AccessKey)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then t_dragging = false end end)
 
     -- [[ TOMBOL EXTERNAL MELAYANG (AIMBOT & GRAB GUN) ]]
+    -- DIKUNCI PERMANEN: BackgroundTransparency = 1 & UIStroke menggunakan warna biru Louis Hub
     local ExtAimbotBtn = Instance.new("TextButton", ScreenGui)
     ExtAimbotBtn.Name = "ExtAimbot"
-    ExtAimbotBtn.Size = UDim2.new(0, 40, 0, 40)
+    ExtAimbotBtn.Size = UDim2.new(0, 75, 0, 30)
     ExtAimbotBtn.Position = UDim2.new(0, 20, 0.5, 35)
-    ExtAimbotBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    ExtAimbotBtn.Text = "A"
+    ExtAimbotBtn.BackgroundTransparency = 1 
+    ExtAimbotBtn.Text = "aimbot" 
     ExtAimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     ExtAimbotBtn.Font = Enum.Font.GothamBold
-    ExtAimbotBtn.TextSize = 18
+    ExtAimbotBtn.TextSize = 14
     ExtAimbotBtn.Visible = false
-    Instance.new("UICorner", ExtAimbotBtn).CornerRadius = UDim.new(1, 0)
+    Instance.new("UICorner", ExtAimbotBtn).CornerRadius = UDim.new(0, 6)
     local ExtAimbotStroke = Instance.new("UIStroke", ExtAimbotBtn)
-    ExtAimbotStroke.Color = Color3.fromRGB(255, 50, 50)
+    ExtAimbotStroke.Color = _GAccentColor 
     ExtAimbotStroke.Thickness = 1.5
 
     local extA_dragging, extA_dragStart, extA_startPos
@@ -862,17 +863,17 @@ return function(AccessKey)
 
     local ExtGrabBtn = Instance.new("TextButton", ScreenGui)
     ExtGrabBtn.Name = "ExtGrabGun"
-    ExtGrabBtn.Size = UDim2.new(0, 40, 0, 40)
-    ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, 85)
-    ExtGrabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    ExtGrabBtn.Text = "G"
+    ExtGrabBtn.Size = UDim2.new(0, 75, 0, 30)
+    ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, 75)
+    ExtGrabBtn.BackgroundTransparency = 1 
+    ExtGrabBtn.Text = "grab gun" 
     ExtGrabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     ExtGrabBtn.Font = Enum.Font.GothamBold
-    ExtGrabBtn.TextSize = 18
+    ExtGrabBtn.TextSize = 13
     ExtGrabBtn.Visible = false
-    Instance.new("UICorner", ExtGrabBtn).CornerRadius = UDim.new(1, 0)
+    Instance.new("UICorner", ExtGrabBtn).CornerRadius = UDim.new(0, 6)
     local ExtGrabStroke = Instance.new("UIStroke", ExtGrabBtn)
-    ExtGrabStroke.Color = Color3.fromRGB(255, 215, 0)
+    ExtGrabStroke.Color = _GAccentColor 
     ExtGrabStroke.Thickness = 1.5
 
     local extG_dragging, extG_dragStart, extG_startPos
@@ -900,7 +901,7 @@ return function(AccessKey)
     FPSLabel.Font = Enum.Font.GothamBold; FPSLabel.TextSize = 9; FPSLabel.TextXAlignment = Enum.TextXAlignment.Left
 
     local PingLabel = Instance.new("TextLabel", HUDFrame)
-    PingLabel.Size = UDim2.new(0, 60, 0.4, 0); PingLabel.Position = UDim2.new(0, 5, 0.4, 0)
+    PingLabel.Size = UDim2.new(0, 60, 0.4, 0); PingLabel.Position = UDim2.new(0, 5, 0, 4)
     PingLabel.BackgroundTransparency = 1; PingLabel.TextColor3 = _GAccentColor
     PingLabel.Font = Enum.Font.GothamBold; PingLabel.TextSize = 9; PingLabel.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -1125,7 +1126,7 @@ return function(AccessKey)
     addTabElement("Main", InfoStatusLabel)
 
 
-    -- --- TAB 2: COMBAT (REBUILT WITH PERFECT STRUCTURED BOX GROUP) ---
+    -- --- TAB 2: COMBAT ---
     
     -- BOX 1: AIM UTAMA
     local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 64)
@@ -1322,14 +1323,23 @@ return function(AccessKey)
         end)
     end)
 
-    -- ==========================================
-    -- [[ TOGGLES BEHAVIOR & INTEGRATION ]]
-    -- ==========================================
+    -- ========================================================
+    -- [[ FIX PERMANEN: RE-SYNCHRONIZATION & TOGGLES BEHAVIOR ]]
+    -- ========================================================
+    -- Mengunci properti tombol luar agar tidak tertimpa/reset saat diklik!
     local function syncAimbotVisual()
         ToggleBtn.Text = Settings.CameraAimbot and "[Q] AIMBOT: ON" or "[Q] AIMBOT: OFF"
         ToggleBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        ExtAimbotBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(20, 20, 25)
-        ExtAimbotBtn.TextColor3 = Settings.CameraAimbot and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+        
+        -- Kunci tombol luar tetap transparan dengan warna indikator dinamis pada teks/garis
+        ExtAimbotBtn.BackgroundTransparency = 1
+        if Settings.CameraAimbot then
+            ExtAimbotBtn.TextColor3 = _GAccentColor
+            ExtAimbotStroke.Color = _GAccentColor
+        else
+            ExtAimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            ExtAimbotStroke.Color = _GAccentColor
+        end
     end
 
     local function toggleAimbot()
@@ -1341,7 +1351,10 @@ return function(AccessKey)
         Settings.AimbotExtEnabled = not Settings.AimbotExtEnabled
         ExtAimbotToggleBtn.Text = Settings.AimbotExtEnabled and "AIMBOT (EXT): ON" or "AIMBOT (EXT): OFF"
         ExtAimbotToggleBtn.BackgroundColor3 = Settings.AimbotExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        
+        ExtAimbotBtn.BackgroundTransparency = 1
         ExtAimbotBtn.Visible = Settings.AimbotExtEnabled and MainVisible
+        syncAimbotVisual()
     end
 
     local function toggleSilentAim()
@@ -1373,10 +1386,16 @@ return function(AccessKey)
         Settings.GrabGunExtEnabled = not Settings.GrabGunExtEnabled
         ManualGrabToggleBtn.Text = Settings.GrabGunExtEnabled and "GRAB GUN (EXT): ON" or "GRAB GUN (EXT): OFF"
         ManualGrabToggleBtn.BackgroundColor3 = Settings.GrabGunExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        
+        ExtGrabBtn.BackgroundTransparency = 1
         ExtGrabBtn.Visible = Settings.GrabGunExtEnabled and MainVisible
     end
 
     local function executeManualGrab()
+        -- Efek visual kedip biru cepat saat diclick manual
+        ExtGrabStroke.Color = Color3.fromRGB(255, 255, 255)
+        task.delay(0.1, function() ExtGrabStroke.Color = _GAccentColor end)
+        
         local activeGun = ScanForDroppedGun()
         if activeGun then
             SafeInstantTween(activeGun)
@@ -1471,6 +1490,6 @@ return function(AccessKey)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
     startLoading()
-    print("Louis Hub FREE V13.5.2: Rebuilt Box Systems Initialized Successfully.")
+    print("Louis Hub FREE V13.5.2: Overwrite Bypass System Deployed Successfully.")
 end
 
