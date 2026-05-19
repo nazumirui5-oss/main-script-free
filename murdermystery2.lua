@@ -133,6 +133,7 @@ return function(AccessKey)
         HitboxExpander = false,
         HitboxVisual = true,
         ESP = false,
+        TracersESP = false,
         AutoGrabGun = false, 
         TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
@@ -143,8 +144,18 @@ return function(AccessKey)
         SpeedWalkEnabled = false,
         SpeedWalkValue = 16,
         AimbotExtEnabled = false,
-        GrabGunExtEnabled = false
+        GrabGunExtEnabled = false,
+        CameraFOVEnabled = false,
+        CameraFOVValue = 70,
+        FlyEnabled = false,
+        FlySpeedValue = 50,
+        JumpPowerEnabled = false,
+        JumpPowerValue = 50,
+        NoclipEnabled = false,
+        InvisibleEnabled = false
     }
+
+    local OriginalFOV = Camera.FieldOfView
 
     -- ==========================================
     -- [[ POTATO GRAPHICS OPTIMIZATION ENGINE ]]
@@ -670,10 +681,11 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ FLING ENGINE & SPEEDWALK LISTENER ]]
+    -- [[ FLY ENGINE, NOCLIP, INVISIBLE & SPEEDWALK LISTENER ]]
     -- ========================================================================
     local FlingFailsafeActive = false
     local OriginalCFrameBeforeFling = nil
+    local FlyBodyGyro, FlyBodyVelocity
 
     local function GetTargetByRole(roleName)
         for _, p in pairs(Players:GetPlayers()) do
@@ -687,6 +699,20 @@ return function(AccessKey)
         return nil
     end
 
+    -- Fitur Invisible Simpel via Teleport & Clone Model Bawah Tanah
+    local RealCharacter = LocalPlayer.Character
+    RunService.Heartbeat:Connect(function()
+        if Settings.InvisibleEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local root = LocalPlayer.Character.HumanoidRootPart
+            -- Menggeser posisi rendering visual tubuh asli ke area bawah map secara loop
+            for _, v in pairs(LocalPlayer.Character:GetChildren()) do
+                if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                    v.CanCollide = false
+                end
+            end
+        end
+    end)
+
     task.spawn(function()
         while true do
             local character = LocalPlayer.Character
@@ -697,6 +723,58 @@ return function(AccessKey)
                 -- Handle Speedwalk Slider
                 if Settings.SpeedWalkEnabled then
                     humanoid.WalkSpeed = Settings.SpeedWalkValue
+                end
+
+                -- Handle Jump Power Slider
+                if Settings.JumpPowerEnabled then
+                    humanoid.JumpPower = Settings.JumpPowerValue
+                    humanoid.UseJumpPower = true
+                else
+                    humanoid.UseJumpPower = false
+                end
+
+                -- Handle Noclip Core System
+                if Settings.NoclipEnabled then
+                    for _, child in ipairs(character:GetDescendants()) do
+                        if child:IsA("BasePart") then child.CanCollide = false end
+                    end
+                end
+
+                -- Handle Camera FOV Modifier
+                if Settings.CameraFOVEnabled then
+                    Camera.FieldOfView = Settings.CameraFOVValue
+                else
+                    Camera.FieldOfView = OriginalFOV
+                end
+
+                -- Handle Fly Core Logic
+                if Settings.FlyEnabled then
+                    if not root:FindFirstChild("FlyGyro") then
+                        FlyBodyGyro = Instance.new("BodyGyro", root)
+                        FlyBodyGyro.Name = "FlyGyro"
+                        FlyBodyGyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+                        FlyBodyGyro.cframe = root.CFrame
+
+                        FlyBodyVelocity = Instance.new("BodyVelocity", root)
+                        FlyBodyVelocity.Name = "FlyVelocity"
+                        FlyBodyVelocity.maxForce = Vector3.new(9e9, 9e9, 9e9)
+                        FlyBodyVelocity.velocity = Vector3.new(0, 0.1, 0)
+                    end
+                    
+                    FlyBodyGyro.cframe = Camera.CFrame
+                    local moveDirection = humanoid.MoveDirection
+                    local flySpeed = Settings.FlySpeedValue
+                    
+                    local vel = moveDirection * flySpeed
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                        vel = vel + Vector3.new(0, flySpeed, 0)
+                    elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                        vel = vel + Vector3.new(0, -flySpeed, 0)
+                    end
+                    FlyBodyVelocity.velocity = vel
+                else
+                    if root:FindFirstChild("FlyGyro") then root.FlyGyro:Destroy() end
+                    if root:FindFirstChild("FlyVelocity") then root.FlyVelocity:Destroy() end
                 end
 
                 -- Handle Auto Fling Logic
@@ -743,15 +821,30 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- LOOPING RENDER: HITBOX EXPANDER DAN ESP OUTLINE SYSTEM
+    -- LOOPING RENDER: HITBOX EXPANDER, ESP OUTLINE & TRACERS SYSTEM
     -- ========================================================================
+    local ActiveTracers = {}
+
+    local function ClearAllTracers()
+        for _, tracer in pairs(ActiveTracers) do
+            tracer.Visible = false
+            tracer:Remove()
+        end
+        ActiveTracers = {}
+    end
+
     RunService.RenderStepped:Connect(function()
+        if not Settings.TracersESP then
+            ClearAllTracers()
+        end
+
         for _, Player in pairs(Players:GetPlayers()) do
             if Player ~= LocalPlayer and Player.Character then
                 local Root = Player.Character:FindFirstChild("HumanoidRootPart")
                 local Humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
                 
                 if Root and Humanoid and Humanoid.Health > 0 then
+                    -- Hitbox Expander Logic
                     if Settings.HitboxExpander then
                         Root.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
                         if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = false end
@@ -768,6 +861,12 @@ return function(AccessKey)
                         if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = true end
                     end
 
+                    local Role = GetMM2Role(Player)
+                    local TargetColor = Color3.fromRGB(0, 225, 0)
+                    if Role == "Murderer" then TargetColor = Color3.fromRGB(255, 0, 0)
+                    elseif Role == "Sheriff" then TargetColor = Color3.fromRGB(0, 0, 225) end
+
+                    -- Box Highlight ESP Logic
                     local Highlight = Player.Character:FindFirstChild("MM2_ESP")
                     if Settings.ESP then
                         if not Highlight then
@@ -777,24 +876,41 @@ return function(AccessKey)
                             Highlight.FillTransparency = 0.6
                             Highlight.OutlineTransparency = 0.1
                         end
-                        
-                        local Role = GetMM2Role(Player)
-                        if Role == "Murderer" then
-                            Highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                            Highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-                        elseif Role == "Sheriff" then
-                            Highlight.FillColor = Color3.fromRGB(0, 0, 225)
-                            Highlight.OutlineColor = Color3.fromRGB(0, 150, 255)
-                        else
-                            Highlight.FillColor = Color3.fromRGB(0, 225, 0)
-                            Highlight.OutlineColor = Color3.fromRGB(0, 225, 0)
-                        end
+                        Highlight.FillColor = TargetColor
+                        Highlight.OutlineColor = TargetColor
                     else
                         if Highlight then Highlight:Destroy() end
                     end
+
+                    -- Tracer Lines ESP Logic
+                    if Settings.TracersESP then
+                        local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
+                        if OnScreen then
+                            local Tracer = ActiveTracers[Player.Name]
+                            if not Tracer then
+                                Tracer = Drawing.new("Line")
+                                Tracer.Thickness = 1.5
+                                Tracer.Transparency = 0.8
+                                ActiveTracers[Player.Name] = Tracer
+                            end
+                            Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                            Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
+                            Tracer.Color = TargetColor
+                            Tracer.Visible = true
+                        else
+                            if ActiveTracers[Player.Name] then ActiveTracers[Player.Name].Visible = false end
+                        end
+                    end
                 end
-            elseif Player.Character and Player.Character:FindFirstChild("MM2_ESP") then
-                Player.Character:FindFirstChild("MM2_ESP"):Destroy()
+            else
+                if Player.Character and Player.Character:FindFirstChild("MM2_ESP") then
+                    Player.Character:FindFirstChild("MM2_ESP"):Destroy()
+                end
+                if ActiveTracers[Player.Name] then
+                    ActiveTracers[Player.Name].Visible = false
+                    ActiveTracers[Player.Name]:Remove()
+                    ActiveTracers[Player.Name] = nil
+                end
             end
         end
     end)
@@ -840,20 +956,19 @@ return function(AccessKey)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then t_dragging = false end end)
 
     -- [[ TOMBOL EXTERNAL MELAYANG (AIMBOT & GRAB GUN) ]]
-    -- DIKUNCI PERMANEN: BackgroundTransparency = 1 & UIStroke menggunakan warna biru Louis Hub
     local ExtAimbotBtn = Instance.new("TextButton", ScreenGui)
     ExtAimbotBtn.Name = "ExtAimbot"
-    ExtAimbotBtn.Size = UDim2.new(0, 75, 0, 30)
+    ExtAimbotBtn.Size = UDim2.new(0, 40, 0, 40)
     ExtAimbotBtn.Position = UDim2.new(0, 20, 0.5, 35)
-    ExtAimbotBtn.BackgroundTransparency = 1 
-    ExtAimbotBtn.Text = "aimbot" 
+    ExtAimbotBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtAimbotBtn.Text = "A"
     ExtAimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     ExtAimbotBtn.Font = Enum.Font.GothamBold
-    ExtAimbotBtn.TextSize = 14
+    ExtAimbotBtn.TextSize = 18
     ExtAimbotBtn.Visible = false
-    Instance.new("UICorner", ExtAimbotBtn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", ExtAimbotBtn).CornerRadius = UDim.new(1, 0)
     local ExtAimbotStroke = Instance.new("UIStroke", ExtAimbotBtn)
-    ExtAimbotStroke.Color = _GAccentColor 
+    ExtAimbotStroke.Color = Color3.fromRGB(255, 50, 50)
     ExtAimbotStroke.Thickness = 1.5
 
     local extA_dragging, extA_dragStart, extA_startPos
@@ -863,17 +978,17 @@ return function(AccessKey)
 
     local ExtGrabBtn = Instance.new("TextButton", ScreenGui)
     ExtGrabBtn.Name = "ExtGrabGun"
-    ExtGrabBtn.Size = UDim2.new(0, 75, 0, 30)
-    ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, 75)
-    ExtGrabBtn.BackgroundTransparency = 1 
-    ExtGrabBtn.Text = "grab gun" 
+    ExtGrabBtn.Size = UDim2.new(0, 40, 0, 40)
+    ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, 85)
+    ExtGrabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtGrabBtn.Text = "G"
     ExtGrabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     ExtGrabBtn.Font = Enum.Font.GothamBold
-    ExtGrabBtn.TextSize = 13
+    ExtGrabBtn.TextSize = 18
     ExtGrabBtn.Visible = false
-    Instance.new("UICorner", ExtGrabBtn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", ExtGrabBtn).CornerRadius = UDim.new(1, 0)
     local ExtGrabStroke = Instance.new("UIStroke", ExtGrabBtn)
-    ExtGrabStroke.Color = _GAccentColor 
+    ExtGrabStroke.Color = Color3.fromRGB(255, 215, 0)
     ExtGrabStroke.Thickness = 1.5
 
     local extG_dragging, extG_dragStart, extG_startPos
@@ -901,7 +1016,7 @@ return function(AccessKey)
     FPSLabel.Font = Enum.Font.GothamBold; FPSLabel.TextSize = 9; FPSLabel.TextXAlignment = Enum.TextXAlignment.Left
 
     local PingLabel = Instance.new("TextLabel", HUDFrame)
-    PingLabel.Size = UDim2.new(0, 60, 0.4, 0); PingLabel.Position = UDim2.new(0, 5, 0, 4)
+    PingLabel.Size = UDim2.new(0, 60, 0.4, 0); PingLabel.Position = UDim2.new(0, 5, 0.4, 0)
     PingLabel.BackgroundTransparency = 1; PingLabel.TextColor3 = _GAccentColor
     PingLabel.Font = Enum.Font.GothamBold; PingLabel.TextSize = 9; PingLabel.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -1142,7 +1257,7 @@ return function(AccessKey)
 
 
     -- BOX 2: FIELD OF VIEW (FOV)
-    local BoxFOV = createGroupContainer("Combat", "Field of View (FOV)", 46)
+    local BoxFOV = createGroupContainer("Combat", "Field of View (FOV)", 82)
     
     local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FOVHideBtn.Parent = BoxFOV; FOVHideBtn.LayoutOrder = 1
@@ -1159,6 +1274,23 @@ return function(AccessKey)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame)
     FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 6.5; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
     FOVSliderFrame.Parent = BoxFOV
+
+    -- FITUR BARU: CAMERA FOV TOGGLE & SLIDER (Dimasukkan ke BoxFOV)
+    local CamFOVToggleBtn = createBtn("CAMERA FOV MODIFIER: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    CamFOVToggleBtn.Parent = BoxFOV; CamFOVToggleBtn.LayoutOrder = 3
+
+    local CamFOVSliderFrame = Instance.new("Frame")
+    CamFOVSliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    CamFOVSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    CamFOVSliderFrame.LayoutOrder = 4
+    Instance.new("UICorner", CamFOVSliderFrame)
+    
+    local CamFOVSliderFill = Instance.new("Frame", CamFOVSliderFrame)
+    CamFOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", CamFOVSliderFill)
+    
+    local CamFOVSliderText = Instance.new("TextLabel", CamFOVSliderFrame)
+    CamFOVSliderText.Size = UDim2.new(1, 0, 1, 0); CamFOVSliderText.BackgroundTransparency = 1; CamFOVSliderText.TextColor3 = Color3.new(1, 1, 1); CamFOVSliderText.TextSize = 6.5; CamFOVSliderText.Font = Enum.Font.GothamBold; CamFOVSliderText.ZIndex = 3
+    CamFOVSliderFrame.Parent = BoxFOV
 
 
     -- BOX 3: FLING SYSTEM
@@ -1201,22 +1333,64 @@ return function(AccessKey)
     ManualGrabToggleBtn.Parent = BoxGrab; ManualGrabToggleBtn.LayoutOrder = 2
 
 
+    -- FITUR BARU: BOX 6 (PLAYER - Dimasukkan ke dalam Tab Combat paling bawah)
+    local BoxPlayer = createGroupContainer("Combat", "Player Mechanics", 118)
+
+    local FlyToggleBtn = createBtn("FLY HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FlyToggleBtn.Parent = BoxPlayer; FlyToggleBtn.LayoutOrder = 1
+
+    local FlySliderFrame = Instance.new("Frame")
+    FlySliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    FlySliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    FlySliderFrame.LayoutOrder = 2
+    Instance.new("UICorner", FlySliderFrame)
+    local FlySliderFill = Instance.new("Frame", FlySliderFrame)
+    FlySliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FlySliderFill)
+    local FlySliderText = Instance.new("TextLabel", FlySliderFrame)
+    FlySliderText.Size = UDim2.new(1, 0, 1, 0); FlySliderText.BackgroundTransparency = 1; FlySliderText.TextColor3 = Color3.new(1, 1, 1); FlySliderText.TextSize = 6.5; FlySliderText.Font = Enum.Font.GothamBold; FlySliderText.ZIndex = 3
+    FlySliderFrame.Parent = BoxPlayer
+
+    local JumpToggleBtn = createBtn("JUMP HEIGHT MOD: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    JumpToggleBtn.Parent = BoxPlayer; JumpToggleBtn.LayoutOrder = 3
+
+    local JumpSliderFrame = Instance.new("Frame")
+    JumpSliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    JumpSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    JumpSliderFrame.LayoutOrder = 4
+    Instance.new("UICorner", JumpSliderFrame)
+    local JumpSliderFill = Instance.new("Frame", JumpSliderFrame)
+    JumpSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", JumpSliderFill)
+    local JumpSliderText = Instance.new("TextLabel", JumpSliderFrame)
+    JumpSliderText.Size = UDim2.new(1, 0, 1, 0); JumpSliderText.BackgroundTransparency = 1; JumpSliderText.TextColor3 = Color3.new(1, 1, 1); JumpSliderText.TextSize = 6.5; JumpSliderText.Font = Enum.Font.GothamBold; JumpSliderText.ZIndex = 3
+    JumpSliderFrame.Parent = BoxPlayer
+
+    local NoclipToggleBtn = createBtn("NOCLIP (WALK THRU WALLS): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    NoclipToggleBtn.Parent = BoxPlayer; NoclipToggleBtn.LayoutOrder = 5
+
+    local InvisibleToggleBtn = createBtn("INVISIBLE HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    InvisibleToggleBtn.Parent = BoxPlayer; InvisibleToggleBtn.LayoutOrder = 6
+
+
     -- --- TAB 3: ESP ---
-    local BoxESP = createGroupContainer("ESP", "Visual & Hitbox Hack", 82)
+    local BoxESP = createGroupContainer("ESP", "Visual & Hitbox Hack", 100)
     
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     EspBtn.Parent = BoxESP; EspBtn.LayoutOrder = 1
+
+    -- FITUR BARU: TRACERS LINE ESP (Dimasukkan ke BoxESP)
+    local TracersEspBtn = createBtn("TRACERS ESP LINE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    TracersEspBtn.Parent = BoxESP; TracersEspBtn.LayoutOrder = 2
     
     local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    HitboxBtn.Parent = BoxESP; HitboxBtn.LayoutOrder = 2
+    HitboxBtn.Parent = BoxESP; HitboxBtn.LayoutOrder = 3
     
     local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(0, 120, 200))
-    VisualBtn.Parent = BoxESP; VisualBtn.LayoutOrder = 3
+    VisualBtn.Parent = BoxESP; VisualBtn.LayoutOrder = 4
 
     local SliderFrame = Instance.new("Frame")
     SliderFrame.Size = UDim2.new(1, -10, 0, 12)
     SliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    SliderFrame.LayoutOrder = 4
+    SliderFrame.LayoutOrder = 5
     Instance.new("UICorner", SliderFrame)
     
     local SliderFill = Instance.new("Frame", SliderFrame)
@@ -1243,6 +1417,51 @@ return function(AccessKey)
     end
     local FOVSliderConnection = nil
     FOVSliderButton.MouseButton1Down:Connect(function() UpdateFOVSlider() FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider) end)
+
+    -- LOGIC SLIDER BARU: CAMERA FOV SLIDER
+    local function syncCamFOVSlider(val)
+        CamFOVSliderFill.Size = UDim2.new(math.clamp((val - 30) / 90, 0, 1), 0, 1, 0); CamFOVSliderText.Text = string.format("CAM FOV: %d", val)
+    end
+    syncCamFOVSlider(Settings.CameraFOVValue)
+    local CamFOVSliderButton = Instance.new("TextButton", CamFOVSliderFrame); CamFOVSliderButton.Size = UDim2.new(1, 0, 1, 0); CamFOVSliderButton.BackgroundTransparency = 1; CamFOVSliderButton.Text = ""; CamFOVSliderButton.ZIndex = 4
+
+    local function UpdateCamFOVSlider()
+        local Percentage = math.clamp((Mouse.X - CamFOVSliderFrame.AbsolutePosition.X) / CamFOVSliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.CameraFOVValue = math.floor(30 + (Percentage * 90))
+        syncCamFOVSlider(Settings.CameraFOVValue)
+    end
+    local CamFOVSliderConnection = nil
+    CamFOVSliderButton.MouseButton1Down:Connect(function() UpdateCamFOVSlider() CamFOVSliderConnection = RunService.RenderStepped:Connect(UpdateCamFOVSlider) end)
+
+    -- LOGIC SLIDER BARU: FLY SPEED SLIDER
+    local function syncFlySlider(val)
+        FlySliderFill.Size = UDim2.new(math.clamp((val - 10) / 140, 0, 1), 0, 1, 0); FlySliderText.Text = string.format("FLY SPEED: %d", val)
+    end
+    syncFlySlider(Settings.FlySpeedValue)
+    local FlySliderButton = Instance.new("TextButton", FlySliderFrame); FlySliderButton.Size = UDim2.new(1, 0, 1, 0); FlySliderButton.BackgroundTransparency = 1; FlySliderButton.Text = ""; FlySliderButton.ZIndex = 4
+
+    local function UpdateFlySlider()
+        local Percentage = math.clamp((Mouse.X - FlySliderFrame.AbsolutePosition.X) / FlySliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.FlySpeedValue = math.floor(10 + (Percentage * 140))
+        syncFlySlider(Settings.FlySpeedValue)
+    end
+    local FlySliderConnection = nil
+    FlySliderButton.MouseButton1Down:Connect(function() UpdateFlySlider() FlySliderConnection = RunService.RenderStepped:Connect(UpdateFlySlider) end)
+
+    -- LOGIC SLIDER BARU: JUMP POWER SLIDER
+    local function syncJumpSlider(val)
+        JumpSliderFill.Size = UDim2.new(math.clamp((val - 50) / 150, 0, 1), 0, 1, 0); JumpSliderText.Text = string.format("JUMP POWER: %d", val)
+    end
+    syncJumpSlider(Settings.JumpPowerValue)
+    local JumpSliderButton = Instance.new("TextButton", JumpSliderFrame); JumpSliderButton.Size = UDim2.new(1, 0, 1, 0); JumpSliderButton.BackgroundTransparency = 1; JumpSliderButton.Text = ""; JumpSliderButton.ZIndex = 4
+
+    local function UpdateJumpSlider()
+        local Percentage = math.clamp((Mouse.X - JumpSliderFrame.AbsolutePosition.X) / JumpSliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.JumpPowerValue = math.floor(50 + (Percentage * 150))
+        syncJumpSlider(Settings.JumpPowerValue)
+    end
+    local JumpSliderConnection = nil
+    JumpSliderButton.MouseButton1Down:Connect(function() UpdateJumpSlider() JumpSliderConnection = RunService.RenderStepped:Connect(UpdateJumpSlider) end)
 
     local function syncSpeedSlider(val)
         SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
@@ -1276,7 +1495,10 @@ return function(AccessKey)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if SliderConnection then SliderConnection:Disconnect() SliderConnection = nil end
             if FOVSliderConnection then FOVSliderConnection:Disconnect() FOVSliderConnection = nil end
+            if CamFOVSliderConnection then CamFOVSliderConnection:Disconnect() CamFOVSliderConnection = nil end
             if SpeedSliderConnection then SpeedSliderConnection:Disconnect() SpeedSliderConnection = nil end
+            if FlySliderConnection then FlySliderConnection:Disconnect() FlySliderConnection = nil end
+            if JumpSliderConnection then JumpSliderConnection:Disconnect() JumpSliderConnection = nil end
         end
     end)
 
@@ -1323,23 +1545,14 @@ return function(AccessKey)
         end)
     end)
 
-    -- ========================================================
-    -- [[ FIX PERMANEN: RE-SYNCHRONIZATION & TOGGLES BEHAVIOR ]]
-    -- ========================================================
-    -- Mengunci properti tombol luar agar tidak tertimpa/reset saat diklik!
+    -- ==========================================
+    -- [[ TOGGLES BEHAVIOR & INTEGRATION ]]
+    -- ==========================================
     local function syncAimbotVisual()
         ToggleBtn.Text = Settings.CameraAimbot and "[Q] AIMBOT: ON" or "[Q] AIMBOT: OFF"
         ToggleBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        
-        -- Kunci tombol luar tetap transparan dengan warna indikator dinamis pada teks/garis
-        ExtAimbotBtn.BackgroundTransparency = 1
-        if Settings.CameraAimbot then
-            ExtAimbotBtn.TextColor3 = _GAccentColor
-            ExtAimbotStroke.Color = _GAccentColor
-        else
-            ExtAimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            ExtAimbotStroke.Color = _GAccentColor
-        end
+        ExtAimbotBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(20, 20, 25)
+        ExtAimbotBtn.TextColor3 = Settings.CameraAimbot and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
     end
 
     local function toggleAimbot()
@@ -1351,10 +1564,7 @@ return function(AccessKey)
         Settings.AimbotExtEnabled = not Settings.AimbotExtEnabled
         ExtAimbotToggleBtn.Text = Settings.AimbotExtEnabled and "AIMBOT (EXT): ON" or "AIMBOT (EXT): OFF"
         ExtAimbotToggleBtn.BackgroundColor3 = Settings.AimbotExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        
-        ExtAimbotBtn.BackgroundTransparency = 1
         ExtAimbotBtn.Visible = Settings.AimbotExtEnabled and MainVisible
-        syncAimbotVisual()
     end
 
     local function toggleSilentAim()
@@ -1368,6 +1578,14 @@ return function(AccessKey)
         EspBtn.Text = Settings.ESP and "[X] ESP + GUN DROP: ON" or "[X] ESP + GUN DROP: OFF"
         EspBtn.BackgroundColor3 = Settings.ESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
         if not Settings.ESP then ClearGunOutlines() end
+    end
+
+    -- TOGGLE BARU: TRACERS LINE ESP
+    local function toggleTracersEsp()
+        Settings.TracersESP = not Settings.TracersESP
+        TracersEspBtn.Text = Settings.TracersESP and "TRACERS ESP LINE: ON" or "TRACERS ESP LINE: OFF"
+        TracersEspBtn.BackgroundColor3 = Settings.TracersESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        if not Settings.TracersESP then ClearAllTracers() end
     end
 
     local function toggleHitbox()
@@ -1386,16 +1604,10 @@ return function(AccessKey)
         Settings.GrabGunExtEnabled = not Settings.GrabGunExtEnabled
         ManualGrabToggleBtn.Text = Settings.GrabGunExtEnabled and "GRAB GUN (EXT): ON" or "GRAB GUN (EXT): OFF"
         ManualGrabToggleBtn.BackgroundColor3 = Settings.GrabGunExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        
-        ExtGrabBtn.BackgroundTransparency = 1
         ExtGrabBtn.Visible = Settings.GrabGunExtEnabled and MainVisible
     end
 
     local function executeManualGrab()
-        -- Efek visual kedip biru cepat saat diclick manual
-        ExtGrabStroke.Color = Color3.fromRGB(255, 255, 255)
-        task.delay(0.1, function() ExtGrabStroke.Color = _GAccentColor end)
-        
         local activeGun = ScanForDroppedGun()
         if activeGun then
             SafeInstantTween(activeGun)
@@ -1406,6 +1618,41 @@ return function(AccessKey)
         Settings.HideFOVCircle = not Settings.HideFOVCircle
         FOVHideBtn.Text = Settings.HideFOVCircle and "[P] HIDE FOV CIRCLE: ON" or "[P] HIDE FOV CIRCLE: OFF"
         FOVHideBtn.BackgroundColor3 = Settings.HideFOVCircle and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    -- TOGGLE BARU: CAMERA FOV MODIFIER
+    local function toggleCameraFOV()
+        Settings.CameraFOVEnabled = not Settings.CameraFOVEnabled
+        CamFOVToggleBtn.Text = Settings.CameraFOVEnabled and "CAMERA FOV MODIFIER: ON" or "CAMERA FOV MODIFIER: OFF"
+        CamFOVToggleBtn.BackgroundColor3 = Settings.CameraFOVEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    -- TOGGLE BARU: FLY MODIFIER
+    local function toggleFly()
+        Settings.FlyEnabled = not Settings.FlyEnabled
+        FlyToggleBtn.Text = Settings.FlyEnabled and "FLY HACK: ON" or "FLY HACK: OFF"
+        FlyToggleBtn.BackgroundColor3 = Settings.FlyEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    -- TOGGLE BARU: JUMP HEIGHT MODIFIER
+    local function toggleJumpHeight()
+        Settings.JumpPowerEnabled = not Settings.JumpPowerEnabled
+        JumpToggleBtn.Text = Settings.JumpPowerEnabled and "JUMP HEIGHT MOD: ON" or "JUMP HEIGHT MOD: OFF"
+        JumpToggleBtn.BackgroundColor3 = Settings.JumpPowerEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    -- TOGGLE BARU: NOCLIP MODIFIER
+    local function toggleNoclip()
+        Settings.NoclipEnabled = not Settings.NoclipEnabled
+        NoclipToggleBtn.Text = Settings.NoclipEnabled and "NOCLIP: ON" or "NOCLIP (WALK THRU WALLS): OFF"
+        NoclipToggleBtn.BackgroundColor3 = Settings.NoclipEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    -- TOGGLE BARU: INVISIBLE MODIFIER
+    local function toggleInvisible()
+        Settings.InvisibleEnabled = not Settings.InvisibleEnabled
+        InvisibleToggleBtn.Text = Settings.InvisibleEnabled and "INVISIBLE HACK: ON" or "INVISIBLE HACK: OFF"
+        InvisibleToggleBtn.BackgroundColor3 = Settings.InvisibleEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
     _G.SyncFlingButtons = function()
@@ -1440,6 +1687,7 @@ return function(AccessKey)
     
     SilentAimBtn.MouseButton1Click:Connect(toggleSilentAim)
     EspBtn.MouseButton1Click:Connect(toggleEsp)
+    TracersEspBtn.MouseButton1Click:Connect(toggleTracersEsp)
     HitboxBtn.MouseButton1Click:Connect(toggleHitbox)
     
     GrabBtn.MouseButton1Click:Connect(toggleAutoGrab) 
@@ -1447,9 +1695,16 @@ return function(AccessKey)
     ExtGrabBtn.MouseButton1Click:Connect(executeManualGrab)
 
     FOVHideBtn.MouseButton1Click:Connect(toggleHideFOV)
+    CamFOVToggleBtn.MouseButton1Click:Connect(toggleCameraFOV)
+
     FlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     FlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
     SpeedWalkBtn.MouseButton1Click:Connect(toggleSpeedWalk)
+
+    FlyToggleBtn.MouseButton1Click:Connect(toggleFly)
+    JumpToggleBtn.MouseButton1Click:Connect(toggleJumpHeight)
+    NoclipToggleBtn.MouseButton1Click:Connect(toggleNoclip)
+    InvisibleToggleBtn.MouseButton1Click:Connect(toggleInvisible)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
@@ -1490,6 +1745,5 @@ return function(AccessKey)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
     startLoading()
-    print("Louis Hub FREE V13.5.2: Overwrite Bypass System Deployed Successfully.")
+    print("Louis Hub FREE V13.5.2: Rebuilt Box Systems Initialized Successfully.")
 end
-
