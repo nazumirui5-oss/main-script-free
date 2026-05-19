@@ -1030,7 +1030,7 @@ return function(AccessKey)
         f.CanvasSize = UDim2.new(0, 0, 0, 0)
         
         local layout = Instance.new("UIListLayout", f)
-        layout.Padding = UDim.new(0, 5)
+        layout.Padding = UDim.new(0, 6)
         layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         
@@ -1076,93 +1076,154 @@ return function(AccessKey)
         elementCounter = elementCounter + 1
         obj.LayoutOrder = elementCounter
         obj.Parent = TabFrames[tab]
-        obj.Size = UDim2.new(1, -4, 0, obj.Size.Y.Offset)
     end
 
-    -- Fungsi Pembuat Garis Pemisah UI Terstruktur (Frame Line)
-    local function addSeparatorLine(tab)
-        local line = Instance.new("Frame")
-        line.Size = UDim2.new(1, -4, 0, 2)
-        line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        line.BackgroundTransparency = 0.85
-        line.BorderSizePixel = 0
-        addTabElement(tab, line)
+    -- Fungsi Pembuat Group Container Box (Solusi Tombol Tumpuk & Garis Rusak)
+    local function createGroupContainer(tab, titleText, boxHeight)
+        local container = Instance.new("Frame")
+        container.Size = UDim2.new(1, -4, 0, boxHeight)
+        container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+        container.BorderSizePixel = 0
+        Instance.new("UICorner", container).CornerRadius = UDim.new(0, 5)
+        
+        local stroke = Instance.new("UIStroke", container)
+        stroke.Color = Color3.fromRGB(45, 45, 50)
+        stroke.Thickness = 1
+        
+        local title = Instance.new("TextLabel", container)
+        title.Size = UDim2.new(1, -10, 0, 12)
+        title.Position = UDim2.new(0, 6, 0, 2)
+        title.BackgroundTransparency = 1
+        title.Text = titleText:upper()
+        title.TextColor3 = _GAccentColor
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 5.5
+        title.TextXAlignment = Enum.TextXAlignment.Left
+
+        local list = Instance.new("UIListLayout", container)
+        list.Padding = UDim.new(0, 4)
+        list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        list.SortOrder = Enum.SortOrder.LayoutOrder
+        
+        addTabElement(tab, container)
+        return container
     end
 
     -- --- TAB 1: MAIN ---
-    local WelcomeLabel = Instance.new("TextLabel"); WelcomeLabel.Size = UDim2.new(0,0,0,15); WelcomeLabel.BackgroundTransparency = 1
-    WelcomeLabel.Text = "Welcome to Louis Hub, " .. LocalPlayer.Name; WelcomeLabel.TextColor3 = Color3.new(1,1,1); WelcomeLabel.Font = Enum.Font.GothamMedium; WelcomeLabel.TextSize = 7
+    local WelcomeLabel = Instance.new("TextLabel")
+    WelcomeLabel.Size = UDim2.new(1, -4, 0, 15)
+    WelcomeLabel.BackgroundTransparency = 1
+    WelcomeLabel.Text = "Welcome to Louis Hub, " .. LocalPlayer.Name
+    WelcomeLabel.TextColor3 = Color3.new(1,1,1); WelcomeLabel.Font = Enum.Font.GothamMedium; WelcomeLabel.TextSize = 7
     addTabElement("Main", WelcomeLabel)
 
-    local InfoStatusLabel = Instance.new("TextLabel"); InfoStatusLabel.Size = UDim2.new(0,0,0,25); InfoStatusLabel.BackgroundTransparency = 1
-    InfoStatusLabel.Text = "Status: ACTIVE\nPress 'L' button on left screen\nto hide/open this main UI window."; InfoStatusLabel.TextColor3 = Color3.fromRGB(150,255,150); InfoStatusLabel.Font = Enum.Font.Gotham; InfoStatusLabel.TextSize = 6.5
+    local InfoStatusLabel = Instance.new("TextLabel")
+    InfoStatusLabel.Size = UDim2.new(1, -4, 0, 25)
+    InfoStatusLabel.BackgroundTransparency = 1
+    InfoStatusLabel.Text = "Status: ACTIVE\nPress 'L' button on left screen\nto hide/open this main UI window."
+    InfoStatusLabel.TextColor3 = Color3.fromRGB(150,255,150); InfoStatusLabel.Font = Enum.Font.Gotham; InfoStatusLabel.TextSize = 6.5
     addTabElement("Main", InfoStatusLabel)
 
 
-    -- --- TAB 2: COMBAT (FIXED & FULLY STRUCTURED) ---
-    -- 1. Silent Aim Only
-    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", SilentAimBtn)
-    addSeparatorLine("Combat")
+    -- --- TAB 2: COMBAT (REBUILT WITH PERFECT STRUCTURED BOX GROUP) ---
+    
+    -- BOX 1: AIM UTAMA
+    local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 64)
+    
+    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    SilentAimBtn.Parent = BoxAim; SilentAimBtn.LayoutOrder = 1
+    
+    local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    ToggleBtn.Parent = BoxAim; ToggleBtn.LayoutOrder = 2
+    
+    local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    ExtAimbotToggleBtn.Parent = BoxAim; ExtAimbotToggleBtn.LayoutOrder = 3
 
-    -- 2. Grup FOV
-    local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", FOVHideBtn)
-    
-    local FOVSliderFrame = Instance.new("Frame"); FOVSliderFrame.Size = UDim2.new(0,0,0,14); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
-    local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
-    local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
-    addTabElement("Combat", FOVSliderFrame)
-    addSeparatorLine("Combat")
 
-    -- 3. Grup Aimbot
-    local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", ToggleBtn)
+    -- BOX 2: FIELD OF VIEW (FOV)
+    local BoxFOV = createGroupContainer("Combat", "Field of View (FOV)", 46)
     
-    local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", ExtAimbotToggleBtn)
-    addSeparatorLine("Combat")
+    local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FOVHideBtn.Parent = BoxFOV; FOVHideBtn.LayoutOrder = 1
+    
+    local FOVSliderFrame = Instance.new("Frame")
+    FOVSliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    FOVSliderFrame.LayoutOrder = 2
+    Instance.new("UICorner", FOVSliderFrame)
+    
+    local FOVSliderFill = Instance.new("Frame", FOVSliderFrame)
+    FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
+    
+    local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame)
+    FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 6.5; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
+    FOVSliderFrame.Parent = BoxFOV
 
-    -- 4. Grup Fling
-    local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", FlingSheriffBtn)
-    
-    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", FlingMurderBtn)
-    addSeparatorLine("Combat")
-    
-    -- 5. Grup Walk Speed
-    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", SpeedWalkBtn)
-    
-    local SpeedSliderFrame = Instance.new("Frame"); SpeedSliderFrame.Size = UDim2.new(0,0,0,14); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
-    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
-    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
-    addTabElement("Combat", SpeedSliderFrame)
-    addSeparatorLine("Combat")
 
-    -- 6. Grup Grab Gun
-    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", GrabBtn)
+    -- BOX 3: FLING SYSTEM
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 46)
     
-    local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
-    addTabElement("Combat", ManualGrabToggleBtn)
-    addSeparatorLine("Combat")
+    local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
+    
+    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
+
+
+    -- BOX 4: WALKSPEED MODIFIER
+    local BoxSpeed = createGroupContainer("Combat", "Walkspeed Modifier", 46)
+    
+    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    SpeedWalkBtn.Parent = BoxSpeed; SpeedWalkBtn.LayoutOrder = 1
+    
+    local SpeedSliderFrame = Instance.new("Frame")
+    SpeedSliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    SpeedSliderFrame.LayoutOrder = 2
+    Instance.new("UICorner", SpeedSliderFrame)
+    
+    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame)
+    SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
+    
+    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame)
+    SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 6.5; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
+    SpeedSliderFrame.Parent = BoxSpeed
+
+
+    -- BOX 5: GRAB GUN SYSTEM
+    local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 46)
+    
+    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    GrabBtn.Parent = BoxGrab; GrabBtn.LayoutOrder = 1
+    
+    local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    ManualGrabToggleBtn.Parent = BoxGrab; ManualGrabToggleBtn.LayoutOrder = 2
 
 
     -- --- TAB 3: ESP ---
-    local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("ESP", EspBtn)
-    local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("ESP", HitboxBtn)
-    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18), Color3.fromRGB(0, 120, 200)); addTabElement("ESP", VisualBtn)
+    local BoxESP = createGroupContainer("ESP", "Visual & Hitbox Hack", 82)
+    
+    local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    EspBtn.Parent = BoxESP; EspBtn.LayoutOrder = 1
+    
+    local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    HitboxBtn.Parent = BoxESP; HitboxBtn.LayoutOrder = 2
+    
+    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(0, 120, 200))
+    VisualBtn.Parent = BoxESP; VisualBtn.LayoutOrder = 3
 
-    local SliderFrame = Instance.new("Frame"); SliderFrame.Size = UDim2.new(0,0,0,14); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
-    local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
-    local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold; SliderText.ZIndex = 3
-    addTabElement("ESP", SliderFrame)
-
-
-    -- --- TAB 4 & 5: UTILITY & FARM (KOSONG SESUAI PERMINTAAN) ---
-    -- Tetap terdaftar tapi isinya kosong.
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    SliderFrame.LayoutOrder = 4
+    Instance.new("UICorner", SliderFrame)
+    
+    local SliderFill = Instance.new("Frame", SliderFrame)
+    SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
+    
+    local SliderText = Instance.new("TextLabel", SliderFrame)
+    SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 6.5; SliderText.Font = Enum.Font.GothamBold; SliderText.ZIndex = 3
+    SliderFrame.Parent = BoxESP
 
 
     -- ========================================================================
@@ -1410,6 +1471,6 @@ return function(AccessKey)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
     startLoading()
-    print("Louis Hub FREE V13.5.2: Tabs System Initialized Successfully.")
+    print("Louis Hub FREE V13.5.2: Rebuilt Box Systems Initialized Successfully.")
 end
 
