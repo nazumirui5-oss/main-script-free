@@ -953,7 +953,7 @@ return function(AccessKey)
         tabFrame.Name = name .. "Tab"
         tabFrame.Size = UDim2.new(1, 0, 1, 0)
         tabFrame.BackgroundTransparency = 1
-        tabFrame.CanvasSize = UDim2.new(0, 0, 1.3, 0)
+        tabFrame.CanvasSize = UDim2.new(0, 0, 1.45, 0) -- Dinaikkan agar slider combat baru tidak terpotong saat scroll
         tabFrame.ScrollBarThickness = 2
         tabFrame.Visible = false
 
@@ -993,7 +993,7 @@ return function(AccessKey)
         return tabFrame
     end
 
-    -- Instansiasi 5 Kategori Menu Utama
+    -- Instansiasi Kategori Menu Utama
     local EspTab = CreateTab("ESP", 1)
     local CombatTab = CreateTab("Combat", 2)
     local FarmingTab = CreateTab("Farming", 3)
@@ -1008,15 +1008,35 @@ return function(AccessKey)
     local FOVHideBtn = createBtn(EspTab, "[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
 
     -- ==========================================
-    -- [[ 2. COMBAT MENU TAB INTERFACES ]]
+    -- [[ 2. COMBAT MENU TAB INTERFACES (MODIFIED) ]]
     -- ==========================================
     createLabel(CombatTab, "--- TARGETING ENGINES ---", UDim2.new(0,0,0,0))
     local ToggleBtn = createBtn(CombatTab, "[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
     local SilentAimBtn = createBtn(CombatTab, "[Z] SILENT AIM: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
     
-    createLine(CombatTab, UDim2.new(0,0,0,0))
-    createLabel(CombatTab, "--- AUTOMATION LOOT ---", UDim2.new(0,0,0,0))
+    -- Dipindahkan dari Farming Tab ke Combat Tab sesuai request
     local GrabBtn = createBtn(CombatTab, "[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
+    local SpeedWalkBtn = createBtn(CombatTab, "SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
+
+    -- Slider Speed Value (Dipindahkan ke Combat Tab)
+    createLabel(CombatTab, "SPEED WALK VALUE CONFIG", UDim2.new(0,0,0,0))
+    local SpeedSliderFrame = Instance.new("Frame", CombatTab); SpeedSliderFrame.Size = UDim2.new(1, 0, 0, 15); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
+    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
+    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7.5; SpeedSliderText.Font = Enum.Font.GothamBold
+    local SpeedSliderButton = Instance.new("TextButton", SpeedSliderFrame); SpeedSliderButton.Size = UDim2.new(1, 0, 1, 0); SpeedSliderButton.BackgroundTransparency = 1; SpeedSliderButton.Text = ""
+
+    local function syncSpeedSlider(val)
+        SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
+    end
+    syncSpeedSlider(Settings.SpeedWalkValue)
+
+    local function UpdateSpeedSlider()
+        local Percentage = math.clamp((Mouse.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.SpeedWalkValue = math.floor(1 + (Percentage * 99))
+        syncSpeedSlider(Settings.SpeedWalkValue)
+    end
+    local SpeedSliderConnection = nil
+    SpeedSliderButton.MouseButton1Down:Connect(function() UpdateSpeedSlider(); SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider) end)
 
     createLine(CombatTab, UDim2.new(0,0,0,0))
     createLabel(CombatTab, "--- HITBOX MODIFICATIONS ---", UDim2.new(0,0,0,0))
@@ -1063,39 +1083,6 @@ return function(AccessKey)
     local FOVSliderConnection = nil
     FOVSliderButton.MouseButton1Down:Connect(function() UpdateFOVSlider(); FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider) end)
 
-    createLine(CombatTab, UDim2.new(0,0,0,0))
-    createLabel(CombatTab, "--- MOVEMENT ENGINES ---", UDim2.new(0,0,0,0))
-    local SpeedWalkBtn = createBtn(CombatTab, "SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, 0, 0, 22))
-
-    -- Slider Speed Value
-    createLabel(CombatTab, "SPEED WALK VALUE CONFIG", UDim2.new(0,0,0,0))
-    local SpeedSliderFrame = Instance.new("Frame", CombatTab); SpeedSliderFrame.Size = UDim2.new(1, 0, 0, 15); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
-    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
-    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7.5; SpeedSliderText.Font = Enum.Font.GothamBold
-    local SpeedSliderButton = Instance.new("TextButton", SpeedSliderFrame); SpeedSliderButton.Size = UDim2.new(1, 0, 1, 0); SpeedSliderButton.BackgroundTransparency = 1; SpeedSliderButton.Text = ""
-
-    local function syncSpeedSlider(val)
-        SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
-    end
-    syncSpeedSlider(Settings.SpeedWalkValue)
-
-    local function UpdateSpeedSlider()
-        local Percentage = math.clamp((Mouse.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
-        Settings.SpeedWalkValue = math.floor(1 + (Percentage * 99))
-        syncSpeedSlider(Settings.SpeedWalkValue)
-    end
-    local SpeedSliderConnection = nil
-    SpeedSliderButton.MouseButton1Down:Connect(function() UpdateSpeedSlider(); SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider) end)
-
-    -- ==========================================
-    -- [[ 3. FARMING MENU TAB INTERFACES ]]
-    -- ==========================================
-    createLabel(FarmingTab, "--- EXPLOITS & PHYSICALS ---", UDim2.new(0,0,0,0))
-    
-    local FlingContainer = Instance.new("Frame", FarmingTab); FlingContainer.Size = UDim2.new(1, 0, 0, 22); FlingContainer.BackgroundTransparency = 1
-    local FlingMurderBtn = createBtn(FlingContainer, "FLING MURD", UDim2.new(0,0,0,0), UDim2.new(0.48, 0, 1, 0))
-    local FlingSheriffBtn = createBtn(FlingContainer, "FLING SHER", UDim2.new(0.52,0,0,0), UDim2.new(0.48, 0, 1, 0))
-
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if SliderConnection then SliderConnection:Disconnect() SliderConnection = nil end
@@ -1103,6 +1090,14 @@ return function(AccessKey)
             if SpeedSliderConnection then SpeedSliderConnection:Disconnect() SpeedSliderConnection = nil end
         end
     end)
+
+    -- ==========================================
+    -- [[ 3. FARMING MENU TAB INTERFACES ]]
+    -- ==========================================
+    createLabel(FarmingTab, "--- EXPLOITS & PHYSICALS ---", UDim2.new(0,0,0,0))
+    local FlingContainer = Instance.new("Frame", FarmingTab); FlingContainer.Size = UDim2.new(1, 0, 0, 22); FlingContainer.BackgroundTransparency = 1
+    local FlingMurderBtn = createBtn(FlingContainer, "FLING MURD", UDim2.new(0,0,0,0), UDim2.new(0.48, 0, 1, 0))
+    local FlingSheriffBtn = createBtn(FlingContainer, "FLING SHER", UDim2.new(0.52,0,0,0), UDim2.new(0.48, 0, 1, 0))
 
     -- ==========================================
     -- [[ 4. SERVER CONFIG MENU TAB INTERFACES ]]
@@ -1288,6 +1283,11 @@ return function(AccessKey)
     MainFrame.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+
+    -- Force UI Display Fix (Menjamin GUI dimuat dengan benar ke CoreGui / gethui)
+    MainFrame.Visible = false
+    HUDMain.Visible = false
+    ToggleBtnMain.Visible = false
 
     startLoading()
 
