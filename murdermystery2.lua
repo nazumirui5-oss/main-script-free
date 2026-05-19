@@ -22,7 +22,7 @@ return function(AccessKey)
 
     -- [[ PROTEKSI 1: SESSION HANDSHAKE (Updated to genv) ]]
     local MyID = game.Players.LocalPlayer.UserId
-    if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. tostring(MyID) then
+    if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. MyID then
         game.Players.LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
         return
     end
@@ -135,14 +135,12 @@ return function(AccessKey)
         ESP = false,
         TracersESP = false,
         AutoGrabGun = false, 
-        TargetPart = "HumanoidRootPart", -- Default Part (Badan)
+        TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
         FOVSize = 150,
         HideFOVCircle = false,
         AutoFlingMurder = false,
         AutoFlingSheriff = false,
-        AutoFlingTarget = false,        -- Fitur Baru Fling Target
-        SelectedFlingPlayer = "",       -- Fitur Baru Simpan Nama Target Fling
         SpeedWalkEnabled = false,
         SpeedWalkValue = 16,
         AimbotExtEnabled = false,
@@ -155,6 +153,7 @@ return function(AccessKey)
         JumpPowerValue = 50,
         NoclipEnabled = false,
         InvisibleEnabled = false,
+        -- Fitur Baru Kill Player
         KillAuraEnabled = false,
         KillAuraRadius = 15
     }
@@ -423,27 +422,6 @@ return function(AccessKey)
         return "Innocent"
     end
 
-    -- Utility Dinamis untuk Mendapatkan Target Part Spesifik Berdasarkan Pilihan Dropdown
-    local function GetSpecificTargetPart(Character)
-        if not Character then return nil end
-        local partName = Settings.TargetPart
-        
-        -- Fallback map jika r6 / r15 berbeda nama struktur ekstremitasnya
-        if partName == "Head" then return Character:FindFirstChild("Head")
-        elseif partName == "UpperTorso" or partName == "LowerTorso" or partName == "HumanoidRootPart" then
-            return Character:FindFirstChild("HumanoidRootPart") or Character:FindFirstChild("Torso")
-        elseif partName == "LeftHand" then
-            return Character:FindFirstChild("LeftHand") or Character:FindFirstChild("Left Arm")
-        elseif partName == "RightHand" then
-            return Character:FindFirstChild("RightHand") or Character:FindFirstChild("Right Arm")
-        elseif partName == "LeftFoot" then
-            return Character:FindFirstChild("LeftFoot") or Character:FindFirstChild("Left Leg")
-        elseif partName == "RightFoot" then
-            return Character:FindFirstChild("RightFoot") or Character:FindFirstChild("Right Leg")
-        end
-        return Character:FindFirstChild("HumanoidRootPart")
-    end
-
     local function GetMurdererTarget()
         local Target = nil
         local ShortestDistance = math.huge
@@ -461,7 +439,7 @@ return function(AccessKey)
                         local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
                         if Magnitude <= Settings.FOVSize and Magnitude < ShortestDistance then
                             ShortestDistance = Magnitude
-                            Target = GetSpecificTargetPart(v.Character)
+                            Target = Root
                         end
                     end
                 end
@@ -487,7 +465,7 @@ return function(AccessKey)
                         local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
                         if Magnitude <= Settings.FOVSize and Magnitude < ShortestDistance then
                             ShortestDistance = Magnitude
-                            Target = GetSpecificTargetPart(v.Character)
+                            Target = Root
                         end
                     end
                 end
@@ -580,7 +558,7 @@ return function(AccessKey)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local root = LocalPlayer.Character.HumanoidRootPart
             local hum = LocalPlayer.Character.Humanoid
-            if hum.FloorMaterial == Enum.Material.Air and root.Velocity.Magnitude > 100 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff and not Settings.AutoFlingTarget then 
+            if hum.FloorMaterial == Enum.Material.Air and root.Velocity.Magnitude > 100 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then 
                 root.Velocity = root.Velocity.Unit * 100 
             end
         end
@@ -716,6 +694,7 @@ return function(AccessKey)
             
             if Settings.KillAuraEnabled and char and root then
                 local knife = char:FindFirstChild("Knife")
+                -- Hanya berjalan jika bertindak sebagai Murderer dan memegang pisau
                 if knife and GetMM2Role(LocalPlayer) == "Murderer" then
                     for _, p in ipairs(Players:GetPlayers()) do
                         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
@@ -725,8 +704,10 @@ return function(AccessKey)
                             if tHum and tHum.Health > 0 then
                                 local distance = (root.Position - tRoot.Position).Magnitude
                                 if distance <= Settings.KillAuraRadius then
+                                    -- Simulasi slash pisau menggunakan fireactivation secara mekanis
                                     pcall(function()
                                         knife:Activate()
+                                        -- Mengirimkan trigger hitbox pisau ke target part terdekat
                                         firetouchinterest(tRoot, knife.Handle, 0)
                                         firetouchinterest(tRoot, knife.Handle, 1)
                                     end)
@@ -746,6 +727,7 @@ return function(AccessKey)
         if not char or not root then return end
         if GetMM2Role(LocalPlayer) ~= "Murderer" then return end
         
+        -- Aktivasi bypass cancollide lokal sesaat agar player tumpuk tidak mental jauh
         for _, child in ipairs(char:GetDescendants()) do
             if child:IsA("BasePart") then child.CanCollide = false end
         end
@@ -757,6 +739,7 @@ return function(AccessKey)
                 
                 if tHum and tHum.Health > 0 then
                     pcall(function()
+                        -- Menteleportasikan posisi player target tepat 2 stud di depan koordinat wajah kita
                         tRoot.CFrame = root.CFrame * CFrame.new(0, 0, -2)
                     end)
                 end
@@ -786,6 +769,7 @@ return function(AccessKey)
     RunService.Heartbeat:Connect(function()
         local character = LocalPlayer.Character
         if Settings.InvisibleEnabled and character and character:FindFirstChild("HumanoidRootPart") then
+            -- Menyembunyikan seluruh part visual lokal agar transparan/tidak dirender
             for _, child in ipairs(character:GetDescendants()) do
                 if child:IsA("BasePart") or child:IsA("Decal") then
                     if child.Name ~= "HumanoidRootPart" then
@@ -803,10 +787,12 @@ return function(AccessKey)
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
             if root and humanoid and humanoid.Health > 0 then
+                -- Handle Speedwalk Slider
                 if Settings.SpeedWalkEnabled then
                     humanoid.WalkSpeed = Settings.SpeedWalkValue
                 end
 
+                -- Handle Jump Power Slider
                 if Settings.JumpPowerEnabled then
                     humanoid.JumpPower = Settings.JumpPowerValue
                     humanoid.UseJumpPower = true
@@ -814,18 +800,21 @@ return function(AccessKey)
                     humanoid.UseJumpPower = false
                 end
 
+                -- Handle Noclip Core System
                 if Settings.NoclipEnabled or Settings.FlyEnabled then
                     for _, child in ipairs(character:GetDescendants()) do
                         if child:IsA("BasePart") then child.CanCollide = false end
                     end
                 end
 
+                -- Handle Camera FOV Modifier
                 if Settings.CameraFOVEnabled then
                     Camera.FieldOfView = Settings.CameraFOVValue
                 else
                     Camera.FieldOfView = OriginalFOV
                 end
 
+                -- [[ REBUILT: DETACHED REFRESHABLE FLY ENGINE ]]
                 if Settings.FlyEnabled then
                     local bGyro = root:FindFirstChild("LouisFlyGyro") or Instance.new("BodyGyro", root)
                     bGyro.Name = "LouisFlyGyro"
@@ -856,17 +845,10 @@ return function(AccessKey)
                     if root:FindFirstChild("LouisFlyVelocity") then root.LouisFlyVelocity:Destroy() end
                 end
 
-                -- Handle Auto Fling Logic (Murder, Sheriff, atau Target Dropdown)
-                if Settings.AutoFlingMurder or Settings.AutoFlingSheriff or Settings.AutoFlingTarget then
-                    local targetPlayer = nil
-                    
-                    if Settings.AutoFlingMurder then
-                        targetPlayer = GetTargetByRole("Murderer")
-                    elseif Settings.AutoFlingSheriff then
-                        targetPlayer = GetTargetByRole("Sheriff")
-                    elseif Settings.AutoFlingTarget and Settings.SelectedFlingPlayer ~= "" then
-                        targetPlayer = Players:FindFirstChild(Settings.SelectedFlingPlayer)
-                    end
+                -- Handle Auto Fling Logic
+                if Settings.AutoFlingMurder or Settings.AutoFlingSheriff then
+                    local targetRole = Settings.AutoFlingMurder and "Murderer" or "Sheriff"
+                    local targetPlayer = GetTargetByRole(targetRole)
 
                     if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
                         if not FlingFailsafeActive then
@@ -874,18 +856,20 @@ return function(AccessKey)
                             OriginalCFrameBeforeFling = root.CFrame
                         end
 
+                        -- Fling Physics Glitcher
                         local tRoot = targetPlayer.Character.HumanoidRootPart
                         root.CFrame = tRoot.CFrame * CFrame.new(math.random(-1,1), 0, math.random(-1,1))
                         root.Velocity = Vector3.new(99999, 99999, 99999)
                         
+                        -- Noclip saat fling agar tidak nyangkut
                         for _, child in ipairs(character:GetDescendants()) do
                             if child:IsA("BasePart") then child.CanCollide = false end
                         end
                     else
+                        -- Target mati / tidak ditemukan -> Karakter kembali normal
                         if FlingFailsafeActive then
                             Settings.AutoFlingMurder = false
                             Settings.AutoFlingSheriff = false
-                            Settings.AutoFlingTarget = false
                             root.Velocity = Vector3.new(0, 0, 0)
                             root.RotVelocity = Vector3.new(0, 0, 0)
                             task.wait(0.1)
@@ -928,6 +912,7 @@ return function(AccessKey)
                 local Humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
                 
                 if Root and Humanoid and Humanoid.Health > 0 then
+                    -- Hitbox Expander Logic
                     if Settings.HitboxExpander then
                         Root.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
                         if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = false end
@@ -949,6 +934,7 @@ return function(AccessKey)
                     if Role == "Murderer" then TargetColor = Color3.fromRGB(255, 0, 0)
                     elseif Role == "Sheriff" then TargetColor = Color3.fromRGB(0, 0, 225) end
 
+                    -- Box Highlight ESP Logic
                     local Highlight = Player.Character:FindFirstChild("MM2_ESP")
                     if Settings.ESP then
                         if not Highlight then
@@ -964,6 +950,7 @@ return function(AccessKey)
                         if Highlight then Highlight:Destroy() end
                     end
 
+                    -- Tracer Lines ESP Logic
                     if Settings.TracersESP then
                         local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                         if OnScreen then
@@ -1030,6 +1017,7 @@ return function(AccessKey)
     ToggleStroke.Thickness = 2
     ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
+    -- Floating Button Dragging
     local t_dragging, t_dragStart, t_startPos
     ToggleBtnMain.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then t_dragging = true; t_dragStart = i.Position; t_startPos = ToggleBtnMain.Position end end)
     UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
@@ -1274,6 +1262,7 @@ return function(AccessKey)
         obj.Parent = TabFrames[tab]
     end
 
+    -- Fungsi Pembuat Group Container Box (Solusi Tombol Tumpuk & Garis Rusak)
     local function createGroupContainer(tab, titleText, boxHeight)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(1, -4, 0, boxHeight)
@@ -1345,8 +1334,8 @@ return function(AccessKey)
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
 
-    -- BOX 1: AIM UTAMA (DITAMBAHKAN TARGET PART SELECTION)
-    local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 82)
+    -- BOX 1: AIM UTAMA
+    local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 64)
     
     local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     SilentAimBtn.Parent = BoxAim; SilentAimBtn.LayoutOrder = 1
@@ -1356,10 +1345,6 @@ return function(AccessKey)
     
     local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ExtAimbotToggleBtn.Parent = BoxAim; ExtAimbotToggleBtn.LayoutOrder = 3
-
-    -- Tombol Pemilih Bagian Tubuh (Dropdown Siklus Kepala -> Badan -> Tangan -> Kaki)
-    local TargetPartBtn = createBtn("TARGET PART: BADAN", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(45, 45, 55))
-    TargetPartBtn.Parent = BoxAim; TargetPartBtn.LayoutPartBtn = 4
 
 
     -- BOX 2: FIELD OF VIEW (FOV)
@@ -1381,6 +1366,7 @@ return function(AccessKey)
     FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 6.5; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
     FOVSliderFrame.Parent = BoxFOV
 
+    -- FITUR BARU: CAMERA FOV TOGGLE & SLIDER (Dimasukkan ke BoxFOV)
     local CamFOVToggleBtn = createBtn("CAMERA FOV MODIFIER: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     CamFOVToggleBtn.Parent = BoxFOV; CamFOVToggleBtn.LayoutOrder = 3
 
@@ -1398,20 +1384,14 @@ return function(AccessKey)
     CamFOVSliderFrame.Parent = BoxFOV
 
 
-    -- BOX 3: FLING SYSTEM (DITAMBAHKAN SELECTOR PLAYER DROP-MENU DINAMIS)
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 82)
+    -- BOX 3: FLING SYSTEM
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 46)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
     
     local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
-
-    local ChoosePlayerFlingBtn = createBtn("SELECT PLAYER: NONE", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(40, 40, 45))
-    ChoosePlayerFlingBtn.Parent = BoxFling; ChoosePlayerFlingBtn.LayoutOrder = 3
-
-    local FlingTargetBtn = createBtn("FLING TARGET PLAYER: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    FlingTargetBtn.Parent = BoxFling; FlingTargetBtn.LayoutOrder = 4
 
 
     -- BOX 4: WALKSPEED MODIFIER
@@ -1488,6 +1468,7 @@ return function(AccessKey)
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     EspBtn.Parent = BoxESP; EspBtn.LayoutOrder = 1
 
+    -- FITUR BARU: TRACERS LINE ESP (Dimasukkan ke BoxESP)
     local TracersEspBtn = createBtn("TRACERS ESP LINE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     TracersEspBtn.Parent = BoxESP; TracersEspBtn.LayoutOrder = 2
     
@@ -1514,6 +1495,7 @@ return function(AccessKey)
     -- ========================================================================
     -- SLIDERS LOGIC & SYNCHRONIZATION ENGINE
     -- ========================================================================
+    -- LOGIC SLIDER BARU: RADIUS KILL AURA
     local function syncKARadiusSlider(val)
         KARadiusSliderFill.Size = UDim2.new(math.clamp((val - 1) / 49, 0, 1), 0, 1, 0); KARadiusSliderText.Text = string.format("KA RADIUS: %d STUDS", val)
     end
@@ -1542,6 +1524,7 @@ return function(AccessKey)
     local FOVSliderConnection = nil
     FOVSliderButton.MouseButton1Down:Connect(function() UpdateFOVSlider() FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider) end)
 
+    -- LOGIC SLIDER BARU: CAMERA FOV SLIDER
     local function syncCamFOVSlider(val)
         CamFOVSliderFill.Size = UDim2.new(math.clamp((val - 30) / 90, 0, 1), 0, 1, 0); CamFOVSliderText.Text = string.format("CAM FOV: %d", val)
     end
@@ -1556,6 +1539,7 @@ return function(AccessKey)
     local CamFOVSliderConnection = nil
     CamFOVSliderButton.MouseButton1Down:Connect(function() UpdateCamFOVSlider() CamFOVSliderConnection = RunService.RenderStepped:Connect(UpdateCamFOVSlider) end)
 
+    -- LOGIC SLIDER BARU: FLY SPEED SLIDER
     local function syncFlySlider(val)
         FlySliderFill.Size = UDim2.new(math.clamp((val - 10) / 140, 0, 1), 0, 1, 0); FlySliderText.Text = string.format("FLY SPEED: %d", val)
     end
@@ -1570,6 +1554,7 @@ return function(AccessKey)
     local FlySliderConnection = nil
     FlySliderButton.MouseButton1Down:Connect(function() UpdateFlySlider() FlySliderConnection = RunService.RenderStepped:Connect(UpdateFlySlider) end)
 
+    -- LOGIC SLIDER BARU: JUMP POWER SLIDER
     local function syncJumpSlider(val)
         JumpSliderFill.Size = UDim2.new(math.clamp((val - 50) / 150, 0, 1), 0, 1, 0); JumpSliderText.Text = string.format("JUMP POWER: %d", val)
     end
@@ -1649,6 +1634,7 @@ return function(AccessKey)
             HUDMain.Visible = false
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
             
+            -- FIX MODIFIKASI: Tombol eksternal tetap mempertahankan visibilitas aslinya saat GUI Utama di-close
             ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
             ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
         end
@@ -1693,30 +1679,19 @@ return function(AccessKey)
         Settings.AimbotExtEnabled = not Settings.AimbotExtEnabled
         ExtAimbotToggleBtn.Text = Settings.AimbotExtEnabled and "AIMBOT (EXT): ON" or "AIMBOT (EXT): OFF"
         ExtAimbotToggleBtn.BackgroundColor3 = Settings.AimbotExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
+        
+        -- Sinkronisasi instan saat diaktifkan di menu
+        if MainVisible then
+            ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
+        else
+            ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
+        end
     end
 
     local function toggleSilentAim()
         Settings.SilentAim = not Settings.SilentAim
         SilentAimBtn.Text = Settings.SilentAim and "[Z] SILENT AIM: ON" or "[Z] SILENT AIM: OFF"
         SilentAimBtn.BackgroundColor3 = Settings.SilentAim and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end
-
-    -- LOGIK SIKLUS PERUBAHAN TARGET PART AIMBOT
-    local function cycleTargetPart()
-        if Settings.TargetPart == "HumanoidRootPart" then
-            Settings.TargetPart = "Head"
-            TargetPartBtn.Text = "TARGET PART: KEPALA"
-        elseif Settings.TargetPart == "Head" then
-            Settings.TargetPart = "LeftHand"
-            TargetPartBtn.Text = "TARGET PART: TANGAN"
-        elseif Settings.TargetPart == "LeftHand" then
-            Settings.TargetPart = "LeftFoot"
-            TargetPartBtn.Text = "TARGET PART: KAKI"
-        else
-            Settings.TargetPart = "HumanoidRootPart"
-            TargetPartBtn.Text = "TARGET PART: BADAN"
-        end
     end
 
     local function toggleEsp()
@@ -1749,7 +1724,13 @@ return function(AccessKey)
         Settings.GrabGunExtEnabled = not Settings.GrabGunExtEnabled
         ManualGrabToggleBtn.Text = Settings.GrabGunExtEnabled and "GRAB GUN (EXT): ON" or "GRAB GUN (EXT): OFF"
         ManualGrabToggleBtn.BackgroundColor3 = Settings.GrabGunExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
+        
+        -- Sinkronisasi instan saat diaktifkan di menu
+        if MainVisible then
+            ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
+        else
+            ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
+        end
     end
 
     local function executeManualGrab()
@@ -1789,6 +1770,7 @@ return function(AccessKey)
         NoclipToggleBtn.BackgroundColor3 = Settings.NoclipEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
+    -- [[ RESET MODEL TRANSPARENCY ON TOGGLE OFF ]]
     local function toggleInvisible()
         Settings.InvisibleEnabled = not Settings.InvisibleEnabled
         InvisibleToggleBtn.Text = Settings.InvisibleEnabled and "INVISIBLE HACK: ON" or "INVISIBLE HACK: OFF"
@@ -1810,65 +1792,17 @@ return function(AccessKey)
         FlingMurderBtn.BackgroundColor3 = Settings.AutoFlingMurder and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(30, 30, 35)
         FlingSheriffBtn.Text = Settings.AutoFlingSheriff and "FLING SHERIFF: ON" or "AUTO FLING SHERIFF"
         FlingSheriffBtn.BackgroundColor3 = Settings.AutoFlingSheriff and Color3.fromRGB(0, 100, 255) or Color3.fromRGB(30, 30, 35)
-        FlingTargetBtn.Text = Settings.AutoFlingTarget and "FLING TARGET: ON" or "FLING TARGET PLAYER: OFF"
-        FlingTargetBtn.BackgroundColor3 = Settings.AutoFlingTarget and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
     local function toggleFlingMurder()
         Settings.AutoFlingMurder = not Settings.AutoFlingMurder
-        if Settings.AutoFlingMurder then Settings.AutoFlingSheriff = false; Settings.AutoFlingTarget = false end
+        if Settings.AutoFlingMurder then Settings.AutoFlingSheriff = false end
         _G.SyncFlingButtons()
     end
 
     local function toggleFlingSheriff()
         Settings.AutoFlingSheriff = not Settings.AutoFlingSheriff
-        if Settings.AutoFlingSheriff then Settings.AutoFlingMurder = false; Settings.AutoFlingTarget = false end
-        _G.SyncFlingButtons()
-    end
-
-    -- LOGIK CYCLE SELEKSI PLAYER YANG ADA DI SERVER UNTUK FLING
-    local function cycleFlingPlayers()
-        local serverPlayers = Players:GetPlayers()
-        local validPlayers = {}
-        
-        for _, p in ipairs(serverPlayers) do
-            if p ~= LocalPlayer then
-                table.insert(validPlayers, p.Name)
-            end
-        end
-        
-        if #validPlayers == 0 then
-            Settings.SelectedFlingPlayer = ""
-            ChoosePlayerFlingBtn.Text = "NO TARGETS IN SERVER"
-            return
-        end
-        
-        local currentIndex = 0
-        for idx, name in ipairs(validPlayers) do
-            if name == Settings.SelectedFlingPlayer then
-                currentIndex = idx
-                break
-            end
-        end
-        
-        local nextIndex = currentIndex + 1
-        if nextIndex > #validPlayers then
-            Settings.SelectedFlingPlayer = validPlayers[1]
-        else
-            Settings.SelectedFlingPlayer = validPlayers[nextIndex]
-        end
-        
-        ChoosePlayerFlingBtn.Text = "SEL: " .. Settings.SelectedFlingPlayer:sub(1, 10)
-    end
-
-    local function toggleFlingTarget()
-        if Settings.SelectedFlingPlayer == "" then
-            Settings.AutoFlingTarget = false
-            _G.SyncFlingButtons()
-            return
-        end
-        Settings.AutoFlingTarget = not Settings.AutoFlingTarget
-        if Settings.AutoFlingTarget then Settings.AutoFlingMurder = false; Settings.AutoFlingSheriff = false end
+        if Settings.AutoFlingSheriff then Settings.AutoFlingMurder = false end
         _G.SyncFlingButtons()
     end
 
@@ -1886,7 +1820,6 @@ return function(AccessKey)
     ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
     ExtAimbotToggleBtn.MouseButton1Click:Connect(toggleExtAimbotMaster)
     ExtAimbotBtn.MouseButton1Click:Connect(toggleAimbot)
-    TargetPartBtn.MouseButton1Click:Connect(cycleTargetPart)
     
     SilentAimBtn.MouseButton1Click:Connect(toggleSilentAim)
     EspBtn.MouseButton1Click:Connect(toggleEsp)
@@ -1902,8 +1835,6 @@ return function(AccessKey)
 
     FlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     FlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
-    ChoosePlayerFlingBtn.MouseButton1Click:Connect(cycleFlingPlayers)
-    FlingTargetBtn.MouseButton1Click:Connect(toggleFlingTarget)
     SpeedWalkBtn.MouseButton1Click:Connect(toggleSpeedWalk)
 
     FlyToggleBtn.MouseButton1Click:Connect(toggleFly)
