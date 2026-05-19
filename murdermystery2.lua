@@ -344,7 +344,7 @@ return function(AccessKey)
                     ToggleBtnMain.Visible = true
                     MainFrame.Visible = true
                     HUDMain.Visible = true
-                    MainFrame.Size = UDim2.new(0, 160, 0, 0)
+                    MainFrame.Size = UDim2.new(0, 160, 0, 58)
                     TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Out, Enum.EasingDirection.Quad), {Size = UDim2.new(0, 160, 0, 58)}):Play()
                 end
             end)
@@ -1527,8 +1527,10 @@ return function(AccessKey)
             t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
             HUDMain.Visible = false
             TweenService:Create(ToggleBtnMain, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
-            ExtAimbotBtn.Visible = false
-            ExtGrabBtn.Visible = false
+            
+            -- FIX MODIFIKASI: Tombol eksternal tetap mempertahankan visibilitas aslinya saat GUI Utama di-close
+            ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
+            ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
         end
     end)
 
@@ -1565,7 +1567,13 @@ return function(AccessKey)
         Settings.AimbotExtEnabled = not Settings.AimbotExtEnabled
         ExtAimbotToggleBtn.Text = Settings.AimbotExtEnabled and "AIMBOT (EXT): ON" or "AIMBOT (EXT): OFF"
         ExtAimbotToggleBtn.BackgroundColor3 = Settings.AimbotExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        ExtAimbotBtn.Visible = Settings.AimbotExtEnabled and MainVisible
+        
+        -- Sinkronisasi instan saat diaktifkan di menu
+        if MainVisible then
+            ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
+        else
+            ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
+        end
     end
 
     local function toggleSilentAim()
@@ -1604,7 +1612,13 @@ return function(AccessKey)
         Settings.GrabGunExtEnabled = not Settings.GrabGunExtEnabled
         ManualGrabToggleBtn.Text = Settings.GrabGunExtEnabled and "GRAB GUN (EXT): ON" or "GRAB GUN (EXT): OFF"
         ManualGrabToggleBtn.BackgroundColor3 = Settings.GrabGunExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        ExtGrabBtn.Visible = Settings.GrabGunExtEnabled and MainVisible
+        
+        -- Sinkronisasi instan saat diaktifkan di menu
+        if MainVisible then
+            ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
+        else
+            ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
+        end
     end
 
     local function executeManualGrab()
