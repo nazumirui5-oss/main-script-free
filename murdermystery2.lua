@@ -173,7 +173,7 @@ return function(AccessKey)
     end
 
     -- Forward declaration komponen UI agar sinkron dengan loader exit
-    local ToggleBtnMain, HUDMain, MainFrame, ContentFrame
+    local ToggleBtnMain, HUDMain, MainFrame, ContentFrame, ExtAimbotBtn, ExtGrabBtn
 
     -- ==========================================
     -- [[ 1. LOADING SCREEN ]]
@@ -552,7 +552,7 @@ return function(AccessKey)
     -- [[ REVOLUTIONARY UPDATE: INSTANT TELEPORT, NOCLIP & RETURN ENGINE ]]
     -- ========================================================================
     local IsGrabbing = false
-    local function SafeInstantTween(targetPart)
+    local function SafeInstantTween(targetPart, forceManual)
         if not targetPart or IsGrabbing then return end
         local character = LocalPlayer.Character
         local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -580,7 +580,7 @@ return function(AccessKey)
             
             -- Menunggu Verifikasi Penyerapan Senjata Masuk ke Inventory
             local timeout = 0
-            while timeout < 1.5 and Settings.AutoGrabGun do
+            while timeout < 1.5 and (Settings.AutoGrabGun or forceManual) do
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
                 if character:FindFirstChild("Gun") or (backpack and backpack:FindFirstChild("Gun")) then
                     break
@@ -650,18 +650,22 @@ return function(AccessKey)
     -- Thread Loop Pemindaian Mandiri Tanpa Tergantung Folder Event "Normal"
     task.spawn(function()
         while true do
-            if Settings.AutoGrabGun or Settings.ESP then
-                local activeGun = ScanForDroppedGun()
-                if activeGun then
-                    if Settings.ESP then
-                        ApplyGunOutline(activeGun)
-                    end
-                    if Settings.AutoGrabGun then
-                        SafeInstantTween(activeGun)
-                    end
+            local activeGun = ScanForDroppedGun()
+            if activeGun then
+                if Settings.ESP then
+                    ApplyGunOutline(activeGun)
+                end
+                if Settings.AutoGrabGun then
+                    SafeInstantTween(activeGun, false)
+                end
+                if ExtGrabBtn then
+                    ExtGrabBtn.Visible = true
                 end
             else
                 ClearGunOutlines()
+                if ExtGrabBtn then
+                    ExtGrabBtn.Visible = false
+                end
             end
             task.wait(0.2)
         end
@@ -837,6 +841,56 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then t_dragging = false end end)
 
+    -- [[ EXTERNAL FLOATING BUTTONS (OUTSIDE MAIN GUI) ]]
+    ExtAimbotBtn = Instance.new("TextButton", ScreenGui)
+    ExtAimbotBtn.Name = "ExternalAimbot"
+    ExtAimbotBtn.Size = UDim2.new(0, 80, 0, 35)
+    ExtAimbotBtn.Position = UDim2.new(0, 20, 0.5, 35)
+    ExtAimbotBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtAimbotBtn.Text = "AIMBOT LOCK"
+    ExtAimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtAimbotBtn.Font = Enum.Font.GothamBold
+    ExtAimbotBtn.TextSize = 9
+    ExtAimbotBtn.Visible = false
+    Instance.new("UICorner", ExtAimbotBtn).CornerRadius = UDim.new(0, 6)
+    local ExtAimbotStroke = Instance.new("UIStroke", ExtAimbotBtn)
+    ExtAimbotStroke.Color = _GAccentColor
+    ExtAimbotStroke.Thickness = 1.5
+
+    -- External Aimbot Dragging
+    local ea_dragging, ea_dragStart, ea_startPos
+    ExtAimbotBtn.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then ea_dragging = true; ea_dragStart = i.Position; ea_startPos = ExtAimbotBtn.Position end end)
+    UserInputService.InputChanged:Connect(function(i) if ea_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - ea_dragStart; ExtAimbotBtn.Position = UDim2.new(ea_startPos.X.Scale, ea_startPos.X.Offset + d.X, ea_startPos.Y.Scale, ea_startPos.Y.Offset + d.Y) end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then ea_dragging = false end end)
+
+    ExtGrabBtn = Instance.new("TextButton", ScreenGui)
+    ExtGrabBtn.Name = "ExternalGrabGun"
+    ExtGrabBtn.Size = UDim2.new(0, 80, 0, 35)
+    ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, 75)
+    ExtGrabBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+    ExtGrabBtn.Text = "GRAB GUN (MANUAL)"
+    ExtGrabBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    ExtGrabBtn.Font = Enum.Font.GothamBlack
+    ExtGrabBtn.TextSize = 8
+    ExtGrabBtn.Visible = false
+    Instance.new("UICorner", ExtGrabBtn).CornerRadius = UDim.new(0, 6)
+    local ExtGrabStroke = Instance.new("UIStroke", ExtGrabBtn)
+    ExtGrabStroke.Color = Color3.fromRGB(255, 255, 255)
+    ExtGrabStroke.Thickness = 1.5
+
+    -- External Grab Dragging
+    local eg_dragging, eg_dragStart, eg_startPos
+    ExtGrabBtn.InputBegan:Connect(function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then eg_dragging = true; eg_dragStart = i.Position; eg_startPos = ExtGrabBtn.Position end end)
+    UserInputService.InputChanged:Connect(function(i) if eg_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - eg_dragStart; ExtGrabBtn.Position = UDim2.new(eg_startPos.X.Scale, eg_startPos.X.Offset + d.X, eg_startPos.Y.Scale, eg_startPos.Y.Offset + d.Y) end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then eg_dragging = false end end)
+
+    ExtGrabBtn.MouseButton1Click:Connect(function()
+        local activeGun = ScanForDroppedGun()
+        if activeGun then
+            SafeInstantTween(activeGun, true)
+        end
+    end)
+
     -- [[ HUD ELEMENTS ]]
     HUDMain = Instance.new("Frame", ScreenGui)
     HUDMain.Size = UDim2.new(0, 125, 0, 45)
@@ -973,7 +1027,8 @@ return function(AccessKey)
     local TabFrames = {}
     local CurrentTab = "Main"
 
-    local TabNames = {"Main", "Combat", "ESP"}
+    -- Mempertahankan penamaan Utility & Farming secara visual terintegrasi
+    local TabNames = {"Main", "Combat", "ESP", "Utility", "Farming"}
     local TabWidth = 1 / #TabNames
 
     ContentFrame = Instance.new("Frame", MainFrame)
@@ -1015,7 +1070,7 @@ return function(AccessKey)
         btn.Position = UDim2.new((i-1)*TabWidth, 0, 0, 0)
         btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
         btn.Text = name:upper()
-        btn.Font = Enum.Font.GothamBold; btn.TextSize = 5.5
+        btn.Font = Enum.Font.GothamBold; btn.TextSize = 5
         btn.TextColor3 = Color3.new(1,1,1)
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 3)
         TabButtons[name] = btn
@@ -1042,12 +1097,12 @@ return function(AccessKey)
     InfoStatusLabel.Text = "Status: ACTIVE\nPress 'L' button on left screen\nto hide/open this main UI window."; InfoStatusLabel.TextColor3 = Color3.fromRGB(150,255,150); InfoStatusLabel.Font = Enum.Font.Gotham; InfoStatusLabel.TextSize = 6.5
     addTabElement("Main", InfoStatusLabel)
 
-    -- --- TAB 2: COMBAT (INTEGRATED TAB) ---
+    -- --- TAB 2: COMBAT ---
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ToggleBtn)
     local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", SilentAimBtn)
     local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FOVHideBtn)
 
-    -- Fix Slider & Tulisan Menyatu (FOV Slider)
+    -- Slider FOV Radius dengan Text yang Terjaga
     local FOVSliderFrame = Instance.new("Frame"); FOVSliderFrame.Size = UDim2.new(0,0,0,14); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
@@ -1067,41 +1122,12 @@ return function(AccessKey)
     local FOVSliderConnection = nil
     FOVSliderButton.MouseButton1Down:Connect(function() UpdateFOVSlider() FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider) end)
 
-    -- Fitur Pindahan dari Farming
-    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", GrabBtn)
-
-    -- Fitur Pindahan dari Utility
-    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FlingMurderBtn)
-    local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FlingSheriffBtn)
-    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", SpeedWalkBtn)
-
-    -- Fix Slider & Tulisan Menyatu (Speed Slider)
-    local SpeedSliderFrame = Instance.new("Frame"); SpeedSliderFrame.Size = UDim2.new(0,0,0,14); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
-    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
-    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
-    addTabElement("Combat", SpeedSliderFrame)
-
-    local function syncSpeedSlider(val)
-        SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
-    end
-    syncSpeedSlider(Settings.SpeedWalkValue)
-    local SpeedSliderButton = Instance.new("TextButton", SpeedSliderFrame); SpeedSliderButton.Size = UDim2.new(1, 0, 1, 0); SpeedSliderButton.BackgroundTransparency = 1; SpeedSliderButton.Text = ""; SpeedSliderButton.ZIndex = 4
-
-    local function UpdateSpeedSlider()
-        local Percentage = math.clamp((Mouse.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
-        Settings.SpeedWalkValue = math.floor(1 + (Percentage * 99))
-        syncSpeedSlider(Settings.SpeedWalkValue)
-    end
-    local SpeedSliderConnection = nil
-    SpeedSliderButton.MouseButton1Down:Connect(function() UpdateSpeedSlider() SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider) end)
-
-
     -- --- TAB 3: ESP ---
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("ESP", EspBtn)
     local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("ESP", HitboxBtn)
     local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18), Color3.fromRGB(0, 120, 200)); addTabElement("ESP", VisualBtn)
 
-    -- Fix Slider & Tulisan Menyatu (Hitbox Size Slider)
+    -- Slider Size Hitbox dengan Text yang Terjaga
     local SliderFrame = Instance.new("Frame"); SliderFrame.Size = UDim2.new(0,0,0,14); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold; SliderText.ZIndex = 3
@@ -1121,6 +1147,35 @@ return function(AccessKey)
     local SliderConnection = nil
     SliderButton.MouseButton1Down:Connect(function() UpdateSlider() SliderConnection = RunService.RenderStepped:Connect(UpdateSlider) end)
 
+    -- --- TAB 4: UTILITY (BERDEKATAN ANTARA TOMBOL DAN SLIDER) ---
+    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Utility", FlingMurderBtn)
+    local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Utility", FlingSheriffBtn)
+    
+    -- Peletakan Tombol Walkspeed agar dekat dengan Slidernya
+    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Utility", SpeedWalkBtn)
+
+    -- Slider Walkspeed diletakkan tepat di bawah tombol aktivasi
+    local SpeedSliderFrame = Instance.new("Frame"); SpeedSliderFrame.Size = UDim2.new(0,0,0,14); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
+    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
+    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
+    addTabElement("Utility", SpeedSliderFrame)
+
+    local function syncSpeedSlider(val)
+        SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
+    end
+    syncSpeedSlider(Settings.SpeedWalkValue)
+    local SpeedSliderButton = Instance.new("TextButton", SpeedSliderFrame); SpeedSliderButton.Size = UDim2.new(1, 0, 1, 0); SpeedSliderButton.BackgroundTransparency = 1; SpeedSliderButton.Text = ""; SpeedSliderButton.ZIndex = 4
+
+    local function UpdateSpeedSlider()
+        local Percentage = math.clamp((Mouse.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
+        Settings.SpeedWalkValue = math.floor(1 + (Percentage * 99))
+        syncSpeedSlider(Settings.SpeedWalkValue)
+    end
+    local SpeedSliderConnection = nil
+    SpeedSliderButton.MouseButton1Down:Connect(function() UpdateSpeedSlider() SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider) end)
+
+    -- --- TAB 5: FARMING ---
+    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Farming", GrabBtn)
 
     -- Pemutus input slider saat klik mouse dilepas
     UserInputService.InputEnded:Connect(function(input)
@@ -1177,7 +1232,10 @@ return function(AccessKey)
         Settings.CameraAimbot = not Settings.CameraAimbot
         ToggleBtn.Text = Settings.CameraAimbot and "[Q] AIMBOT: ON" or "[Q] AIMBOT: OFF"
         ToggleBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        ExtAimbotBtn.Visible = Settings.CameraAimbot -- Tombol muncul di luar GUI saat diaktifkan
     end
+
+    ExtAimbotBtn.MouseButton1Click:Connect(toggleAimbot)
 
     local function toggleSilentAim()
         Settings.SilentAim = not Settings.SilentAim
