@@ -943,7 +943,7 @@ return function(AccessKey)
     local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
 
     local function createBtn(txt, pos, size, color)
-        local b = Instance.new("TextButton", MainFrame)
+        local b = Instance.new("TextButton")
         b.Size = size; b.Position = pos; b.BackgroundColor3 = color or Color3.fromRGB(30, 30, 35); b.TextColor3 = Color3.new(1,1,1)
         b.Text = txt; b.Font = Enum.Font.GothamBold; b.TextSize = 6.5; b.ClipsDescendants = true
         Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4); return b
@@ -960,7 +960,7 @@ return function(AccessKey)
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
     local InfoBtn = createBtn("i", UDim2.new(0, 128, 0, 4), UDim2.new(0, 26, 0, 14), Color3.fromRGB(45, 45, 55))
-    InfoBtn.TextSize = 8; InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
+    InfoBtn.Parent = MainFrame; InfoBtn.TextSize = 8; InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
 
     -- [[ SOSMED / INFO PANEL ]]
     local InfoFrame = Instance.new("Frame", MainFrame)
@@ -1016,7 +1016,6 @@ return function(AccessKey)
     local TabFrames = {}
     local CurrentTab = "Main"
 
-    -- Menu Utility & Farm ditambahkan di sini agar strukturnya tetap ada
     local TabNames = {"Main", "Combat", "ESP", "Utility", "Farm"}
     local TabWidth = 1 / #TabNames
 
@@ -1031,11 +1030,12 @@ return function(AccessKey)
         f.CanvasSize = UDim2.new(0, 0, 0, 0)
         
         local layout = Instance.new("UIListLayout", f)
-        layout.Padding = UDim.new(0, 4)
+        layout.Padding = UDim.new(0, 5)
         layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
         
         layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            f.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+            f.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 15)
         end)
         
         TabFrames[name] = f
@@ -1071,13 +1071,15 @@ return function(AccessKey)
     -- ==========================================
     -- [[ PEMASANGAN FITUR PADA MASING-MASING TAB ]]
     -- ==========================================
+    local elementCounter = 0
     local function addTabElement(tab, obj)
+        elementCounter = elementCounter + 1
+        obj.LayoutOrder = elementCounter
         obj.Parent = TabFrames[tab]
         obj.Size = UDim2.new(1, -4, 0, obj.Size.Y.Offset)
-        obj.Position = UDim2.new(0, 0, 0, 0)
     end
 
-    -- Fungsi Pembuat Garis Pemisah UI Horizontal
+    -- Fungsi Pembuat Garis Pemisah UI Terstruktur (Frame Line)
     local function addSeparatorLine(tab)
         local line = Instance.new("Frame")
         line.Size = UDim2.new(1, -4, 0, 2)
@@ -1097,17 +1099,75 @@ return function(AccessKey)
     addTabElement("Main", InfoStatusLabel)
 
 
-    -- --- TAB 2: COMBAT (INTEGRATED & RE-ARRANGED TAB) ---
-    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", SilentAimBtn)
+    -- --- TAB 2: COMBAT (FIXED & FULLY STRUCTURED) ---
+    -- 1. Silent Aim Only
+    local SilentAimBtn = createBtn("[Z] SILENT AIM: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", SilentAimBtn)
     addSeparatorLine("Combat")
 
-    -- [ GRUP FOV ]: Hide FOV dengan Slider FOV
-    local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FOVHideBtn)
+    -- 2. Grup FOV
+    local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", FOVHideBtn)
+    
     local FOVSliderFrame = Instance.new("Frame"); FOVSliderFrame.Size = UDim2.new(0,0,0,14); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
     addTabElement("Combat", FOVSliderFrame)
+    addSeparatorLine("Combat")
 
+    -- 3. Grup Aimbot
+    local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", ToggleBtn)
+    
+    local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", ExtAimbotToggleBtn)
+    addSeparatorLine("Combat")
+
+    -- 4. Grup Fling
+    local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", FlingSheriffBtn)
+    
+    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", FlingMurderBtn)
+    addSeparatorLine("Combat")
+    
+    -- 5. Grup Walk Speed
+    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", SpeedWalkBtn)
+    
+    local SpeedSliderFrame = Instance.new("Frame"); SpeedSliderFrame.Size = UDim2.new(0,0,0,14); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
+    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
+    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
+    addTabElement("Combat", SpeedSliderFrame)
+    addSeparatorLine("Combat")
+
+    -- 6. Grup Grab Gun
+    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", GrabBtn)
+    
+    local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18))
+    addTabElement("Combat", ManualGrabToggleBtn)
+    addSeparatorLine("Combat")
+
+
+    -- --- TAB 3: ESP ---
+    local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("ESP", EspBtn)
+    local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("ESP", HitboxBtn)
+    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18), Color3.fromRGB(0, 120, 200)); addTabElement("ESP", VisualBtn)
+
+    local SliderFrame = Instance.new("Frame"); SliderFrame.Size = UDim2.new(0,0,0,14); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
+    local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold; SliderText.ZIndex = 3
+    addTabElement("ESP", SliderFrame)
+
+
+    -- --- TAB 4 & 5: UTILITY & FARM (KOSONG SESUAI PERMINTAAN) ---
+    -- Tetap terdaftar tapi isinya kosong.
+
+
+    -- ========================================================================
+    -- SLIDERS LOGIC & SYNCHRONIZATION ENGINE
+    -- ========================================================================
     local function syncFOVSlider(val)
         FOVSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); FOVSliderText.Text = string.format("FOV: %d RAD", val)
     end
@@ -1121,24 +1181,6 @@ return function(AccessKey)
     end
     local FOVSliderConnection = nil
     FOVSliderButton.MouseButton1Down:Connect(function() UpdateFOVSlider() FOVSliderConnection = RunService.RenderStepped:Connect(UpdateFOVSlider) end)
-    addSeparatorLine("Combat")
-
-    -- [ GRUP AIMBOT ]: Aimbot dengan Aimbot Ext
-    local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ToggleBtn)
-    local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ExtAimbotToggleBtn)
-    addSeparatorLine("Combat")
-
-    -- [ GRUP FLING ]: Fling Sheriff dengan Fling Murder
-    local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FlingSheriffBtn)
-    local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", FlingMurderBtn)
-    addSeparatorLine("Combat")
-    
-    -- [ GRUP WALK SPEED ]: Tombol Walk Speed dengan Slider Walk Speed
-    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", SpeedWalkBtn)
-    local SpeedSliderFrame = Instance.new("Frame"); SpeedSliderFrame.Size = UDim2.new(0,0,0,14); SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SpeedSliderFrame)
-    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame); SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
-    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame); SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 7; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
-    addTabElement("Combat", SpeedSliderFrame)
 
     local function syncSpeedSlider(val)
         SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0); SpeedSliderText.Text = string.format("SPEED: %d WS", val)
@@ -1153,24 +1195,6 @@ return function(AccessKey)
     end
     local SpeedSliderConnection = nil
     SpeedSliderButton.MouseButton1Down:Connect(function() UpdateSpeedSlider() SpeedSliderConnection = RunService.RenderStepped:Connect(UpdateSpeedSlider) end)
-    addSeparatorLine("Combat")
-
-    -- [ GRUP GRAB GUN ]: Tombol Grab Gun Otomatis dengan Tombol Grab Gun Ext
-    local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", GrabBtn)
-    local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("Combat", ManualGrabToggleBtn)
-    addSeparatorLine("Combat")
-
-
-    -- --- TAB 3: ESP ---
-    local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("ESP", EspBtn)
-    local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18)); addTabElement("ESP", HitboxBtn)
-    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,18), UDim2.new(0,0,0,18), Color3.fromRGB(0, 120, 200)); addTabElement("ESP", VisualBtn)
-
-    -- Fix Slider & Tulisan Menyatu (Hitbox Size Slider)
-    local SliderFrame = Instance.new("Frame"); SliderFrame.Size = UDim2.new(0,0,0,14); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
-    local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
-    local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold; SliderText.ZIndex = 3
-    addTabElement("ESP", SliderFrame)
 
     local function syncSlider(val)
         SliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0); SliderText.Text = string.format("SIZE: %d STUDS", val)
@@ -1186,12 +1210,6 @@ return function(AccessKey)
     local SliderConnection = nil
     SliderButton.MouseButton1Down:Connect(function() UpdateSlider() SliderConnection = RunService.RenderStepped:Connect(UpdateSlider) end)
 
-
-    -- --- TAB 4 & 5: UTILITY & FARM (KOSONG SESUAI PERMINTAAN) ---
-    -- Sengaja dibiarkan kosong tanpa element didalamnya agar user bisa mengisinya nanti.
-
-
-    -- Pemutus input slider saat klik mouse dilepas
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if SliderConnection then SliderConnection:Disconnect() SliderConnection = nil end
@@ -1202,7 +1220,7 @@ return function(AccessKey)
 
     -- [[ CLOSING / OPENING BAR MAIN CONTROLLER ]]
     local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
-    CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6
+    CloseBar.Parent = MainFrame; CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
@@ -1394,3 +1412,4 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Tabs System Initialized Successfully.")
 end
+
