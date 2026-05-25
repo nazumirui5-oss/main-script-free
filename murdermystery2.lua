@@ -565,21 +565,30 @@ return function(AccessKey)
 
     MainMetatable.__index = newcclosure(function(Self, Key)
         if Settings.SilentAim and not checkcaller() then
-            if Self == Mouse and (Key == "Hit" or Key == "Target") then
-                local MyRole = GetMM2Role(LocalPlayer)
-                local TargetPart = nil
-                
-                if MyRole == "Murderer" then
-                    TargetPart = GetInnocentOrSheriffTarget()
-                else
-                    TargetPart = GetMurdererTarget()
-                end
-                
-                if TargetPart then
-                    if Key == "Hit" then
-                        return TargetPart.CFrame
-                    elseif Key == "Target" then
-                        return TargetPart
+            -- ========================================================
+            -- [[ DETEKSI MOBILE TOOL CHECK (ANTI-LOCK KAMERA) ]]
+            -- ========================================================
+            local Character = LocalPlayer.Character
+            local ActiveTool = Character and Character:FindFirstChildOfClass("Tool")
+            
+            -- Hanya jalankan hook mouse ketika sedang memegang senjata aktif
+            if ActiveTool and (ActiveTool.Name == "Gun" or ActiveTool.Name == "Knife") then
+                if Self == Mouse and (Key == "Hit" or Key == "Target") then
+                    local MyRole = GetMM2Role(LocalPlayer)
+                    local TargetPart = nil
+                    
+                    if MyRole == "Murderer" then
+                        TargetPart = GetInnocentOrSheriffTarget()
+                    else
+                        TargetPart = GetMurdererTarget()
+                    end
+                    
+                    if TargetPart then
+                        if Key == "Hit" then
+                            return TargetPart.CFrame
+                        elseif Key == "Target" then
+                            return TargetPart
+                        end
                     end
                 end
             end
