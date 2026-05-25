@@ -1,4 +1,4 @@
-here-- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
+-- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
 -- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
 
@@ -8,17 +8,19 @@ return function(AccessKey)
     -- ========================================================
     -- [[ MASALAH 4: INISIALISASI INSTAN PEMAIN LOKAL ]]
     -- ========================================================
+    -- Mendapatkan LocalPlayer secara instan tanpa penundaan/wait untuk handshake pertama
     local LocalPlayer = Players.LocalPlayer or game.Players.LocalPlayer
     local MyID = LocalPlayer and LocalPlayer.UserId or (game.Players.LocalPlayer and game.Players.LocalPlayer.UserId)
     
     if not MyID then
+        -- Failsafe jika player benar-benar nil pada milidetik pertama auto-execute
         Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
         LocalPlayer = Players.LocalPlayer
         MyID = LocalPlayer.UserId
     end
 
     -- ========================================================
-    -- [[ PROTEKSI 1: SESSION HANDSHAKE ]]
+    -- [[ PROTEKSI 1: SESSION HANDSHAKE (Dinaikkan ke paling atas) ]]
     -- ========================================================
     if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. MyID then
         if LocalPlayer then
@@ -49,9 +51,11 @@ return function(AccessKey)
     -- ========================================================
     -- [[ MASALAH 1 & 2: RE-EXECUTION CLEANUP ENGINE ]]
     -- ========================================================
+    -- 1. Hapus GUI lama jika terdeteksi untuk menghindari penumpukan UI
     local oldGui = (gethui and gethui():FindFirstChild("LouisHub_FREE_Edition")) or game:GetService("CoreGui"):FindFirstChild("LouisHub_FREE_Edition")
     if oldGui then oldGui:Destroy() end
 
+    -- 2. Memutuskan semua koneksi event global dari eksekusi sebelumnya
     if _G.LouisConnections then
         for _, conn in pairs(_G.LouisConnections) do
             if conn then pcall(function() conn:Disconnect() end) end
@@ -65,6 +69,7 @@ return function(AccessKey)
         return conn
     end
 
+    -- 3. Menghapus seluruh objek Drawing lama sebelum membuat yang baru
     if _G.LouisDrawings then
         for _, drawing in pairs(_G.LouisDrawings) do
             pcall(function() drawing:Remove() end)
@@ -81,6 +86,7 @@ return function(AccessKey)
     -- ========================================================
     -- [[ ULTIMATE ANTI-DEBUG & SPY PROTECTOR + WEBHOOK ]]
     -- ========================================================
+    -- Menggunakan global flag untuk menghentikan loop keamanan sebelumnya
     _G.LouisSecurityRunning = false
     task.wait(0.1)
     _G.LouisSecurityRunning = true
@@ -179,13 +185,12 @@ return function(AccessKey)
     -- Konfigurasi Fitur Internal (MM2)
     local Settings = {
         CameraAimbot = false,
-        AimbotSmoothness = 0.18, 
         HitboxExpander = false,
         HitboxVisual = true,
         ESP = false,
         TracersESP = false,
         AutoGrabGun = false, 
-        TargetPart = "Head", 
+        TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
         FOVSize = 150,
         HideFOVCircle = false,
@@ -471,233 +476,94 @@ return function(AccessKey)
         return "Innocent"
     end
 
-    -- [[ PENYELARASAN TITIK ASAL SINAR & PENYARINGAN HALANGAN ]]
-    local function IsVisible(targetPart)
-        if not targetPart or not LocalPlayer.Character then return false end
-        
-        -- Penyelarasan Titik Asal Sinar (Origin Alignment)
-        -- Titik awal diatur ke posisi kepala atau torso fisik pemain, bukan kamera
-        local originPart = LocalPlayer.Character:FindFirstChild("Head") or LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not originPart then return false end
-        local origin = originPart.Position
-        
-        local targetPos = targetPart.Position
-        local direction = targetPos - origin
-        
-        -- Penyaringan Halangan (Raycast Filtering)
-        local params = RaycastParams.new()
-        params.FilterType = Enum.RaycastFilterType.Exclude
-        
-        -- Pengecualian karakter lokal, target, aksesoris, serta objek transparan/tidak bertabrakan
-        local excludeList = {LocalPlayer.Character, targetPart.Parent}
-        params.FilterDescendantsInstances = excludeList
-        params.IgnoreWater = true
-        
-        local result = workspace:Raycast(origin, direction, params)
-        
-        -- Melakukan penyaringan mendalam jika menabrak aksesoris, kaca transparan, atau objek no-collide
-        if result then
-            local hit = result.Instance
-            local attempts = 0
-            while hit and attempts < 5 do
-                if hit:FindFirstAncestorOfClass("Accessory") or hit.Transparency > 0.8 or not hit.CanCollide then
-                    table.insert(excludeList, hit)
-                    params.FilterDescendantsInstances = excludeList
-                    result = workspace:Raycast(origin, direction, params)
-                    if not result then
-                        return true
-                    else
-                        hit = result.Instance
-                    end
-                else
-                    break
-                end
-                attempts = attempts + 1
-            end
-        end
-        
-        return result == nil
-    end
-
-    -- Variabel Penyimpan Pengunci Target (Stickiness Mechanic)
-    local CurrentAimbotTarget = nil
-
-    -- Memvalidasi apakah target yang sedang dikunci masih layak di-aim
-    local function IsValidTarget(player, targetRole)
-        if not player or not player.Character then return false end
-        local char = player.Character
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local targetPart = char:FindFirstChild(Settings.TargetPart)
-        if not hum or hum.Health <= 0 or not targetPart then return false end
-        
-        -- Memastikan role-nya tidak berubah di tengah permainan
-        local actualRole = GetMM2Role(player)
-        if targetRole == "Murderer" and actualRole ~= "Murderer" then return false end
-        if targetRole == "Innocents" and actualRole == "Murderer" then return false end
-        
-        -- Memastikan masih di dalam lingkaran FOV
-        local ScreenPos, OnScreen = Camera:WorldToViewportPoint(targetPart.Position)
-        if not OnScreen then return false end
-        
-        local CenterScreen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-        local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
-        if Magnitude > Settings.FOVSize then return false end
-        
-        return true
-    end
-
     local function GetMurdererTarget()
-        if CurrentAimbotTarget and IsValidTarget(CurrentAimbotTarget, "Murderer") then
-            return CurrentAimbotTarget.Character:FindFirstChild(Settings.TargetPart)
-        end
-        
-        local BestTarget = nil
+        local Target = nil
         local ShortestDistance = math.huge
         local CenterScreen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         
         for _, v in pairs(Players:GetPlayers()) do
             if v ~= LocalPlayer and v.Character then
-                local targetPart = v.Character:FindFirstChild(Settings.TargetPart)
+                local Root = v.Character:FindFirstChild("HumanoidRootPart")
                 local Hum = v.Character:FindFirstChildOfClass("Humanoid")
-                local role = GetMM2Role(v)
+                local ESP = v.Character:FindFirstChild("MM2_ESP")
                 
-                if targetPart and Hum and Hum.Health > 0 and role == "Murderer" then
-                    local ScreenPos, OnScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if Root and Hum and Hum.Health > 0 and ESP and ESP.FillColor == Color3.fromRGB(255, 0, 0) then
+                    local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
                         local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
-                        if Magnitude <= Settings.FOVSize then
-                            local visible = IsVisible(targetPart)
-                            local score = Magnitude + (visible and 0 or 1000)
-                            
-                            if score < ShortestDistance then
-                                ShortestDistance = score
-                                BestTarget = v
-                            end
+                        if Magnitude <= Settings.FOVSize and Magnitude < ShortestDistance then
+                            ShortestDistance = Magnitude
+                            Target = Root
                         end
                     end
                 end
             end
         end
-        CurrentAimbotTarget = BestTarget
-        return BestTarget and BestTarget.Character:FindFirstChild(Settings.TargetPart)
+        return Target
     end
 
     local function GetInnocentOrSheriffTarget()
-        if CurrentAimbotTarget and IsValidTarget(CurrentAimbotTarget, "Innocents") then
-            return CurrentAimbotTarget.Character:FindFirstChild(Settings.TargetPart)
-        end
-        
-        local BestTarget = nil
+        local Target = nil
         local ShortestDistance = math.huge
         local CenterScreen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         
         for _, v in pairs(Players:GetPlayers()) do
             if v ~= LocalPlayer and v.Character then
-                local targetPart = v.Character:FindFirstChild(Settings.TargetPart)
+                local Root = v.Character:FindFirstChild("HumanoidRootPart")
                 local Hum = v.Character:FindFirstChildOfClass("Humanoid")
-                local role = GetMM2Role(v)
+                local ESP = v.Character:FindFirstChild("MM2_ESP")
                 
-                if targetPart and Hum and Hum.Health > 0 and role ~= "Murderer" then
-                    local ScreenPos, OnScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if Root and Hum and Hum.Health > 0 and (not ESP or ESP.FillColor ~= Color3.fromRGB(255, 0, 0)) then
+                    local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
                         local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
-                        if Magnitude <= Settings.FOVSize then
-                            local visible = IsVisible(targetPart)
-                            local score = Magnitude + (visible and 0 or 1000)
-                            
-                            if score < ShortestDistance then
-                                ShortestDistance = score
-                                BestTarget = v
-                            end
+                        if Magnitude <= Settings.FOVSize and Magnitude < ShortestDistance then
+                            ShortestDistance = Magnitude
+                            Target = Root
                         end
                     end
                 end
             end
         end
-        CurrentAimbotTarget = BestTarget
-        return BestTarget and BestTarget.Character:FindFirstChild(Settings.TargetPart)
+        return Target
     end
 
-    -- [[ KOMPENSASI LATENSI, PREDIKSI KECEPATAN LINIER & PEMBATASAN PREDIKSI ]]
+    -- Fungsi Prediksi Pergerakan Target (Aimbot Prediction Engine)
     local function GetPredictedPosition(targetPart)
-        if not targetPart or not LocalPlayer.Character then return nil end
+        if not targetPart then return nil end
         
-        local BulletSpeed = 230 -- Estimasi kecepatan peluru pistol MM2
-        
-        -- Penyelarasan Titik Asal Sinar (Origin Alignment) untuk kalkulasi jarak fisik
-        local originPart = LocalPlayer.Character:FindFirstChild("Head") or LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local originPos = originPart and originPart.Position or Camera.CFrame.Position
-        
-        local distance = (originPos - targetPart.Position).Magnitude
-        
-        -- Kompensasi Latensi (Ping Compensation)
+        local BulletSpeed = 230
+        local distance = (Camera.CFrame.Position - targetPart.Position).Magnitude
         local travelTime = distance / BulletSpeed
-        local ping = 0.05
-        pcall(function()
-            local rawPing = LocalPlayer:GetNetworkPing()
-            if rawPing then
-                -- Menangani konversi jika ping tercatat dalam milidetik atau detik
-                ping = rawPing > 1 and (rawPing / 1000) or rawPing
-                if ping <= 0 then ping = 0.05 end
-            end
-        end)
-        
+        local ping = LocalPlayer:GetNetworkPing()
         local totalTime = travelTime + ping
         
-        -- Pembatasan Nilai Prediksi (Prediction Clamping)
-        -- Membatasi waktu prediksi maksimal agar tidak melesat jauh saat target mendadak berbalik arah
-        totalTime = math.clamp(totalTime, 0, 0.35)
-        
-        -- Prediksi Kecepatan Linier (Linear Velocity Prediction)
-        local char = targetPart.Parent
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-        local velocity = root and (root.AssemblyLinearVelocity or root.Velocity) or Vector3.new()
-        
-        -- Jika target diam atau bergerak sangat lambat, abaikan penghitungan prediksi
-        if velocity.Magnitude < 0.5 then
-            return targetPart.Position
-        end
-        
-        -- Mengalikan vektor kecepatan dengan estimasi waktu tempuh peluru + ping
+        local velocity = targetPart.AssemblyLinearVelocity or targetPart.Velocity or Vector3.new()
         local predictedPos = targetPart.Position + (velocity * totalTime)
         return predictedPos
     end
 
-    -- Loop Sinkronisasi Aimbot Menggunakan Dynamic Smoothing (Lerp)
     SafeConnect(RunService.RenderStepped, function()
         if Settings.CameraAimbot and LocalPlayer.Character then
             local MyRole = GetMM2Role(LocalPlayer)
-            local TargetPart = nil
             
             if MyRole == "Murderer" then
-                TargetPart = GetInnocentOrSheriffTarget()
-            else
-                TargetPart = GetMurdererTarget()
-            end
-            
-            if TargetPart then
-                local PredictedPos = GetPredictedPosition(TargetPart)
-                if PredictedPos then
-                    -- [[ INTERPOLASI POSISI TARGET & SMOOTHING ]]
-                    local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, PredictedPos)
-                    local currentLookDir = Camera.CFrame.LookVector
-                    local targetLookDir = targetCFrame.LookVector
-                    local angle = math.acos(math.clamp(currentLookDir:Dot(targetLookDir), -1, 1))
-                    
-                    -- Dynamic Grip: Saat sudut bidik sudah sangat dekat dengan target,
-                    -- tingkatkan kelembutan (mengurangi nilai Lerp) agar bidikan terkunci rapat tanpa getaran (jittering).
-                    local smoothFactor = Settings.AimbotSmoothness or 0.18
-                    if angle < math.rad(5) then
-                        smoothFactor = smoothFactor * 0.5 -- Mengurangi getaran/jittering konstan
+                local TargetPart = GetInnocentOrSheriffTarget()
+                if TargetPart then
+                    local PredictedPos = GetPredictedPosition(TargetPart)
+                    if PredictedPos then
+                        Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, PredictedPos)
                     end
-                    
-                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
                 end
             else
-                CurrentAimbotTarget = nil 
+                local TargetPart = GetMurdererTarget()
+                if TargetPart then
+                    local PredictedPos = GetPredictedPosition(TargetPart)
+                    if PredictedPos then
+                        Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, PredictedPos)
+                    end
+                end
             end
-        else
-            CurrentAimbotTarget = nil
         end
     end)
 
@@ -729,6 +595,7 @@ return function(AccessKey)
             local originalCFrame = root.CFrame
             local targetCFrame = targetPart.CFrame + Vector3.new(0, 1.5, 0)
             
+            -- Aktivasi Sistem Noclip Terfokus
             local noclipConnection
             noclipConnection = SafeConnect(RunService.Stepped, function()
                 if character then
@@ -740,8 +607,10 @@ return function(AccessKey)
                 end
             end)
             
+            -- Teleport Instan ke Objek Pistol
             root.CFrame = targetCFrame
             
+            -- Menunggu Verifikasi Penyerapan Senjata Masuk ke Inventory
             local timeout = 0
             while timeout < 1.5 do
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
@@ -753,10 +622,12 @@ return function(AccessKey)
                 timeout = timeout + 0.05
             end
             
+            -- Kembalikan Posisi Player secara Instan ke Tempat Semula
             if character and character:FindFirstChild("HumanoidRootPart") then
                 root.CFrame = originalCFrame
             end
             
+            -- Matikan Koneksi Noclip Fisik
             if noclipConnection then 
                 noclipConnection:Disconnect() 
             end
@@ -766,6 +637,7 @@ return function(AccessKey)
         end
     end
 
+    -- Global Scan Function untuk mencari pistol di seluruh Workspace tanpa batasan nama Folder
     local function ScanForDroppedGun()
         for _, object in ipairs(Workspace:GetDescendants()) do
             if object.Name == "GunDrop" then
@@ -785,6 +657,7 @@ return function(AccessKey)
         return nil
     end
 
+    -- Logic Hook Outline pada Target Senjata Drop
     local function ApplyGunOutline(gunPart)
         if not gunPart or gunPart:FindFirstChild("LouisGunOutline") then return end
         local highlight = Instance.new("Highlight")
@@ -805,6 +678,7 @@ return function(AccessKey)
         end
     end
 
+    -- Thread Loop Pemindaian Mandiri Tanpa Tergantung Folder Event "Normal"
     task.spawn(function()
         while true do
             if Settings.AutoGrabGun or Settings.ESP then
@@ -922,10 +796,12 @@ return function(AccessKey)
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
             if root and humanoid and humanoid.Health > 0 then
+                -- Handle Speedwalk Slider
                 if Settings.SpeedWalkEnabled then
                     humanoid.WalkSpeed = Settings.SpeedWalkValue
                 end
 
+                -- Handle Jump Power Slider
                 if Settings.JumpPowerEnabled then
                     humanoid.JumpPower = Settings.JumpPowerValue
                     humanoid.UseJumpPower = true
@@ -933,12 +809,14 @@ return function(AccessKey)
                     humanoid.UseJumpPower = false
                 end
 
+                -- Handle Noclip Core System
                 if Settings.NoclipEnabled or Settings.FlyEnabled then
                     for _, child in ipairs(character:GetDescendants()) do
                         if child:IsA("BasePart") then child.CanCollide = false end
                     end
                 end
 
+                -- Handle Camera FOV Modifier
                 if Settings.CameraFOVEnabled then
                     Camera.FieldOfView = Settings.CameraFOVValue
                 else
@@ -989,6 +867,7 @@ return function(AccessKey)
                     if root:FindFirstChild("LouisFlyGyro") then root.LouisFlyGyro:Destroy() end
                 end
 
+                -- Handle Auto Fling Logic
                 if Settings.AutoFlingMurder or Settings.AutoFlingSheriff then
                     local targetRole = Settings.AutoFlingMurder and "Murderer" or "Sheriff"
                     local targetPlayer = GetTargetByRole(targetRole)
@@ -1052,6 +931,7 @@ return function(AccessKey)
                 local Humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
                 
                 if Root and Humanoid and Humanoid.Health > 0 then
+                    -- Hitbox Expander Logic
                     if Settings.HitboxExpander then
                         Root.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
                         if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = false end
@@ -1073,6 +953,7 @@ return function(AccessKey)
                     if Role == "Murderer" then TargetColor = Color3.fromRGB(255, 0, 0)
                     elseif Role == "Sheriff" then TargetColor = Color3.fromRGB(0, 0, 225) end
 
+                    -- Box Highlight ESP Logic
                     local Highlight = Player.Character:FindFirstChild("MM2_ESP")
                     if Settings.ESP then
                         if not Highlight then
@@ -1088,6 +969,7 @@ return function(AccessKey)
                         if Highlight then Highlight:Destroy() end
                     end
 
+                    -- Tracer Lines ESP Logic
                     if Settings.TracersESP then
                         local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                         if OnScreen then
@@ -1154,6 +1036,7 @@ return function(AccessKey)
     ToggleStroke.Thickness = 2
     ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
+    -- Floating Button Dragging
     local t_dragging, t_dragStart, t_startPos
     SafeConnect(ToggleBtnMain.InputBegan, function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then t_dragging = true; t_dragStart = i.Position; t_startPos = ToggleBtnMain.Position end end)
     SafeConnect(UserInputService.InputChanged, function(i) if t_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - t_dragStart; ToggleBtnMain.Position = UDim2.new(t_startPos.X.Scale, t_startPos.X.Offset + d.X, t_startPos.Y.Scale, t_startPos.Y.Offset + d.Y) end end)
@@ -1398,6 +1281,7 @@ return function(AccessKey)
         obj.Parent = TabFrames[tab]
     end
 
+    -- Fungsi Pembuat Group Container Box
     local function createGroupContainer(tab, titleText, boxHeight)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(1, -4, 0, boxHeight)
@@ -1445,6 +1329,8 @@ return function(AccessKey)
 
 
     -- --- TAB 2: COMBAT ---
+    
+    -- BOX FITUR BARU: KILL PLAYER (Murderer Only)
     local BoxKillPlayer = createGroupContainer("Combat", "Kill Player", 64)
 
     local KillAuraToggleBtn = createBtn("KILL AURA: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1466,6 +1352,8 @@ return function(AccessKey)
     local KillAllBtn = createBtn("KILL ALL PLAYER (TP ALL)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(180, 0, 0))
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
+
+    -- BOX 1: AIM UTAMA (Tinggi disesuaikan menjadi 46 karena Silent Aim dihapus)
     local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 46)
     
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1474,6 +1362,8 @@ return function(AccessKey)
     local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ExtAimbotToggleBtn.Parent = BoxAim; ExtAimbotToggleBtn.LayoutOrder = 2
 
+
+    -- BOX 2: FIELD OF VIEW (FOV)
     local BoxFOV = createGroupContainer("Combat", "Field of View (FOV)", 82)
     
     local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1492,6 +1382,7 @@ return function(AccessKey)
     FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 6.5; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
     FOVSliderFrame.Parent = BoxFOV
 
+    -- FITUR BARU: CAMERA FOV TOGGLE & SLIDER
     local CamFOVToggleBtn = createBtn("CAMERA FOV MODIFIER: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     CamFOVToggleBtn.Parent = BoxFOV; CamFOVToggleBtn.LayoutOrder = 3
 
@@ -1508,6 +1399,8 @@ return function(AccessKey)
     CamFOVSliderText.Size = UDim2.new(1, 0, 1, 0); CamFOVSliderText.BackgroundTransparency = 1; CamFOVSliderText.TextColor3 = Color3.new(1, 1, 1); CamFOVSliderText.TextSize = 6.5; CamFOVSliderText.Font = Enum.Font.GothamBold; CamFOVSliderText.ZIndex = 3
     CamFOVSliderFrame.Parent = BoxFOV
 
+
+    -- BOX 3: FLING SYSTEM
     local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 46)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1516,6 +1409,8 @@ return function(AccessKey)
     local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
 
+
+    -- BOX 4: WALKSPEED MODIFIER
     local BoxSpeed = createGroupContainer("Combat", "Walkspeed Modifier", 46)
     
     local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1534,6 +1429,8 @@ return function(AccessKey)
     SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 6.5; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
     SpeedSliderFrame.Parent = BoxSpeed
 
+
+    -- BOX 5: GRAB GUN SYSTEM
     local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 46)
     
     local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1542,6 +1439,8 @@ return function(AccessKey)
     local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ManualGrabToggleBtn.Parent = BoxGrab; ManualGrabToggleBtn.LayoutOrder = 2
 
+
+    -- BOX 6: PLAYER MECHANICS
     local BoxPlayer = createGroupContainer("Combat", "Player Mechanics", 118)
 
     local FlyToggleBtn = createBtn("FLY HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1585,6 +1484,7 @@ return function(AccessKey)
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     EspBtn.Parent = BoxESP; EspBtn.LayoutOrder = 1
 
+    -- FITUR BARU: TRACERS LINE ESP
     local TracersEspBtn = createBtn("TRACERS ESP LINE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     TracersEspBtn.Parent = BoxESP; TracersEspBtn.LayoutOrder = 2
     
@@ -1611,6 +1511,7 @@ return function(AccessKey)
     -- ========================================================================
     -- SLIDERS LOGIC & SYNCHRONIZATION ENGINE
     -- ========================================================================
+    -- LOGIC SLIDER: RADIUS KILL AURA
     local function syncKARadiusSlider(val)
         KARadiusSliderFill.Size = UDim2.new(math.clamp((val - 1) / 49, 0, 1), 0, 1, 0); KARadiusSliderText.Text = string.format("KA RADIUS: %d STUDS", val)
     end
@@ -1639,6 +1540,7 @@ return function(AccessKey)
     local FOVSliderConnection = nil
     FOVSliderButton.MouseButton1Down:Connect(function() UpdateFOVSlider() FOVSliderConnection = SafeConnect(RunService.RenderStepped, UpdateFOVSlider) end)
 
+    -- LOGIC SLIDER: CAMERA FOV SLIDER
     local function syncCamFOVSlider(val)
         CamFOVSliderFill.Size = UDim2.new(math.clamp((val - 30) / 90, 0, 1), 0, 1, 0); CamFOVSliderText.Text = string.format("CAM FOV: %d", val)
     end
@@ -1653,6 +1555,7 @@ return function(AccessKey)
     local CamFOVSliderConnection = nil
     CamFOVSliderButton.MouseButton1Down:Connect(function() UpdateCamFOVSlider() CamFOVSliderConnection = SafeConnect(RunService.RenderStepped, UpdateCamFOVSlider) end)
 
+    -- LOGIC SLIDER: FLY SPEED SLIDER
     local function syncFlySlider(val)
         FlySliderFill.Size = UDim2.new(math.clamp((val - 10) / 140, 0, 1), 0, 1, 0); FlySliderText.Text = string.format("FLY SPEED: %d", val)
     end
@@ -1667,6 +1570,7 @@ return function(AccessKey)
     local FlySliderConnection = nil
     FlySliderButton.MouseButton1Down:Connect(function() UpdateFlySlider() FlySliderConnection = SafeConnect(RunService.RenderStepped, UpdateFlySlider) end)
 
+    -- LOGIC SLIDER: JUMP POWER SLIDER
     local function syncJumpSlider(val)
         JumpSliderFill.Size = UDim2.new(math.clamp((val - 50) / 150, 0, 1), 0, 1, 0); JumpSliderText.Text = string.format("JUMP POWER: %d", val)
     end
@@ -1751,6 +1655,7 @@ return function(AccessKey)
         end
     end)
 
+    -- Dynamic Graph FPS Engine
     task.spawn(function()
         local lastTime = tick(); local frames = 0
         SafeConnect(RunService.RenderStepped, function()
@@ -1914,6 +1819,7 @@ return function(AccessKey)
         if not Settings.SpeedWalkEnabled then pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 16 end) end
     end
 
+    -- Koneksi tombol ke behavior fungsi
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
 
@@ -1960,6 +1866,7 @@ return function(AccessKey)
         end
     end)
 
+    -- Keybind Listener
     SafeConnect(UserInputService.InputBegan, function(input, gameProcessed)
         if gameProcessed then return end
         local key = input.KeyCode
@@ -1971,6 +1878,7 @@ return function(AccessKey)
         end
     end)
 
+    -- Dragging Frame & Floating Buttons Dragging (Menggunakan SafeConnect)
     local dragging, dragStart, startPos
     SafeConnect(MainFrame.InputBegan, function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
     SafeConnect(UserInputService.InputChanged, function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
