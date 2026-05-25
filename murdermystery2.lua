@@ -1,4 +1,4 @@
-here-- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
+-- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
 -- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
 
@@ -6,12 +6,46 @@ return function(AccessKey)
     local Players = game:GetService("Players")
     
     -- ========================================================
-    -- [[ MASALAH 4: VALIDASI AMAN INISIALISASI PEMAIN LOKAL ]]
+    -- [[ MASALAH 4: INISIALISASI INSTAN PEMAIN LOKAL ]]
     -- ========================================================
-    local LocalPlayer = Players.LocalPlayer
-    if not LocalPlayer then
+    -- Mendapatkan LocalPlayer secara instan tanpa penundaan/wait untuk handshake pertama
+    local LocalPlayer = Players.LocalPlayer or game.Players.LocalPlayer
+    local MyID = LocalPlayer and LocalPlayer.UserId or (game.Players.LocalPlayer and game.Players.LocalPlayer.UserId)
+    
+    if not MyID then
+        -- Failsafe jika player benar-benar nil pada milidetik pertama auto-execute
         Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
         LocalPlayer = Players.LocalPlayer
+        MyID = LocalPlayer.UserId
+    end
+
+    -- ========================================================
+    -- [[ PROTEKSI 1: SESSION HANDSHAKE (Dinaikkan ke paling atas) ]]
+    -- ========================================================
+    if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. MyID then
+        if LocalPlayer then
+            LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
+        else
+            game.Players.LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
+        end
+        return
+    end
+
+    -- [[ PROTEKSI 4: ANTI-TAMPER ]]
+    local function IntegrityCheck()
+        local test = tostring(game.HttpGet)
+        if not test:find("function") or test:find("custom") or test:find("hook") then
+            LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
+            return false
+        end
+        return true
+    end
+    if not IntegrityCheck() then return end
+
+    -- [[ PROTEKSI 3: KUNCI FUNGSI ]]
+    if AccessKey ~= "LouisVIP_Secret_Key_9922" then 
+        LocalPlayer:Kick("LOUIS HUB: Bypass Detected (Key Error)")
+        return 
     end
 
     -- ========================================================
@@ -47,30 +81,6 @@ return function(AccessKey)
         local drawing = Drawing.new(className)
         table.insert(_G.LouisDrawings, drawing)
         return drawing
-    end
-
-    -- [[ PROTEKSI 4: ANTI-TAMPER ]]
-    local function IntegrityCheck()
-        local test = tostring(game.HttpGet)
-        if not test:find("function") or test:find("custom") or test:find("hook") then
-            LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
-            return false
-        end
-        return true
-    end
-    if not IntegrityCheck() then return end
-
-    -- [[ PROTEKSI 3: KUNCI FUNGSI ]]
-    if AccessKey ~= "LouisVIP_Secret_Key_9922" then 
-        LocalPlayer:Kick("LOUIS HUB: Bypass Detected (Key Error)")
-        return 
-    end
-
-    -- [[ PROTEKSI 1: SESSION HANDSHAKE (Updated to genv) ]]
-    local MyID = LocalPlayer.UserId
-    if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. MyID then
-        LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
-        return
     end
 
     -- ========================================================
