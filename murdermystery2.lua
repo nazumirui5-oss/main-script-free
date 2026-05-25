@@ -422,6 +422,28 @@ return function(AccessKey)
         return "Innocent"
     end
 
+    -- ========================================================================
+    -- [[ FUNGSI UTILITAS: WALL CHECK SYSTEM ]]
+    -- ========================================================================
+    local function WallCheck(TargetPart)
+        local Character = LocalPlayer.Character
+        if not Character or not TargetPart then return false end
+        local OriginPart = Character:FindFirstChild("Head") or Character:FindFirstChild("HumanoidRootPart")
+        if not OriginPart then return false end
+        
+        local Direction = TargetPart.Position - OriginPart.Position
+        local Params = RaycastParams.new()
+        Params.FilterType = Enum.RaycastFilterType.Exclude
+        Params.FilterDescendantsInstances = {Character, TargetPart.Parent}
+        Params.IgnoreWater = true
+        
+        local Result = Workspace:Raycast(OriginPart.Position, Direction, Params)
+        if Result and Result.Instance and Result.Instance.CanCollide then
+            return false -- Terhalang oleh dinding/objek padat
+        end
+        return true -- Jalur bersih/tidak terhalang
+    end
+
     local function GetMurdererTarget()
         local Target = nil
         local ShortestDistance = math.huge
@@ -438,8 +460,10 @@ return function(AccessKey)
                     if OnScreen then
                         local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
                         if Magnitude <= Settings.FOVSize and Magnitude < ShortestDistance then
-                            ShortestDistance = Magnitude
-                            Target = Root
+                            if WallCheck(Root) then -- Integrasi Wall Check
+                                ShortestDistance = Magnitude
+                                Target = Root
+                            end
                         end
                     end
                 end
@@ -464,8 +488,10 @@ return function(AccessKey)
                     if OnScreen then
                         local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
                         if Magnitude <= Settings.FOVSize and Magnitude < ShortestDistance then
-                            ShortestDistance = Magnitude
-                            Target = Root
+                            if WallCheck(Root) then -- Integrasi Wall Check
+                                ShortestDistance = Magnitude
+                                Target = Root
+                            end
                         end
                     end
                 end
@@ -504,8 +530,9 @@ return function(AccessKey)
     MainMetatable.__namecall = newcclosure(function(Self, ...)
         local Method = getnamecallmethod()
         local Args = {...}
+        local MethodLower = Method:lower()
         
-        if Settings.SilentAim and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "FireServer") then
+        if Settings.SilentAim and (Method == "FindPartOnRayWithIgnoreList" or Method == "FindPartOnRay" or Method == "Raycast" or MethodLower == "raycast" or Method == "FireServer") then
             local MyRole = GetMM2Role(LocalPlayer)
             local TargetPart = nil
             
@@ -521,6 +548,14 @@ return function(AccessKey)
                     local Direction = (TargetPart.Position - Origin).Unit * 1000
                     Args[1] = Ray.new(Origin, Direction)
                     return OldNamecall(Self, unpack(Args))
+                elseif Method == "Raycast" or MethodLower == "raycast" then
+                    -- Raycast Hook: Mengarahkan data parameter direction agar hasil kembalian (return value) raycast modern tertuju ke kepala/tubuh target
+                    local Origin = Args[1]
+                    local Direction = Args[2]
+                    if typeof(Origin) == "Vector3" and typeof(Direction) == "Vector3" then
+                        Args[2] = (TargetPart.Position - Origin).Unit * Direction.Magnitude
+                        return OldNamecall(Self, unpack(Args))
+                    end
                 end
             end
         end
