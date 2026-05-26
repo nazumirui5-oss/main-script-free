@@ -1,12 +1,12 @@
--- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
--- AUTH: Louis | LAYERS: 3, 4 (Key, Anti-Tamper)
--- VERSION: 13.5.2 (Security Sync Update - MM2 Edition - REBUILT)
+-- [[ LOUIS HUB FREE - UNLOCKED EDITION ]]
+-- AUTH: Louis (Unlocked) | LAYERS: None (Security Removed)
+-- VERSION: 13.5.2 (MM2 Edition - REBUILT)
 
-return function(AccessKey)
+local function CoreScript(AccessKey)
     local Players = game:GetService("Players")
     
     -- ========================================================
-    -- [[ MASALAH 4: INISIALISASI INSTAN PEMAIN LOKAL ]]
+    -- [[ INISIALISASI INSTAN PEMAIN LOKAL ]]
     -- ========================================================
     local LocalPlayer = Players.LocalPlayer or game.Players.LocalPlayer
     local MyID = LocalPlayer and LocalPlayer.UserId or (game.Players.LocalPlayer and game.Players.LocalPlayer.UserId)
@@ -17,25 +17,8 @@ return function(AccessKey)
         MyID = LocalPlayer.UserId
     end
 
-    -- [[ PROTEKSI 4: ANTI-TAMPER ]]
-    local function IntegrityCheck()
-        local test = tostring(game.HttpGet)
-        if not test:find("function") or test:find("custom") or test:find("hook") then
-            LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
-            return false
-        end
-        return true
-    end
-    if not IntegrityCheck() then return end
-
-    -- [[ PROTEKSI 3: KUNCI FUNGSI ]]
-    if AccessKey ~= "LouisVIP_Secret_Key_9922" then 
-        LocalPlayer:Kick("LOUIS HUB: Bypass Detected (Key Error)")
-        return 
-    end
-
     -- ========================================================
-    -- [[ MASALAH 1 & 2: RE-EXECUTION CLEANUP ENGINE ]]
+    -- [[ RE-EXECUTION CLEANUP ENGINE ]]
     -- ========================================================
     local oldGui = (gethui and gethui():FindFirstChild("LouisHub_FREE_Edition")) or game:GetService("CoreGui"):FindFirstChild("LouisHub_FREE_Edition")
     if oldGui then oldGui:Destroy() end
@@ -65,93 +48,6 @@ return function(AccessKey)
         table.insert(_G.LouisDrawings, drawing)
         return drawing
     end
-
-    -- ========================================================
-    -- [[ ULTIMATE ANTI-DEBUG & SPY PROTECTOR + WEBHOOK ]]
-    -- ========================================================
-    _G.LouisSecurityRunning = false
-    task.wait(0.1)
-    _G.LouisSecurityRunning = true
-    
-    local w1 = "https://discord.com/api/webhooks/"
-    local w2 = "1499859204670750952/"
-    local w3 = "333FbG7tb63jvKPPgD_zhHt7tn0cA1Y4T3-WLG16xQPY0uc-uozPcvnnSKS32dgzzt0P"
-    local WebhookURL = w1 .. w2 .. w3
-
-    local function SendSecurityAlert(toolName)
-        local request = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-        if request then
-            pcall(function()
-                request({
-                    Url = WebhookURL,
-                    Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
-                    Body = game:GetService("HttpService"):JSONEncode({
-                        ["embeds"] = {{
-                            ["title"] = "⚠️ SECURITY BREACH DETECTED!",
-                            ["description"] = "A user tried to spy on Louis Hub FREE scripts.",
-                            ["color"] = 0xFF0000,
-                            ["fields"] = {
-                                {["name"] = "👤 User", ["value"] = LocalPlayer.Name, ["inline"] = true},
-                                {["name"] = "🆔 ID", ["value"] = tostring(LocalPlayer.UserId), ["inline"] = true},
-                                {["name"] = "🔍 Detected Tool", ["value"] = toolName, ["inline"] = false},
-                                {["name"] = "🛡️ Action", ["value"] = "Auto-Kick Executed", ["inline"] = true}
-                            },
-                            ["footer"] = {["text"] = "Louis Hub v13.5.2 | Anti-Tamper System"},
-                            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                        }}
-                    })
-                })
-            end)
-        end
-    end
-
-    local function UltimateSecurity()
-        local CoreGui = game:GetService("CoreGui")
-        local BlacklistNames = {
-            "SimpleSpy", "Hydroxide", "TurtleSpy", "RemoteSpy", "Explorer", 
-            "Dex", "DarkDex", "Adonis", "V.G Hub Spy", "OwlHub Spy", 
-            "Postman", "ScriptDumper", "SaveInstance", "RbxSpy"
-        }
-
-        local function ScanDeeper()
-            for _, name in pairs(BlacklistNames) do
-                if CoreGui:FindFirstChild(name) then return true, name end
-            end
-            for _, obj in pairs(CoreGui:GetChildren()) do
-                if obj:IsA("ScreenGui") and not obj:IsA("PluginGui") then
-                    local data = tostring(obj):lower()
-                    if data:find("spy") or data:find("remote") or data:find("debug") then
-                        return true, obj.Name
-                    end
-                end
-            end
-            return false
-        end
-
-        task.spawn(function()
-            while _G.LouisSecurityRunning do
-                local detected, toolFound = false, ""
-                pcall(function() 
-                    local found, name = ScanDeeper()
-                    if found then 
-                        detected = true 
-                        toolFound = name
-                    end 
-                end)
-                
-                if detected then
-                    _G.LouisSecurityRunning = false
-                    SendSecurityAlert(toolFound)
-                    task.wait(0.1)
-                    LocalPlayer:Kick("\n[LOUIS HUB SECURITY]\nUnauthorized Debugging Tool Detected: " .. toolFound)
-                    break
-                end
-                task.wait(3)
-            end
-        end)
-    end
-    UltimateSecurity()
 
     -- ========================================================
     -- [[ KODE UTAMA LOUIS HUB FREE ]]
@@ -582,13 +478,12 @@ return function(AccessKey)
         return predictedPos
     end
 
-    -- AIMBOT UPDATE: Aktif jika kita memegang Gun (di dalam inventory tas/tool)
+    -- AIMBOT UPDATE
     SafeConnect(RunService.RenderStepped, function()
         if Settings.CameraAimbot and LocalPlayer.Character then
             local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun")
             local BackpackGun = LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Gun")
             
-            -- Jika ada di tas, otomatis lengkapi ke tangan
             if BackpackGun and not HoldsGun then
                 BackpackGun.Parent = LocalPlayer.Character
                 HoldsGun = BackpackGun
@@ -758,7 +653,7 @@ return function(AccessKey)
                     end)
                     
                     root.CFrame = coin.CFrame
-                    task.wait(0.18) -- jeda pengambilan
+                    task.wait(0.18)
                     if noclipConnection then noclipConnection:Disconnect() end
                 end
             end
@@ -1060,7 +955,6 @@ return function(AccessKey)
                 if Root and Humanoid and Humanoid.Health > 0 then
                     local Role = GetMM2Role(Player)
                     
-                    -- Check ESP Filters
                     local FilterPassed = false
                     if Role == "Murderer" and Settings.ESP_Murderer then FilterPassed = true
                     elseif Role == "Sheriff" and Settings.ESP_Sheriff then FilterPassed = true
@@ -1178,13 +1072,11 @@ return function(AccessKey)
     ScreenGui.Name = "LouisHub_FREE_Edition"
     ScreenGui.ResetOnSpawn = false
 
-    -- HELPER: Penerapan warna neon bergerak pada stroke & transparansi tengah 60%
     local function ApplyExternalButtonStyle(btn, stroke)
         btn.BackgroundTransparency = 0.6
         table.insert(DynamicStrokes, stroke)
     end
 
-    -- HELPER: Mengatur sistem drag tombol dengan pengecekan status kunci dari UI
     local function MakeDraggable(button)
         local dragging, dragStart, startPos
         SafeConnect(button.InputBegan, function(i) 
@@ -1207,7 +1099,7 @@ return function(AccessKey)
         end)
     end
 
-    -- [[ TOMBOL UTAMA L (Floating Toggle) ]]
+    -- [[ TOMBOL UTAMA L ]]
     ToggleBtnMain = Instance.new("TextButton", ScreenGui)
     ToggleBtnMain.Name = "FloatingToggle"
     ToggleBtnMain.Size = UDim2.new(0, 50, 0, 50)
@@ -1335,7 +1227,7 @@ return function(AccessKey)
         HUDToggleBtn.Text = hudMinimized and "<" or ">"
     end)
 
-    -- [[ MAIN FRAME SETUP WITH TABS SYSTEM ]]
+    -- [[ MAIN FRAME SETUP ]]
     MainFrame = Instance.new("Frame", ScreenGui)
     MainFrame.Size = UDim2.new(0, 160, 0, 0)
     MainFrame.Position = UDim2.new(0.5, -80, 0.2, 0)
@@ -1363,7 +1255,7 @@ return function(AccessKey)
     local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 90, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
-    -- [[ PINDAH LOCK/UNLOCK KE SAMPING TOMBOL INFO ]]
+    -- LOCK DRAG
     local LockDragTopBtn = createBtn("🔓", UDim2.new(0, 102, 0, 4), UDim2.new(0, 24, 0, 14), Color3.fromRGB(45, 45, 55))
     LockDragTopBtn.Parent = MainFrame
     LockDragTopBtn.TextSize = 8
@@ -1497,7 +1389,6 @@ return function(AccessKey)
         obj.Parent = TabFrames[tab]
     end
 
-    -- Fungsi Pembuat Group Container Box
     local function createGroupContainer(tab, titleText, boxHeight)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(1, -4, 0, boxHeight)
@@ -1529,7 +1420,6 @@ return function(AccessKey)
         return container
     end
 
-    -- HELPER: Pembuat Slider Ukuran Tombol Eksternal
     local function createSizeSlider(parentBox, textPrefix, currentVal, minVal, maxVal, onChange)
         local sliderFrame = Instance.new("Frame")
         sliderFrame.Size = UDim2.new(1, -10, 0, 12)
@@ -1595,14 +1485,12 @@ return function(AccessKey)
     local InfoStatusLabel = Instance.new("TextLabel")
     InfoStatusLabel.Size = UDim2.new(1, -4, 0, 25)
     InfoStatusLabel.BackgroundTransparency = 1
-    InfoStatusLabel.Text = "Status: ACTIVE\nPress 'L' button on left screen\to hide/open this main UI window."
+    InfoStatusLabel.Text = "Status: ACTIVE\nPress 'L' button on left screen\nto hide/open this main UI window."
     InfoStatusLabel.TextColor3 = Color3.fromRGB(150,255,150); InfoStatusLabel.Font = Enum.Font.Gotham; InfoStatusLabel.TextSize = 6.5
     addTabElement("Main", InfoStatusLabel)
 
 
     -- --- TAB 2: COMBAT ---
-    
-    -- BOX FITUR BARU: KILL PLAYER (Murderer Only)
     local BoxKillPlayer = createGroupContainer("Combat", "Kill Player", 64)
 
     local KillAuraToggleBtn = createBtn("KILL AURA: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1625,7 +1513,7 @@ return function(AccessKey)
     local KillAllBtn = createBtn("KILL ALL PLAYER (TP ALL)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(180, 0, 0))
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
-    -- BOX 1: AIM UTAMA
+    -- MAIN AIM
     local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 62)
     
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1634,14 +1522,13 @@ return function(AccessKey)
     local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ExtAimbotToggleBtn.Parent = BoxAim; ExtAimbotToggleBtn.LayoutOrder = 2
 
-    -- Slider untuk Ukuran Tombol Aimbot Eksternal (NEW)
     local ExtAimbotSizeSlider = createSizeSlider(BoxAim, "EXT SIZE", Settings.ExtAimbotSize, 20, 80, function(val)
         Settings.ExtAimbotSize = val
         ExtAimbotBtn.Size = UDim2.new(0, val, 0, val)
     end)
     ExtAimbotSizeSlider.LayoutOrder = 3
 
-    -- BOX 2: FIELD OF VIEW (FOV)
+    -- FOV
     local BoxFOV = createGroupContainer("Combat", "Field of View (FOV)", 82)
     
     local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1678,7 +1565,7 @@ return function(AccessKey)
     CamFOVSliderText.Size = UDim2.new(1, 0, 1, 0); CamFOVSliderText.BackgroundTransparency = 1; CamFOVSliderText.TextColor3 = Color3.new(1, 1, 1); CamFOVSliderText.TextSize = 6.5; CamFOVSliderText.Font = Enum.Font.GothamBold; CamFOVSliderText.ZIndex = 3
     CamFOVSliderFrame.Parent = BoxFOV
 
-    -- BOX 3: FLING SYSTEM
+    -- FLING
     local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 46)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1687,7 +1574,7 @@ return function(AccessKey)
     local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
 
-    -- BOX 4: GRAB GUN SYSTEM
+    -- GRAB GUN
     local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 62)
     
     local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1696,14 +1583,13 @@ return function(AccessKey)
     local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ManualGrabToggleBtn.Parent = BoxGrab; ManualGrabToggleBtn.LayoutOrder = 2
 
-    -- Slider untuk Ukuran Tombol Grab Eksternal (NEW)
     local ExtGrabSizeSlider = createSizeSlider(BoxGrab, "EXT SIZE", Settings.ExtGrabSize, 20, 80, function(val)
         Settings.ExtGrabSize = val
         ExtGrabBtn.Size = UDim2.new(0, val, 0, val)
     end)
     ExtGrabSizeSlider.LayoutOrder = 3
 
-    -- BOX 5: DOUBLE JUMP SYSTEM (PINDAH KE COMBAT)
+    -- DOUBLE JUMP
     local BoxDoubleJump = createGroupContainer("Combat", "Double Jump System", 62)
 
     local DoubleJumpToggleBtn = createBtn("DOUBLE JUMP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1712,7 +1598,6 @@ return function(AccessKey)
     local DoubleJumpExtToggleBtn = createBtn("DOUBLE JUMP (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     DoubleJumpExtToggleBtn.Parent = BoxDoubleJump; DoubleJumpExtToggleBtn.LayoutOrder = 2
 
-    -- Slider untuk Ukuran Tombol Double Jump Eksternal (NEW)
     local ExtDoubleJumpSizeSlider = createSizeSlider(BoxDoubleJump, "EXT SIZE", Settings.ExtDoubleJumpSize, 20, 80, function(val)
         Settings.ExtDoubleJumpSize = val
         ExtDoubleJumpBtn.Size = UDim2.new(0, val, 0, val)
@@ -1749,7 +1634,7 @@ return function(AccessKey)
     SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 6.5; SliderText.Font = Enum.Font.GothamBold; SliderText.ZIndex = 3
     SliderFrame.Parent = BoxESP
 
-    -- BOX FITUR BARU: ESP FILTERS & EXTRAS
+    -- ESP FILTERS
     local BoxESPFilters = createGroupContainer("ESP", "ESP Filters & Extras", 100)
 
     local NameESPToggleBtn = createBtn("NAME ESP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1768,7 +1653,7 @@ return function(AccessKey)
     FilterInnocentBtn.Parent = BoxESPFilters; FilterInnocentBtn.LayoutOrder = 5
 
 
-    -- --- TAB 4: UTILITY (PINDAHAN WALKSPEED, JUMP, NOCLIP, FLY) ---
+    -- --- TAB 4: UTILITY ---
     local BoxMovement = createGroupContainer("Utility", "Movement Modifiers", 136)
 
     local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -2171,7 +2056,6 @@ return function(AccessKey)
         ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
     end
 
-    -- [FITUR BARU LOGIC]
     local function toggleCoinFarm()
         Settings.CoinFarmEnabled = not Settings.CoinFarmEnabled
         CoinFarmToggleBtn.Text = Settings.CoinFarmEnabled and "AUTO COIN FARM: ON" or "AUTO COIN FARM: OFF"
@@ -2208,7 +2092,7 @@ return function(AccessKey)
         FilterInnocentBtn.BackgroundColor3 = Settings.ESP_Innocent and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
     end
 
-    -- Koneksi tombol ke behavior fungsi
+    -- KONEKSI EVENT BUTTON
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
 
@@ -2236,7 +2120,6 @@ return function(AccessKey)
     NoclipToggleBtn.MouseButton1Click:Connect(toggleNoclip)
     InvisibleToggleBtn.MouseButton1Click:Connect(toggleInvisible)
 
-    -- Koneksi Event Baru (Farming, ESP Filter, Double Jump)
     DoubleJumpToggleBtn.MouseButton1Click:Connect(toggleDoubleJump)
     DoubleJumpExtToggleBtn.MouseButton1Click:Connect(toggleDoubleJumpExt)
     ExtDoubleJumpBtn.MouseButton1Click:Connect(toggleDoubleJump)
@@ -2267,7 +2150,7 @@ return function(AccessKey)
         end
     end)
 
-    -- Keybind Listener
+    -- KEYBIND
     SafeConnect(UserInputService.InputBegan, function(input, gameProcessed)
         if gameProcessed then return end
         local key = input.KeyCode
@@ -2279,12 +2162,33 @@ return function(AccessKey)
         end
     end)
 
-    -- Dragging Frame (Menggunakan SafeConnect)
+    -- MAIN DRAGGING
     local dragging, dragStart, startPos
     SafeConnect(MainFrame.InputBegan, function(i) if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then dragging = true; dragStart = i.Position; startPos = MainFrame.Position end end)
     SafeConnect(UserInputService.InputChanged, function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     SafeConnect(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
     startLoading()
-    print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Memory Leak Patch Successfully Initialized.")
+    print("Louis Hub FREE V13.5.2: Unlocked Edition Initialized Successfully.")
 end
+
+-- ========================================================================
+-- [[ LOADER AND STANDALONE INTEGRATION WRAPPER ]]
+-- ========================================================================
+local executed = false
+local function SafeRun(AccessKey)
+    if executed then return end
+    executed = true
+    CoreScript(AccessKey)
+end
+
+-- Proteksi agar tidak melakukan double-run jika dipanggil via Loader dalam satu frame.
+-- Jika dijalankan secara mandiri (standalone), script akan langsung mengeksekusi CoreScript secara otomatis.
+task.defer(function()
+    if not executed then
+        SafeRun()
+    end
+end)
+
+return SafeRun
+
