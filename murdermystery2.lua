@@ -31,9 +31,11 @@ return function(AccessKey)
 
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
     local function IntegrityCheck()
-        local test = tostring(game.HttpGet)
-        if not test:find("function") or test:find("custom") or test:find("hook") then
-            LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
+        local success, test = pcall(function() return tostring(game.HttpGet) end)
+        if not success or not test:find("function") or test:find("custom") or test:find("hook") then
+            pcall(function()
+                LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
+            end)
             return false
         end
         return true
@@ -49,8 +51,11 @@ return function(AccessKey)
     -- ========================================================
     -- [[ MASALAH 1 & 2: RE-EXECUTION CLEANUP ENGINE ]]
     -- ========================================================
-    local oldGui = (gethui and gethui():FindFirstChild("LouisHub_FREE_Edition")) or game:GetService("CoreGui"):FindFirstChild("LouisHub_FREE_Edition")
-    if oldGui then oldGui:Destroy() end
+    local oldGui
+    pcall(function()
+        oldGui = (gethui and gethui():FindFirstChild("LouisHub_FREE_Edition")) or game:GetService("CoreGui"):FindFirstChild("LouisHub_FREE_Edition")
+    end)
+    if oldGui then pcall(function() oldGui:Destroy() end) end
 
     if _G.LouisConnections then
         for _, conn in pairs(_G.LouisConnections) do
@@ -72,10 +77,18 @@ return function(AccessKey)
     end
     _G.LouisDrawings = {}
 
+    -- Safe Drawing Handler to prevent crashes on executors with missing Drawing API
     local function SafeDrawing(className)
-        local drawing = Drawing.new(className)
-        table.insert(_G.LouisDrawings, drawing)
-        return drawing
+        local success, drawing = pcall(function() return Drawing.new(className) end)
+        if success and drawing then
+            table.insert(_G.LouisDrawings, drawing)
+            return drawing
+        end
+        return {
+            Visible = false,
+            Remove = function() end,
+            RemoveAll = function() end
+        }
     end
 
     -- ========================================================
@@ -207,11 +220,9 @@ return function(AccessKey)
         DoubleJumpEnabled = false,
         DoubleJumpExtEnabled = false,
         DragLocked = false,
-        -- SIZING EXT BUTTONS
         ExtAimbotSize = 40,
         ExtGrabSize = 40,
         ExtDoubleJumpSize = 40,
-        -- NEW INTEGRATED SYSTEMS (FARMING, NAME ESP, FILTERS)
         CoinFarmEnabled = false,
         NameESP = false,
         CoinESP = false,
@@ -287,8 +298,12 @@ return function(AccessKey)
         profileImage.BackgroundTransparency = 1
         
         task.spawn(function()
-            local content = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-            profileImage.Image = content
+            local success, content = pcall(function()
+                return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+            end)
+            if success then
+                profileImage.Image = content
+            end
         end)
         
         Instance.new("UICorner", profileImage).CornerRadius = UDim.new(1, 0)
@@ -487,7 +502,6 @@ return function(AccessKey)
         if humanoid and root and humanoid.Health > 0 and Settings.DoubleJumpEnabled then
             if CanDoubleJump and not HasDoubleJumped then
                 HasDoubleJumped = true
-                -- Berikan velocity ke atas agar lompat sekali lagi
                 root.Velocity = Vector3.new(root.Velocity.X, humanoid.JumpPower * 1.15, root.Velocity.Z)
             end
         end
@@ -498,20 +512,26 @@ return function(AccessKey)
     -- [[ LOGIKA EMULASI TEKNIS AIMBOT & ROLE DETECTION (MM2) ]]
     -- ========================================================================
     local FOVCircle = SafeDrawing("Circle")
-    FOVCircle.Color = Color3.fromRGB(255, 0, 255)
-    FOVCircle.Thickness = 1.5
-    FOVCircle.NumSides = 60
-    FOVCircle.Radius = Settings.FOVSize
-    FOVCircle.Filled = false
-    FOVCircle.Visible = false
+    pcall(function()
+        FOVCircle.Color = Color3.fromRGB(255, 0, 255)
+        FOVCircle.Thickness = 1.5
+        FOVCircle.NumSides = 60
+        FOVCircle.Radius = Settings.FOVSize
+        FOVCircle.Filled = false
+        FOVCircle.Visible = false
+    end)
 
     SafeConnect(RunService.RenderStepped, function()
         if Settings.CameraAimbot and not Settings.HideFOVCircle then
-            FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-            FOVCircle.Radius = Settings.FOVSize
-            FOVCircle.Visible = true
+            pcall(function()
+                FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                FOVCircle.Radius = Settings.FOVSize
+                FOVCircle.Visible = true
+            end)
         else
-            FOVCircle.Visible = false
+            pcall(function()
+                FOVCircle.Visible = false
+            end)
         end
     end)
 
@@ -594,7 +614,6 @@ return function(AccessKey)
         return predictedPos
     end
 
-    -- AIMBOT MODIFIKASI: Aktif jika memiliki "Gun" di karakter (tool) maupun tas (backpack)
     SafeConnect(RunService.RenderStepped, function()
         if Settings.CameraAimbot and LocalPlayer.Character then
             local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Gun"))
@@ -752,7 +771,6 @@ return function(AccessKey)
                 end
             end
         end
-        -- Fallback deteksi jika letak koin berbeda format
         if #coins == 0 then
             for _, v in ipairs(workspace:GetDescendants()) do
                 if v:IsA("TouchTransmitter") and v.Parent then
@@ -770,7 +788,7 @@ return function(AccessKey)
         if not coinPart or coinPart:FindFirstChild("LouisCoinOutline") then return end
         local highlight = Instance.new("Highlight")
         highlight.Name = "LouisCoinOutline"
-        highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold
+        highlight.FillColor = Color3.fromRGB(255, 215, 0) 
         highlight.FillTransparency = 0.4
         highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
         highlight.OutlineTransparency = 0
@@ -797,9 +815,7 @@ return function(AccessKey)
                     if #coins > 0 then
                         for _, coin in ipairs(coins) do
                             if not Settings.CoinFarmEnabled or humanoid.Health <= 0 then break end
-                            local originalCFrame = root.CFrame
                             
-                            -- Noclip bypass loop
                             local noclipConnection = SafeConnect(RunService.Stepped, function()
                                 if LocalPlayer.Character then
                                     for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
@@ -809,7 +825,7 @@ return function(AccessKey)
                             end)
                             
                             root.CFrame = coin.CFrame
-                            task.wait(0.12) -- Tunggu server mendaftarkan sentuhan
+                            task.wait(0.12)
                             
                             if noclipConnection then noclipConnection:Disconnect() end
                         end
@@ -836,7 +852,6 @@ return function(AccessKey)
                 ClearGunOutlines()
             end
 
-            -- Update Coin Outlines (Coin ESP)
             if Settings.CoinESP then
                 local coins = ScanForCoins()
                 for _, coin in ipairs(coins) do
@@ -1059,8 +1074,10 @@ return function(AccessKey)
 
     local function ClearAllTracers()
         for _, tracer in pairs(ActiveTracers) do
-            tracer.Visible = false
-            tracer:Remove()
+            pcall(function()
+                tracer.Visible = false
+                tracer:Remove()
+            end)
         end
         ActiveTracers = {}
     end
@@ -1140,8 +1157,10 @@ return function(AccessKey)
                             textLabel.TextSize = 8
                             textLabel.Text = Player.Name
                         else
-                            NameTag.TextLabel.TextColor3 = TargetColor
-                            NameTag.TextLabel.Text = Player.Name
+                            pcall(function()
+                                NameTag.TextLabel.TextColor3 = TargetColor
+                                NameTag.TextLabel.Text = Player.Name
+                            end)
                         end
                     else
                         if NameTag then NameTag:Destroy() end
@@ -1154,21 +1173,29 @@ return function(AccessKey)
                             local Tracer = ActiveTracers[Player.Name]
                             if not Tracer then
                                 Tracer = SafeDrawing("Line")
-                                Tracer.Thickness = 1.5
-                                Tracer.Transparency = 0.8
+                                pcall(function()
+                                    Tracer.Thickness = 1.5
+                                    Tracer.Transparency = 0.8
+                                end)
                                 ActiveTracers[Player.Name] = Tracer
                             end
-                            Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                            Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
-                            Tracer.Color = TargetColor
-                            Tracer.Visible = true
+                            pcall(function()
+                                Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                                Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
+                                Tracer.Color = TargetColor
+                                Tracer.Visible = true
+                            end)
                         else
-                            if ActiveTracers[Player.Name] then ActiveTracers[Player.Name].Visible = false end
+                            if ActiveTracers[Player.Name] then 
+                                pcall(function() ActiveTracers[Player.Name].Visible = false end) 
+                            end
                         end
                     else
                         if ActiveTracers[Player.Name] then
-                            ActiveTracers[Player.Name].Visible = false
-                            ActiveTracers[Player.Name]:Remove()
+                            pcall(function()
+                                ActiveTracers[Player.Name].Visible = false
+                                ActiveTracers[Player.Name]:Remove()
+                            end)
                             ActiveTracers[Player.Name] = nil
                         end
                     end
@@ -1179,8 +1206,10 @@ return function(AccessKey)
                     if Player.Character:FindFirstChild("LouisNameTag") then Player.Character:FindFirstChild("LouisNameTag"):Destroy() end
                 end
                 if ActiveTracers[Player.Name] then
-                    ActiveTracers[Player.Name].Visible = false
-                    ActiveTracers[Player.Name]:Remove()
+                    pcall(function()
+                        ActiveTracers[Player.Name].Visible = false
+                        ActiveTracers[Player.Name]:Remove()
+                    end)
                     ActiveTracers[Player.Name] = nil
                 end
             end
@@ -1207,7 +1236,7 @@ return function(AccessKey)
     local function ApplyExternalButtonStyle(btn, stroke)
         btn.BackgroundTransparency = 0.6
         SafeConnect(RunService.RenderStepped, function()
-            local hue = (tick() % 4) / 4 -- Loop warna dalam waktu 4 detik
+            local hue = (tick() % 4) / 4 
             stroke.Color = Color3.fromHSV(hue, 0.8, 1)
         end)
     end
@@ -1402,7 +1431,7 @@ return function(AccessKey)
     local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 100, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
 
-    -- TOMBOL LOCK DRAG FLOATING BUTTONS (PINDAH KE Samping TOMBOL INFO)
+    -- TOMBOL LOCK DRAG FLOATING BUTTONS
     local LockDragBtn = createBtn("🔓", UDim2.new(0, 112, 0, 4), UDim2.new(0, 14, 0, 14), Color3.fromRGB(45, 45, 55))
     LockDragBtn.Parent = MainFrame
     LockDragBtn.TextSize = 7
@@ -1434,7 +1463,11 @@ return function(AccessKey)
         local b = createBtn(name, pos, UDim2.new(1, -10, 0, 18), color)
         b.Parent = InfoFrame; b.TextSize = 6; b.ZIndex = 11
         b.MouseButton1Click:Connect(function()
-            setclipboard(link)
+            if setclipboard then
+                setclipboard(link)
+            elseif toclipboard then
+                toclipboard(link)
+            end
             local oldText = b.Text; b.Text = "COPIED!"; task.wait(1.5); b.Text = oldText
         end)
     end
@@ -1531,7 +1564,6 @@ return function(AccessKey)
         obj.Parent = TabFrames[tab]
     end
 
-    -- Fungsi Pembuat Group Container Box
     local function createGroupContainer(tab, titleText, boxHeight)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(1, -4, 0, boxHeight)
@@ -1577,10 +1609,7 @@ return function(AccessKey)
     InfoStatusLabel.TextColor3 = Color3.fromRGB(150,255,150); InfoStatusLabel.Font = Enum.Font.Gotham; InfoStatusLabel.TextSize = 6.5
     addTabElement("Main", InfoStatusLabel)
 
-
-    -- --- TAB 2: COMBAT (SEKARANG BERISI DOUBLE JUMP) ---
-    
-    -- BOX FITUR: KILL PLAYER (Murderer Only)
+    -- --- TAB 2: COMBAT ---
     local BoxKillPlayer = createGroupContainer("Combat", "Kill Player", 64)
 
     local KillAuraToggleBtn = createBtn("KILL AURA: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1602,8 +1631,6 @@ return function(AccessKey)
     local KillAllBtn = createBtn("KILL ALL PLAYER (TP ALL)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(180, 0, 0))
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
-
-    -- BOX 1: AIM UTAMA & SLIDER SIZE
     local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 64)
     
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1625,8 +1652,6 @@ return function(AccessKey)
     ExtAimSliderText.Size = UDim2.new(1, 0, 1, 0); ExtAimSliderText.BackgroundTransparency = 1; ExtAimSliderText.TextColor3 = Color3.new(1, 1, 1); ExtAimSliderText.TextSize = 6.5; ExtAimSliderText.Font = Enum.Font.GothamBold; ExtAimSliderText.ZIndex = 3
     ExtAimSliderFrame.Parent = BoxAim
 
-
-    -- BOX 2: FIELD OF VIEW (FOV)
     local BoxFOV = createGroupContainer("Combat", "Field of View (FOV)", 82)
     
     local FOVHideBtn = createBtn("[P] HIDE FOV CIRCLE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1661,8 +1686,6 @@ return function(AccessKey)
     CamFOVSliderText.Size = UDim2.new(1, 0, 1, 0); CamFOVSliderText.BackgroundTransparency = 1; CamFOVSliderText.TextColor3 = Color3.new(1, 1, 1); CamFOVSliderText.TextSize = 6.5; CamFOVSliderText.Font = Enum.Font.GothamBold; CamFOVSliderText.ZIndex = 3
     CamFOVSliderFrame.Parent = BoxFOV
 
-
-    -- BOX 3: FLING SYSTEM
     local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 46)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1671,8 +1694,6 @@ return function(AccessKey)
     local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
 
-
-    -- BOX 4: GRAB GUN SYSTEM & SLIDER SIZE
     local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 64)
     
     local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1694,8 +1715,6 @@ return function(AccessKey)
     ExtGrabSliderText.Size = UDim2.new(1, 0, 1, 0); ExtGrabSliderText.BackgroundTransparency = 1; ExtGrabSliderText.TextColor3 = Color3.new(1, 1, 1); ExtGrabSliderText.TextSize = 6.5; ExtGrabSliderText.Font = Enum.Font.GothamBold; ExtGrabSliderText.ZIndex = 3
     ExtGrabSliderFrame.Parent = BoxGrab
 
-
-    -- BOX 5: DOUBLE JUMP SYSTEM (Pindahan Dari Utility) & SLIDER SIZE
     local BoxDoubleJump = createGroupContainer("Combat", "Double Jump System", 64)
 
     local DoubleJumpToggleBtn = createBtn("DOUBLE JUMP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1716,7 +1735,6 @@ return function(AccessKey)
     local ExtDJSliderText = Instance.new("TextLabel", ExtDJSliderFrame)
     ExtDJSliderText.Size = UDim2.new(1, 0, 1, 0); ExtDJSliderText.BackgroundTransparency = 1; ExtDJSliderText.TextColor3 = Color3.new(1, 1, 1); ExtDJSliderText.TextSize = 6.5; ExtDJSliderText.Font = Enum.Font.GothamBold; ExtDJSliderText.ZIndex = 3
     ExtDJSliderFrame.Parent = BoxDoubleJump
-
 
     -- --- TAB 3: ESP ---
     local BoxESP = createGroupContainer("ESP", "Visual & Hitbox Hack", 100)
@@ -1746,7 +1764,6 @@ return function(AccessKey)
     SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 6.5; SliderText.Font = Enum.Font.GothamBold; SliderText.ZIndex = 3
     SliderFrame.Parent = BoxESP
 
-    -- BOX ESP FILTERS & VISUALS (NAME ESP, COIN ESP, FILTERS)
     local BoxESPFilters = createGroupContainer("ESP", "ESP Filters & Visuals", 100)
 
     local NameEspBtn = createBtn("NAME ESP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1764,8 +1781,7 @@ return function(AccessKey)
     local ShowInnocentFilterBtn = createBtn("FILTER: INNOCENT (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(0, 150, 0))
     ShowInnocentFilterBtn.Parent = BoxESPFilters; ShowInnocentFilterBtn.LayoutOrder = 5
 
-
-    -- --- TAB 4: UTILITY (Sisi Eksploitasi Karakter & Walkspeed Mod) ---
+    -- --- TAB 4: UTILITY ---
     local BoxPlayerUtility = createGroupContainer("Utility", "Movement & Physics", 130)
 
     local FlyToggleBtn = createBtn("FLY HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1816,13 +1832,11 @@ return function(AccessKey)
     local InvisibleToggleBtn = createBtn("INVISIBLE HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     InvisibleToggleBtn.Parent = BoxPlayerUtility; InvisibleToggleBtn.LayoutOrder = 8
 
-
     -- --- TAB 5: FARM ---
     local BoxFarm = createGroupContainer("Farm", "Auto Farming Engine", 46)
 
     local CoinFarmToggleBtn = createBtn("COIN AUTO FARM: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     CoinFarmToggleBtn.Parent = BoxFarm; CoinFarmToggleBtn.LayoutOrder = 1
-
 
     -- ========================================================================
     -- SLIDERS LOGIC & SYNCHRONIZATION ENGINE
@@ -1925,7 +1939,6 @@ return function(AccessKey)
     local SliderConnection = nil
     SliderButton.MouseButton1Down:Connect(function() UpdateSlider() SliderConnection = SafeConnect(RunService.RenderStepped, UpdateSlider) end)
 
-    -- SLIDERS: TOMBOL EKSTERNAL SIZING LOGIC
     local function syncExtAimSlider(val)
         ExtAimSliderFill.Size = UDim2.new(math.clamp((val - 20) / 80, 0, 1), 0, 1, 0)
         ExtAimSliderText.Text = string.format("EXT AIM SIZE: %d PX", val)
@@ -2194,7 +2207,6 @@ return function(AccessKey)
         updateLockDragVisual()
     end
 
-    -- INTEGRASI ELEMEN TOGGLE BARU (NAME ESP, COIN ESP, FILTERS, COIN FARM)
     local function toggleNameEsp()
         Settings.NameESP = not Settings.NameESP
         NameEspBtn.Text = Settings.NameESP and "NAME ESP: ON" or "NAME ESP: OFF"
@@ -2232,7 +2244,6 @@ return function(AccessKey)
         CoinFarmToggleBtn.BackgroundColor3 = Settings.CoinFarmEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    -- KONEKSI TOMBOL-TOMBOL BARU
     NameEspBtn.MouseButton1Click:Connect(toggleNameEsp)
     CoinEspBtn.MouseButton1Click:Connect(toggleCoinEsp)
     ShowMurderFilterBtn.MouseButton1Click:Connect(toggleMurderFilter)
@@ -2240,7 +2251,6 @@ return function(AccessKey)
     ShowInnocentFilterBtn.MouseButton1Click:Connect(toggleInnocentFilter)
     CoinFarmToggleBtn.MouseButton1Click:Connect(toggleCoinFarm)
 
-    -- Koneksi tombol ke behavior fungsi asli
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
 
@@ -2268,7 +2278,6 @@ return function(AccessKey)
     NoclipToggleBtn.MouseButton1Click:Connect(toggleNoclip)
     InvisibleToggleBtn.MouseButton1Click:Connect(toggleInvisible)
 
-    -- Koneksi Event Baru (Double Jump & Pengunci Drag)
     DoubleJumpToggleBtn.MouseButton1Click:Connect(toggleDoubleJump)
     DoubleJumpExtToggleBtn.MouseButton1Click:Connect(toggleDoubleJumpExt)
     LockDragBtn.MouseButton1Click:Connect(toggleLockDrag)
@@ -2315,4 +2324,3 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Memory Leak Patch Successfully Initialized.")
 end
-
