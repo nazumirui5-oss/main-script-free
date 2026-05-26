@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
+-- VERSION: 13.5.2 (Security Sync Update - MM2 Edition - REBUILT)
 
 return function(AccessKey)
     local Players = game:GetService("Players")
@@ -204,13 +204,24 @@ return function(AccessKey)
         InvisibleEnabled = false,
         KillAuraEnabled = false,
         KillAuraRadius = 15,
-        -- Tambahan Fitur Baru:
         DoubleJumpEnabled = false,
         DoubleJumpExtEnabled = false,
-        DragLocked = false
+        DragLocked = false,
+        -- Fitur Baru Konfigurasi:
+        ExtAimbotSize = 40,
+        ExtGrabSize = 40,
+        ExtDoubleJumpSize = 40,
+        CoinFarmEnabled = false,
+        NameESPEnabled = false,
+        CoinESP = false,
+        ESP_Murderer = true,
+        ESP_Sheriff = true,
+        ESP_Innocent = true
     }
 
     local OriginalFOV = Camera.FieldOfView
+    local DynamicFills = {}
+    local DynamicStrokes = {}
 
     -- ==========================================
     -- [[ POTATO GRAPHICS OPTIMIZATION ENGINE ]]
@@ -477,7 +488,6 @@ return function(AccessKey)
         if humanoid and root and humanoid.Health > 0 and Settings.DoubleJumpEnabled then
             if CanDoubleJump and not HasDoubleJumped then
                 HasDoubleJumped = true
-                -- Berikan velocity ke atas agar lompat sekali lagi
                 root.Velocity = Vector3.new(root.Velocity.X, humanoid.JumpPower * 1.15, root.Velocity.Z)
             end
         end
@@ -527,9 +537,9 @@ return function(AccessKey)
             if v ~= LocalPlayer and v.Character then
                 local Root = v.Character:FindFirstChild("HumanoidRootPart")
                 local Hum = v.Character:FindFirstChildOfClass("Humanoid")
-                local ESP = v.Character:FindFirstChild("MM2_ESP")
+                local Role = GetMM2Role(v)
                 
-                if Root and Hum and Hum.Health > 0 and ESP and ESP.FillColor == Color3.fromRGB(255, 0, 0) then
+                if Root and Hum and Hum.Health > 0 and Role == "Murderer" then
                     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
                         local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
@@ -553,9 +563,9 @@ return function(AccessKey)
             if v ~= LocalPlayer and v.Character then
                 local Root = v.Character:FindFirstChild("HumanoidRootPart")
                 local Hum = v.Character:FindFirstChildOfClass("Humanoid")
-                local ESP = v.Character:FindFirstChild("MM2_ESP")
+                local Role = GetMM2Role(v)
                 
-                if Root and Hum and Hum.Health > 0 and (not ESP or ESP.FillColor ~= Color3.fromRGB(255, 0, 0)) then
+                if Root and Hum and Hum.Health > 0 and (Role == "Innocent" or Role == "Sheriff") then
                     local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                     if OnScreen then
                         local Magnitude = (Vector2.new(ScreenPos.X, ScreenPos.Y) - CenterScreen).Magnitude
@@ -584,10 +594,18 @@ return function(AccessKey)
         return predictedPos
     end
 
-    -- AIMBOT MODIFIKASI: Hanya aktif saat memegang "Gun" (bukan di dalam tas/Backpack)
+    -- AIMBOT UPDATE: Aktif jika kita memegang Gun (di dalam inventory tas/tool)
     SafeConnect(RunService.RenderStepped, function()
         if Settings.CameraAimbot and LocalPlayer.Character then
             local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun")
+            local BackpackGun = LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Gun")
+            
+            -- Jika ada di tas, otomatis lengkapi ke tangan
+            if BackpackGun and not HoldsGun then
+                BackpackGun.Parent = LocalPlayer.Character
+                HoldsGun = BackpackGun
+            end
+            
             if HoldsGun and HoldsGun:IsA("Tool") then
                 local MyRole = GetMM2Role(LocalPlayer)
                 
@@ -716,17 +734,70 @@ return function(AccessKey)
         end
     end
 
+    -- ========================================================================
+    -- [[ FARM COIN TELEPORT DETECTOR & LOOP ENGINE ]]
+    -- ========================================================================
+    local function GetClosestCoin()
+        local closest = nil
+        local dist = math.huge
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not root then return nil end
+
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and (obj.Name == "Coin_Server" or obj.Name == "Coin_Go_Spinny" or obj.Name:lower():find("coin") or obj.Parent.Name == "CoinContainer") then
+                local distance = (root.Position - obj.Position).Magnitude
+                if distance < dist then
+                    dist = distance
+                    closest = obj
+                end
+            end
+        end
+        return closest
+    end
+
+    task.spawn(function()
+        while true do
+            if Settings.CoinFarmEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local root = LocalPlayer.Character.HumanoidRootPart
+                local coin = GetClosestCoin()
+                if coin then
+                    local noclipConnection = SafeConnect(RunService.Stepped, function()
+                        if LocalPlayer.Character then
+                            for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
+                                if child:IsA("BasePart") then child.CanCollide = false end
+                            end
+                        end
+                    end)
+                    
+                    root.CFrame = coin.CFrame
+                    task.wait(0.18) -- jeda pengambilan
+                    if noclipConnection then noclipConnection:Disconnect() end
+                end
+            end
+            task.wait(0.3)
+        end
+    end)
+
+    -- Coin ESP Outline
+    local function ApplyCoinESP(coinPart)
+        if not coinPart or coinPart:FindFirstChild("LouisCoinOutline") then return end
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "LouisCoinOutline"
+        highlight.FillColor = Color3.fromRGB(245, 195, 35)
+        highlight.FillTransparency = 0.4
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.OutlineTransparency = 0
+        highlight.Adornee = coinPart
+        highlight.Parent = coinPart
+    end
+
     task.spawn(function()
         while true do
             if Settings.AutoGrabGun or Settings.ESP then
                 local activeGun = ScanForDroppedGun()
                 if activeGun then
-                    if Settings.ESP then
-                        ApplyGunOutline(activeGun)
-                    end
-                    if Settings.AutoGrabGun then
-                        SafeInstantTween(activeGun)
-                    end
+                    if Settings.ESP then ApplyGunOutline(activeGun) end
+                    if Settings.AutoGrabGun then SafeInstantTween(activeGun) end
                 end
             else
                 ClearGunOutlines()
@@ -938,7 +1009,7 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- LOOPING RENDER: HITBOX EXPANDER, ESP OUTLINE & TRACERS SYSTEM
+    -- [[ LOOPING RENDER: COIN HACKS, HITBOX, FILTERS & ESP NAME TAGS ]]
     -- ========================================================================
     local ActiveTracers = {}
 
@@ -950,7 +1021,45 @@ return function(AccessKey)
         ActiveTracers = {}
     end
 
+    local function CreateNameTag(player, character, color)
+        if character:FindFirstChild("LouisNameTag") then 
+            character.LouisNameTag.TextLabel.TextColor3 = color
+            character.LouisNameTag.TextLabel.Text = player.Name .. " (" .. GetMM2Role(player) .. ")"
+            return 
+        end
+        local bGui = Instance.new("BillboardGui")
+        bGui.Name = "LouisNameTag"
+        bGui.Size = UDim2.new(0, 100, 0, 20)
+        bGui.AlwaysOnTop = true
+        bGui.StudsOffset = Vector3.new(0, 3, 0)
+        
+        local label = Instance.new("TextLabel", bGui)
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = player.Name .. " (" .. GetMM2Role(player) .. ")"
+        label.TextColor3 = color
+        label.Font = Enum.Font.GothamBold
+        label.TextSize = 8
+        label.TextStrokeTransparency = 0
+        label.TextStrokeColor3 = Color3.new(0,0,0)
+        
+        bGui.Parent = character
+    end
+
     SafeConnect(RunService.RenderStepped, function()
+        -- Handle Coin ESP
+        if not Settings.CoinESP then
+            for _, object in ipairs(Workspace:GetDescendants()) do
+                if object.Name == "LouisCoinOutline" then object:Destroy() end
+            end
+        else
+            for _, object in ipairs(Workspace:GetDescendants()) do
+                if object:IsA("BasePart") and (object.Name == "Coin_Server" or object.Name == "Coin_Go_Spinny" or object.Name:lower():find("coin") or object.Parent.Name == "CoinContainer") then
+                    ApplyCoinESP(object)
+                end
+            end
+        end
+
         if not Settings.TracersESP then
             ClearAllTracers()
         end
@@ -961,29 +1070,38 @@ return function(AccessKey)
                 local Humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
                 
                 if Root and Humanoid and Humanoid.Health > 0 then
-                    if Settings.HitboxExpander then
-                        Root.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
-                        if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = false end
-                        if Settings.HitboxVisual then
-                            Root.Transparency = 0.7
-                            Root.Color = Color3.fromRGB(255, 0, 0)
-                            Root.Material = Enum.Material.SmoothPlastic
-                        else
-                            Root.Transparency = 1
-                        end
-                    else
-                        Root.Size = Vector3.new(2, 2, 1)
-                        Root.Transparency = 1
-                        if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = true end
-                    end
-
                     local Role = GetMM2Role(Player)
-                    local TargetColor = Color3.fromRGB(0, 225, 0)
-                    if Role == "Murderer" then TargetColor = Color3.fromRGB(255, 0, 0)
-                    elseif Role == "Sheriff" then TargetColor = Color3.fromRGB(0, 0, 225) end
+                    
+                    -- Check ESP Filters
+                    local FilterPassed = false
+                    if Role == "Murderer" and Settings.ESP_Murderer then FilterPassed = true
+                    elseif Role == "Sheriff" and Settings.ESP_Sheriff then FilterPassed = true
+                    elseif Role == "Innocent" and Settings.ESP_Innocent then FilterPassed = true end
 
-                    local Highlight = Player.Character:FindFirstChild("MM2_ESP")
-                    if Settings.ESP then
+                    if Settings.ESP and FilterPassed then
+                        -- Hitbox Expander
+                        if Settings.HitboxExpander then
+                            Root.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
+                            if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = false end
+                            if Settings.HitboxVisual then
+                                Root.Transparency = 0.7
+                                Root.Color = Color3.fromRGB(255, 0, 0)
+                                Root.Material = Enum.Material.SmoothPlastic
+                            else
+                                Root.Transparency = 1
+                            end
+                        else
+                            Root.Size = Vector3.new(2, 2, 1)
+                            Root.Transparency = 1
+                            if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = true end
+                        end
+
+                        local TargetColor = Color3.fromRGB(0, 225, 0)
+                        if Role == "Murderer" then TargetColor = Color3.fromRGB(255, 0, 0)
+                        elseif Role == "Sheriff" then TargetColor = Color3.fromRGB(0, 0, 225) end
+
+                        -- Dynamic Highlight Outline
+                        local Highlight = Player.Character:FindFirstChild("MM2_ESP")
                         if not Highlight then
                             Highlight = Instance.new("Highlight")
                             Highlight.Name = "MM2_ESP"
@@ -993,32 +1111,59 @@ return function(AccessKey)
                         end
                         Highlight.FillColor = TargetColor
                         Highlight.OutlineColor = TargetColor
-                    else
-                        if Highlight then Highlight:Destroy() end
-                    end
 
-                    if Settings.TracersESP then
-                        local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
-                        if OnScreen then
-                            local Tracer = ActiveTracers[Player.Name]
-                            if not Tracer then
-                                Tracer = SafeDrawing("Line")
-                                Tracer.Thickness = 1.5
-                                Tracer.Transparency = 0.8
-                                ActiveTracers[Player.Name] = Tracer
-                            end
-                            Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                            Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
-                            Tracer.Color = TargetColor
-                            Tracer.Visible = true
+                        -- Name Tag ESP
+                        if Settings.NameESPEnabled then
+                            CreateNameTag(Player, Player.Character, TargetColor)
                         else
-                            if ActiveTracers[Player.Name] then ActiveTracers[Player.Name].Visible = false end
+                            if Player.Character:FindFirstChild("LouisNameTag") then
+                                Player.Character.LouisNameTag:Destroy()
+                            end
+                        end
+
+                        -- Tracers Line
+                        if Settings.TracersESP then
+                            local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
+                            if OnScreen then
+                                local Tracer = ActiveTracers[Player.Name]
+                                if not Tracer then
+                                    Tracer = SafeDrawing("Line")
+                                    Tracer.Thickness = 1.5
+                                    Tracer.Transparency = 0.8
+                                    ActiveTracers[Player.Name] = Tracer
+                                end
+                                Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                                Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
+                                Tracer.Color = TargetColor
+                                Tracer.Visible = true
+                            else
+                                if ActiveTracers[Player.Name] then ActiveTracers[Player.Name].Visible = false end
+                            end
+                        end
+                    else
+                        -- Revert and Cleanup
+                        if Player.Character:FindFirstChild("MM2_ESP") then
+                            Player.Character:FindFirstChild("MM2_ESP"):Destroy()
+                        end
+                        if Player.Character:FindFirstChild("LouisNameTag") then
+                            Player.Character:FindFirstChild("LouisNameTag"):Destroy()
+                        end
+                        if ActiveTracers[Player.Name] then
+                            ActiveTracers[Player.Name].Visible = false
+                            ActiveTracers[Player.Name]:Remove()
+                            ActiveTracers[Player.Name] = nil
+                        end
+                        if Root then
+                            Root.Size = Vector3.new(2, 2, 1)
+                            Root.Transparency = 1
+                            if not IsGrabbing and not FlingFailsafeActive then Root.CanCollide = true end
                         end
                     end
                 end
             else
-                if Player.Character and Player.Character:FindFirstChild("MM2_ESP") then
-                    Player.Character:FindFirstChild("MM2_ESP"):Destroy()
+                if Player.Character then
+                    if Player.Character:FindFirstChild("MM2_ESP") then Player.Character:FindFirstChild("MM2_ESP"):Destroy() end
+                    if Player.Character:FindFirstChild("LouisNameTag") then Player.Character:FindFirstChild("LouisNameTag"):Destroy() end
                 end
                 if ActiveTracers[Player.Name] then
                     ActiveTracers[Player.Name].Visible = false
@@ -1048,10 +1193,7 @@ return function(AccessKey)
     -- HELPER: Penerapan warna neon bergerak pada stroke & transparansi tengah 60%
     local function ApplyExternalButtonStyle(btn, stroke)
         btn.BackgroundTransparency = 0.6
-        SafeConnect(RunService.RenderStepped, function()
-            local hue = (tick() % 4) / 4 -- Loop warna dalam waktu 4 detik
-            stroke.Color = Color3.fromHSV(hue, 0.8, 1)
-        end)
+        table.insert(DynamicStrokes, stroke)
     end
 
     -- HELPER: Mengatur sistem drag tombol dengan pengecekan status kunci dari UI
@@ -1088,6 +1230,7 @@ return function(AccessKey)
     ToggleBtnMain.Font = Enum.Font.GothamBlack
     ToggleBtnMain.TextSize = 25
     ToggleBtnMain.AutoButtonColor = false
+    ToggleBtnMain.ZIndex = 500000
     ToggleBtnMain.Visible = false 
 
     local ToggleStroke = Instance.new("UIStroke", ToggleBtnMain)
@@ -1100,7 +1243,7 @@ return function(AccessKey)
     -- [[ TOMBOL EXTERNAL AIMBOT ]]
     local ExtAimbotBtn = Instance.new("TextButton", ScreenGui)
     ExtAimbotBtn.Name = "ExtAimbot"
-    ExtAimbotBtn.Size = UDim2.new(0, 40, 0, 40)
+    ExtAimbotBtn.Size = UDim2.new(0, Settings.ExtAimbotSize, 0, Settings.ExtAimbotSize)
     ExtAimbotBtn.Position = UDim2.new(0, 20, 0.5, 35)
     ExtAimbotBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     ExtAimbotBtn.Text = "A"
@@ -1118,7 +1261,7 @@ return function(AccessKey)
     -- [[ TOMBOL EXTERNAL GRAB GUN ]]
     local ExtGrabBtn = Instance.new("TextButton", ScreenGui)
     ExtGrabBtn.Name = "ExtGrabGun"
-    ExtGrabBtn.Size = UDim2.new(0, 40, 0, 40)
+    ExtGrabBtn.Size = UDim2.new(0, Settings.ExtGrabSize, 0, Settings.ExtGrabSize)
     ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, 85)
     ExtGrabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     ExtGrabBtn.Text = "G"
@@ -1136,7 +1279,7 @@ return function(AccessKey)
     -- [[ TOMBOL EXTERNAL DOUBLE JUMP ]]
     local ExtDoubleJumpBtn = Instance.new("TextButton", ScreenGui)
     ExtDoubleJumpBtn.Name = "ExtDoubleJump"
-    ExtDoubleJumpBtn.Size = UDim2.new(0, 40, 0, 40)
+    ExtDoubleJumpBtn.Size = UDim2.new(0, Settings.ExtDoubleJumpSize, 0, Settings.ExtDoubleJumpSize)
     ExtDoubleJumpBtn.Position = UDim2.new(0, 20, 0.5, 135)
     ExtDoubleJumpBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     ExtDoubleJumpBtn.Text = "DJ"
@@ -1211,7 +1354,9 @@ return function(AccessKey)
     MainFrame.BackgroundColor3 = _GMainColor; MainFrame.Active = true; MainFrame.ClipsDescendants = true
     MainFrame.Visible = false
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+    
     local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
+    table.insert(DynamicStrokes, Stroke)
 
     local function createBtn(txt, pos, size, color)
         local b = Instance.new("TextButton")
@@ -1227,8 +1372,21 @@ return function(AccessKey)
         l.TextSize = 7; l.Font = Enum.Font.GothamBold; return l
     end
 
-    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 120, 0, 12))
+    local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 90, 0, 12))
     HubLabel.TextColor3 = _GAccentColor; HubLabel.TextSize = 6.5
+
+    -- [[ PINDAH LOCK/UNLOCK KE SAMPING TOMBOL INFO ]]
+    local LockDragTopBtn = createBtn("🔓", UDim2.new(0, 102, 0, 4), UDim2.new(0, 24, 0, 14), Color3.fromRGB(45, 45, 55))
+    LockDragTopBtn.Parent = MainFrame
+    LockDragTopBtn.TextSize = 8
+
+    local function toggleLockDrag()
+        Settings.DragLocked = not Settings.DragLocked
+        LockDragTopBtn.Text = Settings.DragLocked and "🔒" or "🔓"
+        LockDragTopBtn.BackgroundColor3 = Settings.DragLocked and _GAccentColor or Color3.fromRGB(45, 45, 55)
+        LockDragTopBtn.TextColor3 = Settings.DragLocked and Color3.new(0,0,0) or Color3.new(1,1,1)
+    end
+    LockDragTopBtn.MouseButton1Click:Connect(toggleLockDrag)
 
     local InfoBtn = createBtn("i", UDim2.new(0, 128, 0, 4), UDim2.new(0, 26, 0, 14), Color3.fromRGB(45, 45, 55))
     InfoBtn.Parent = MainFrame; InfoBtn.TextSize = 8; InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
@@ -1239,7 +1397,9 @@ return function(AccessKey)
     InfoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25); InfoFrame.BorderSizePixel = 0
     InfoFrame.ClipsDescendants = true; InfoFrame.Visible = false; InfoFrame.ZIndex = 10
     Instance.new("UICorner", InfoFrame)
+    
     local InfoStroke = Instance.new("UIStroke", InfoFrame); InfoStroke.Color = _GAccentColor; InfoStroke.Thickness = 1
+    table.insert(DynamicStrokes, InfoStroke)
 
     local function createInfoLabel(txt, pos, color)
         local l = Instance.new("TextLabel", InfoFrame)
@@ -1306,7 +1466,7 @@ return function(AccessKey)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         
         layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            f.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 15)
+            f.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 25)
         end)
         
         TabFrames[name] = f
@@ -1339,9 +1499,9 @@ return function(AccessKey)
     end
     ShowTab("Main")
 
-    -- ==========================================
+    -- ========================================================================
     -- [[ PEMASANGAN FITUR PADA MASING-MASING TAB ]]
-    -- ==========================================
+    -- ========================================================================
     local elementCounter = 0
     local function addTabElement(tab, obj)
         elementCounter = elementCounter + 1
@@ -1360,6 +1520,7 @@ return function(AccessKey)
         local stroke = Instance.new("UIStroke", container)
         stroke.Color = Color3.fromRGB(45, 45, 50)
         stroke.Thickness = 1
+        table.insert(DynamicStrokes, stroke)
         
         local title = Instance.new("TextLabel", container)
         title.Size = UDim2.new(1, -10, 0, 12)
@@ -1380,6 +1541,61 @@ return function(AccessKey)
         return container
     end
 
+    -- HELPER: Pembuat Slider Ukuran Tombol Eksternal
+    local function createSizeSlider(parentBox, textPrefix, currentVal, minVal, maxVal, onChange)
+        local sliderFrame = Instance.new("Frame")
+        sliderFrame.Size = UDim2.new(1, -10, 0, 12)
+        sliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+        Instance.new("UICorner", sliderFrame)
+        
+        local sliderFill = Instance.new("Frame", sliderFrame)
+        sliderFill.BackgroundColor3 = _GAccentColor
+        Instance.new("UICorner", sliderFill)
+        table.insert(DynamicFills, sliderFill)
+        
+        local sliderText = Instance.new("TextLabel", sliderFrame)
+        sliderText.Size = UDim2.new(1, 0, 1, 0)
+        sliderText.BackgroundTransparency = 1
+        sliderText.TextColor3 = Color3.new(1, 1, 1)
+        sliderText.TextSize = 6.5
+        sliderText.Font = Enum.Font.GothamBold
+        sliderText.ZIndex = 3
+        
+        local function updateFill(val)
+            sliderFill.Size = UDim2.new(math.clamp((val - minVal) / (maxVal - minVal), 0, 1), 0, 1, 0)
+            sliderText.Text = string.format("%s: %d PX", textPrefix:upper(), val)
+        end
+        updateFill(currentVal)
+        
+        local sliderButton = Instance.new("TextButton", sliderFrame)
+        sliderButton.Size = UDim2.new(1, 0, 1, 0)
+        sliderButton.BackgroundTransparency = 1
+        sliderButton.Text = ""
+        sliderButton.ZIndex = 4
+        
+        local sliderConn
+        local function updateVal()
+            local percent = math.clamp((Mouse.X - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
+            local newVal = math.floor(minVal + (percent * (maxVal - minVal)))
+            updateFill(newVal)
+            onChange(newVal)
+        end
+        
+        sliderButton.MouseButton1Down:Connect(function()
+            updateVal()
+            sliderConn = SafeConnect(RunService.RenderStepped, updateVal)
+        end)
+        
+        SafeConnect(UserInputService.InputEnded, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if sliderConn then sliderConn:Disconnect() sliderConn = nil end
+            end
+        end)
+        
+        sliderFrame.Parent = parentBox
+        return sliderFrame
+    end
+
     -- --- TAB 1: MAIN ---
     local WelcomeLabel = Instance.new("TextLabel")
     WelcomeLabel.Size = UDim2.new(1, -4, 0, 15)
@@ -1391,7 +1607,7 @@ return function(AccessKey)
     local InfoStatusLabel = Instance.new("TextLabel")
     InfoStatusLabel.Size = UDim2.new(1, -4, 0, 25)
     InfoStatusLabel.BackgroundTransparency = 1
-    InfoStatusLabel.Text = "Status: ACTIVE\nPress 'L' button on left screen\nto hide/open this main UI window."
+    InfoStatusLabel.Text = "Status: ACTIVE\nPress 'L' button on left screen\to hide/open this main UI window."
     InfoStatusLabel.TextColor3 = Color3.fromRGB(150,255,150); InfoStatusLabel.Font = Enum.Font.Gotham; InfoStatusLabel.TextSize = 6.5
     addTabElement("Main", InfoStatusLabel)
 
@@ -1412,6 +1628,7 @@ return function(AccessKey)
 
     local KARadiusSliderFill = Instance.new("Frame", KARadiusSliderFrame)
     KARadiusSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", KARadiusSliderFill)
+    table.insert(DynamicFills, KARadiusSliderFill)
 
     local KARadiusSliderText = Instance.new("TextLabel", KARadiusSliderFrame)
     KARadiusSliderText.Size = UDim2.new(1, 0, 1, 0); KARadiusSliderText.BackgroundTransparency = 1; KARadiusSliderText.TextColor3 = Color3.new(1, 1, 1); KARadiusSliderText.TextSize = 6.5; KARadiusSliderText.Font = Enum.Font.GothamBold; KARadiusSliderText.ZIndex = 3
@@ -1420,9 +1637,8 @@ return function(AccessKey)
     local KillAllBtn = createBtn("KILL ALL PLAYER (TP ALL)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(180, 0, 0))
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
-
     -- BOX 1: AIM UTAMA
-    local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 46)
+    local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 62)
     
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ToggleBtn.Parent = BoxAim; ToggleBtn.LayoutOrder = 1
@@ -1430,6 +1646,12 @@ return function(AccessKey)
     local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ExtAimbotToggleBtn.Parent = BoxAim; ExtAimbotToggleBtn.LayoutOrder = 2
 
+    -- Slider untuk Ukuran Tombol Aimbot Eksternal (NEW)
+    local ExtAimbotSizeSlider = createSizeSlider(BoxAim, "EXT SIZE", Settings.ExtAimbotSize, 20, 80, function(val)
+        Settings.ExtAimbotSize = val
+        ExtAimbotBtn.Size = UDim2.new(0, val, 0, val)
+    end)
+    ExtAimbotSizeSlider.LayoutOrder = 3
 
     -- BOX 2: FIELD OF VIEW (FOV)
     local BoxFOV = createGroupContainer("Combat", "Field of View (FOV)", 82)
@@ -1445,6 +1667,7 @@ return function(AccessKey)
     
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame)
     FOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FOVSliderFill)
+    table.insert(DynamicFills, FOVSliderFill)
     
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame)
     FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 6.5; FOVSliderText.Font = Enum.Font.GothamBold; FOVSliderText.ZIndex = 3
@@ -1461,11 +1684,11 @@ return function(AccessKey)
     
     local CamFOVSliderFill = Instance.new("Frame", CamFOVSliderFrame)
     CamFOVSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", CamFOVSliderFill)
+    table.insert(DynamicFills, CamFOVSliderFill)
     
     local CamFOVSliderText = Instance.new("TextLabel", CamFOVSliderFrame)
     CamFOVSliderText.Size = UDim2.new(1, 0, 1, 0); CamFOVSliderText.BackgroundTransparency = 1; CamFOVSliderText.TextColor3 = Color3.new(1, 1, 1); CamFOVSliderText.TextSize = 6.5; CamFOVSliderText.Font = Enum.Font.GothamBold; CamFOVSliderText.ZIndex = 3
     CamFOVSliderFrame.Parent = BoxFOV
-
 
     -- BOX 3: FLING SYSTEM
     local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 46)
@@ -1476,29 +1699,8 @@ return function(AccessKey)
     local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
 
-
-    -- BOX 4: WALKSPEED MODIFIER
-    local BoxSpeed = createGroupContainer("Combat", "Walkspeed Modifier", 46)
-    
-    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    SpeedWalkBtn.Parent = BoxSpeed; SpeedWalkBtn.LayoutOrder = 1
-    
-    local SpeedSliderFrame = Instance.new("Frame")
-    SpeedSliderFrame.Size = UDim2.new(1, -10, 0, 12)
-    SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    SpeedSliderFrame.LayoutOrder = 2
-    Instance.new("UICorner", SpeedSliderFrame)
-    
-    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame)
-    SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
-    
-    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame)
-    SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 6.5; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
-    SpeedSliderFrame.Parent = BoxSpeed
-
-
-    -- BOX 5: GRAB GUN SYSTEM
-    local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 46)
+    -- BOX 4: GRAB GUN SYSTEM
+    local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 62)
     
     local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     GrabBtn.Parent = BoxGrab; GrabBtn.LayoutOrder = 1
@@ -1506,43 +1708,28 @@ return function(AccessKey)
     local ManualGrabToggleBtn = createBtn("GRAB GUN (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ManualGrabToggleBtn.Parent = BoxGrab; ManualGrabToggleBtn.LayoutOrder = 2
 
+    -- Slider untuk Ukuran Tombol Grab Eksternal (NEW)
+    local ExtGrabSizeSlider = createSizeSlider(BoxGrab, "EXT SIZE", Settings.ExtGrabSize, 20, 80, function(val)
+        Settings.ExtGrabSize = val
+        ExtGrabBtn.Size = UDim2.new(0, val, 0, val)
+    end)
+    ExtGrabSizeSlider.LayoutOrder = 3
 
-    -- BOX 6: PLAYER MECHANICS
-    local BoxPlayer = createGroupContainer("Combat", "Player Mechanics", 118)
+    -- BOX 5: DOUBLE JUMP SYSTEM (PINDAH KE COMBAT)
+    local BoxDoubleJump = createGroupContainer("Combat", "Double Jump System", 62)
 
-    local FlyToggleBtn = createBtn("FLY HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    FlyToggleBtn.Parent = BoxPlayer; FlyToggleBtn.LayoutOrder = 1
+    local DoubleJumpToggleBtn = createBtn("DOUBLE JUMP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    DoubleJumpToggleBtn.Parent = BoxDoubleJump; DoubleJumpToggleBtn.LayoutOrder = 1
 
-    local FlySliderFrame = Instance.new("Frame")
-    FlySliderFrame.Size = UDim2.new(1, -10, 0, 12)
-    FlySliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    FlySliderFrame.LayoutOrder = 2
-    Instance.new("UICorner", FlySliderFrame)
-    local FlySliderFill = Instance.new("Frame", FlySliderFrame)
-    FlySliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FlySliderFill)
-    local FlySliderText = Instance.new("TextLabel", FlySliderFrame)
-    FlySliderText.Size = UDim2.new(1, 0, 1, 0); FlySliderText.BackgroundTransparency = 1; FlySliderText.TextColor3 = Color3.new(1, 1, 1); FlySliderText.TextSize = 6.5; FlySliderText.Font = Enum.Font.GothamBold; FlySliderText.ZIndex = 3
-    FlySliderFrame.Parent = BoxPlayer
+    local DoubleJumpExtToggleBtn = createBtn("DOUBLE JUMP (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    DoubleJumpExtToggleBtn.Parent = BoxDoubleJump; DoubleJumpExtToggleBtn.LayoutOrder = 2
 
-    local JumpToggleBtn = createBtn("JUMP HEIGHT MOD: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    JumpToggleBtn.Parent = BoxPlayer; JumpToggleBtn.LayoutOrder = 3
-
-    local JumpSliderFrame = Instance.new("Frame")
-    JumpSliderFrame.Size = UDim2.new(1, -10, 0, 12)
-    JumpSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    JumpSliderFrame.LayoutOrder = 4
-    Instance.new("UICorner", JumpSliderFrame)
-    local JumpSliderFill = Instance.new("Frame", JumpSliderFrame)
-    JumpSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", JumpSliderFill)
-    local JumpSliderText = Instance.new("TextLabel", JumpSliderFrame)
-    JumpSliderText.Size = UDim2.new(1, 0, 1, 0); JumpSliderText.BackgroundTransparency = 1; JumpSliderText.TextColor3 = Color3.new(1, 1, 1); JumpSliderText.TextSize = 6.5; JumpSliderText.Font = Enum.Font.GothamBold; JumpSliderText.ZIndex = 3
-    JumpSliderFrame.Parent = BoxPlayer
-
-    local NoclipToggleBtn = createBtn("NOCLIP (WALK THRU WALLS): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    NoclipToggleBtn.Parent = BoxPlayer; NoclipToggleBtn.LayoutOrder = 5
-
-    local InvisibleToggleBtn = createBtn("INVISIBLE HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    InvisibleToggleBtn.Parent = BoxPlayer; InvisibleToggleBtn.LayoutOrder = 6
+    -- Slider untuk Ukuran Tombol Double Jump Eksternal (NEW)
+    local ExtDoubleJumpSizeSlider = createSizeSlider(BoxDoubleJump, "EXT SIZE", Settings.ExtDoubleJumpSize, 20, 80, function(val)
+        Settings.ExtDoubleJumpSize = val
+        ExtDoubleJumpBtn.Size = UDim2.new(0, val, 0, val)
+    end)
+    ExtDoubleJumpSizeSlider.LayoutOrder = 3
 
 
     -- --- TAB 3: ESP ---
@@ -1568,23 +1755,97 @@ return function(AccessKey)
     
     local SliderFill = Instance.new("Frame", SliderFrame)
     SliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SliderFill)
+    table.insert(DynamicFills, SliderFill)
     
     local SliderText = Instance.new("TextLabel", SliderFrame)
     SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 6.5; SliderText.Font = Enum.Font.GothamBold; SliderText.ZIndex = 3
     SliderFrame.Parent = BoxESP
 
+    -- BOX FITUR BARU: ESP FILTERS & EXTRAS
+    local BoxESPFilters = createGroupContainer("ESP", "ESP Filters & Extras", 100)
 
-    -- --- TAB 4: UTILITY (Fitur Baru: Double Jump & Lock Drag) ---
-    local BoxUtility = createGroupContainer("Utility", "Movement & UI Controls", 64)
+    local NameESPToggleBtn = createBtn("NAME ESP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    NameESPToggleBtn.Parent = BoxESPFilters; NameESPToggleBtn.LayoutOrder = 1
 
-    local DoubleJumpToggleBtn = createBtn("DOUBLE JUMP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    DoubleJumpToggleBtn.Parent = BoxUtility; DoubleJumpToggleBtn.LayoutOrder = 1
+    local CoinESPToggleBtn = createBtn("COIN ESP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    CoinESPToggleBtn.Parent = BoxESPFilters; CoinESPToggleBtn.LayoutOrder = 2
 
-    local DoubleJumpExtToggleBtn = createBtn("DOUBLE JUMP (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    DoubleJumpExtToggleBtn.Parent = BoxUtility; DoubleJumpExtToggleBtn.LayoutOrder = 2
+    local FilterMurderBtn = createBtn("FILTER MURDERER: ON", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(0, 120, 200))
+    FilterMurderBtn.Parent = BoxESPFilters; FilterMurderBtn.LayoutOrder = 3
 
-    local LockDragBtn = createBtn("LOCK FLOATING BUTTONS: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    LockDragBtn.Parent = BoxUtility; LockDragBtn.LayoutOrder = 3
+    local FilterSheriffBtn = createBtn("FILTER SHERIFF: ON", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(0, 120, 200))
+    FilterSheriffBtn.Parent = BoxESPFilters; FilterSheriffBtn.LayoutOrder = 4
+
+    local FilterInnocentBtn = createBtn("FILTER INNOCENT: ON", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(0, 120, 200))
+    FilterInnocentBtn.Parent = BoxESPFilters; FilterInnocentBtn.LayoutOrder = 5
+
+
+    -- --- TAB 4: UTILITY (PINDAHAN WALKSPEED, JUMP, NOCLIP, FLY) ---
+    local BoxMovement = createGroupContainer("Utility", "Movement Modifiers", 136)
+
+    local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    SpeedWalkBtn.Parent = BoxMovement; SpeedWalkBtn.LayoutOrder = 1
+    
+    local SpeedSliderFrame = Instance.new("Frame")
+    SpeedSliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    SpeedSliderFrame.LayoutOrder = 2
+    Instance.new("UICorner", SpeedSliderFrame)
+    
+    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame)
+    SpeedSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", SpeedSliderFill)
+    table.insert(DynamicFills, SpeedSliderFill)
+    
+    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame)
+    SpeedSliderText.Size = UDim2.new(1, 0, 1, 0); SpeedSliderText.BackgroundTransparency = 1; SpeedSliderText.TextColor3 = Color3.new(1, 1, 1); SpeedSliderText.TextSize = 6.5; SpeedSliderText.Font = Enum.Font.GothamBold; SpeedSliderText.ZIndex = 3
+    SpeedSliderFrame.Parent = BoxMovement
+
+    local JumpToggleBtn = createBtn("JUMP HEIGHT MOD: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    JumpToggleBtn.Parent = BoxMovement; JumpToggleBtn.LayoutOrder = 3
+
+    local JumpSliderFrame = Instance.new("Frame")
+    JumpSliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    JumpSliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    JumpSliderFrame.LayoutOrder = 4
+    Instance.new("UICorner", JumpSliderFrame)
+    
+    local JumpSliderFill = Instance.new("Frame", JumpSliderFrame)
+    JumpSliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", JumpSliderFill)
+    table.insert(DynamicFills, JumpSliderFill)
+    
+    local JumpSliderText = Instance.new("TextLabel", JumpSliderFrame)
+    JumpSliderText.Size = UDim2.new(1, 0, 1, 0); JumpSliderText.BackgroundTransparency = 1; JumpSliderText.TextColor3 = Color3.new(1, 1, 1); JumpSliderText.TextSize = 6.5; JumpSliderText.Font = Enum.Font.GothamBold; JumpSliderText.ZIndex = 3
+    JumpSliderFrame.Parent = BoxMovement
+
+    local FlyToggleBtn = createBtn("FLY HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FlyToggleBtn.Parent = BoxMovement; FlyToggleBtn.LayoutOrder = 5
+
+    local FlySliderFrame = Instance.new("Frame")
+    FlySliderFrame.Size = UDim2.new(1, -10, 0, 12)
+    FlySliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    FlySliderFrame.LayoutOrder = 6
+    Instance.new("UICorner", FlySliderFrame)
+    
+    local FlySliderFill = Instance.new("Frame", FlySliderFrame)
+    FlySliderFill.BackgroundColor3 = _GAccentColor; Instance.new("UICorner", FlySliderFill)
+    table.insert(DynamicFills, FlySliderFill)
+    
+    local FlySliderText = Instance.new("TextLabel", FlySliderFrame)
+    FlySliderText.Size = UDim2.new(1, 0, 1, 0); FlySliderText.BackgroundTransparency = 1; FlySliderText.TextColor3 = Color3.new(1, 1, 1); FlySliderText.TextSize = 6.5; FlySliderText.Font = Enum.Font.GothamBold; FlySliderText.ZIndex = 3
+    FlySliderFrame.Parent = BoxMovement
+
+    local NoclipToggleBtn = createBtn("NOCLIP (WALK THRU WALLS): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    NoclipToggleBtn.Parent = BoxMovement; NoclipToggleBtn.LayoutOrder = 7
+
+    local InvisibleToggleBtn = createBtn("INVISIBLE HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    InvisibleToggleBtn.Parent = BoxMovement; InvisibleToggleBtn.LayoutOrder = 8
+
+
+    -- --- TAB 5: FARM ---
+    local BoxCoinFarmer = createGroupContainer("Farm", "Coin Farmer", 28)
+
+    local CoinFarmToggleBtn = createBtn("AUTO COIN FARM: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    CoinFarmToggleBtn.Parent = BoxCoinFarmer; CoinFarmToggleBtn.LayoutOrder = 1
 
 
     -- ========================================================================
@@ -1744,6 +2005,28 @@ return function(AccessKey)
         end)
     end)
 
+    -- Dynamic Neon Rainbow Accent Updater
+    SafeConnect(RunService.RenderStepped, function()
+        local hue = (tick() % 4) / 4
+        local dynamicColor = Color3.fromHSV(hue, 0.8, 1)
+        _GAccentColor = dynamicColor
+        
+        for _, stroke in ipairs(DynamicStrokes) do
+            pcall(function() stroke.Color = dynamicColor end)
+        end
+        for _, fill in ipairs(DynamicFills) do
+            pcall(function() fill.BackgroundColor3 = dynamicColor end)
+        end
+        if HubLabel then HubLabel.TextColor3 = dynamicColor end
+        if PingLabel then PingLabel.TextColor3 = dynamicColor end
+        
+        for name, btn in pairs(TabButtons) do
+            if name == CurrentTab then
+                btn.BackgroundColor3 = dynamicColor
+            end
+        end
+    end)
+
     -- ==========================================
     -- [[ TOGGLES BEHAVIOR & INTEGRATION ]]
     -- ==========================================
@@ -1884,7 +2167,6 @@ return function(AccessKey)
         if not Settings.SpeedWalkEnabled then pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 16 end) end
     end
 
-    -- [FITUR BARU LOGIC]
     local function toggleDoubleJump()
         Settings.DoubleJumpEnabled = not Settings.DoubleJumpEnabled
         DoubleJumpToggleBtn.Text = Settings.DoubleJumpEnabled and "DOUBLE JUMP: ON" or "DOUBLE JUMP: OFF"
@@ -1901,10 +2183,41 @@ return function(AccessKey)
         ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
     end
 
-    local function toggleLockDrag()
-        Settings.DragLocked = not Settings.DragLocked
-        LockDragBtn.Text = Settings.DragLocked and "LOCK FLOATING BUTTONS: ON" or "LOCK FLOATING BUTTONS: OFF"
-        LockDragBtn.BackgroundColor3 = Settings.DragLocked and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    -- [FITUR BARU LOGIC]
+    local function toggleCoinFarm()
+        Settings.CoinFarmEnabled = not Settings.CoinFarmEnabled
+        CoinFarmToggleBtn.Text = Settings.CoinFarmEnabled and "AUTO COIN FARM: ON" or "AUTO COIN FARM: OFF"
+        CoinFarmToggleBtn.BackgroundColor3 = Settings.CoinFarmEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    local function toggleNameESP()
+        Settings.NameESPEnabled = not Settings.NameESPEnabled
+        NameESPToggleBtn.Text = Settings.NameESPEnabled and "NAME ESP: ON" or "NAME ESP: OFF"
+        NameESPToggleBtn.BackgroundColor3 = Settings.NameESPEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    local function toggleCoinESP()
+        Settings.CoinESP = not Settings.CoinESP
+        CoinESPToggleBtn.Text = Settings.CoinESP and "COIN ESP: ON" or "COIN ESP: OFF"
+        CoinESPToggleBtn.BackgroundColor3 = Settings.CoinESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    local function toggleFilterMurder()
+        Settings.ESP_Murderer = not Settings.ESP_Murderer
+        FilterMurderBtn.Text = Settings.ESP_Murderer and "FILTER MURDERER: ON" or "FILTER MURDERER: OFF"
+        FilterMurderBtn.BackgroundColor3 = Settings.ESP_Murderer and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
+    end
+
+    local function toggleFilterSheriff()
+        Settings.ESP_Sheriff = not Settings.ESP_Sheriff
+        FilterSheriffBtn.Text = Settings.ESP_Sheriff and "FILTER SHERIFF: ON" or "FILTER SHERIFF: OFF"
+        FilterSheriffBtn.BackgroundColor3 = Settings.ESP_Sheriff and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
+    end
+
+    local function toggleFilterInnocent()
+        Settings.ESP_Innocent = not Settings.ESP_Innocent
+        FilterInnocentBtn.Text = Settings.ESP_Innocent and "FILTER INNOCENT: ON" or "FILTER INNOCENT: OFF"
+        FilterInnocentBtn.BackgroundColor3 = Settings.ESP_Innocent and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
     end
 
     -- Koneksi tombol ke behavior fungsi
@@ -1935,11 +2248,17 @@ return function(AccessKey)
     NoclipToggleBtn.MouseButton1Click:Connect(toggleNoclip)
     InvisibleToggleBtn.MouseButton1Click:Connect(toggleInvisible)
 
-    -- Koneksi Event Baru (Utility Tab & Double Jump)
+    -- Koneksi Event Baru (Farming, ESP Filter, Double Jump)
     DoubleJumpToggleBtn.MouseButton1Click:Connect(toggleDoubleJump)
     DoubleJumpExtToggleBtn.MouseButton1Click:Connect(toggleDoubleJumpExt)
-    LockDragBtn.MouseButton1Click:Connect(toggleLockDrag)
     ExtDoubleJumpBtn.MouseButton1Click:Connect(toggleDoubleJump)
+
+    CoinFarmToggleBtn.MouseButton1Click:Connect(toggleCoinFarm)
+    NameESPToggleBtn.MouseButton1Click:Connect(toggleNameESP)
+    CoinESPToggleBtn.MouseButton1Click:Connect(toggleCoinESP)
+    FilterMurderBtn.MouseButton1Click:Connect(toggleFilterMurder)
+    FilterSheriffBtn.MouseButton1Click:Connect(toggleFilterSheriff)
+    FilterInnocentBtn.MouseButton1Click:Connect(toggleFilterInnocent)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
@@ -1981,3 +2300,4 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Memory Leak Patch Successfully Initialized.")
 end
+
