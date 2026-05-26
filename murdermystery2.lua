@@ -1,5 +1,5 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
--- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
+-- AUTH: Louis | LAYERS: 3, 4 (Key, Anti-Tamper)
 -- VERSION: 13.5.2 (Security Sync Update - MM2 Edition - REBUILT)
 
 return function(AccessKey)
@@ -15,18 +15,6 @@ return function(AccessKey)
         Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
         LocalPlayer = Players.LocalPlayer
         MyID = LocalPlayer.UserId
-    end
-
-    -- ========================================================
-    -- [[ PROTEKSI 1: SESSION HANDSHAKE ]]
-    -- ========================================================
-    if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. MyID then
-        if LocalPlayer then
-            LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
-        else
-            game.Players.LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
-        end
-        return
     end
 
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
@@ -2300,4 +2288,3 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Memory Leak Patch Successfully Initialized.")
 end
-
