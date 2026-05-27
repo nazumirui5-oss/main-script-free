@@ -230,11 +230,16 @@ return function(AccessKey)
         Size_A = 40,
         Size_G = 40,
         Size_DJ = 40,
-        -- Konfigurasi baru Teleport & Tombol Eksternal
+        -- Konfigurasi Teleport & Tombol Eksternal
         TpSheriffExtEnabled = false,
         TpMurderExtEnabled = false,
         Size_TPS = 40,
-        Size_TPM = 40
+        Size_TPM = 40,
+        -- Konfigurasi Baru: Fling Eksternal
+        FlingMurderExtEnabled = false,
+        FlingSheriffExtEnabled = false,
+        Size_FM = 40,
+        Size_FS = 40
     }
 
     local OriginalFOV = Camera.FieldOfView
@@ -1391,6 +1396,40 @@ return function(AccessKey)
     RegisterDynamic(ExtTpMurderStroke, "Color")
     MakeDraggable(ExtTpMurderBtn)
 
+    -- [[ TOMBOL EXTERNAL FLING MURDER ]]
+    local ExtFlingMurderBtn = Instance.new("TextButton", ScreenGui)
+    ExtFlingMurderBtn.Name = "ExtFlingMurder"
+    ExtFlingMurderBtn.Size = UDim2.new(0, Settings.Size_FM, 0, Settings.Size_FM)
+    ExtFlingMurderBtn.Position = UDim2.new(0, 70, 0.5, 35) -- Sebelah Double Jump
+    ExtFlingMurderBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtFlingMurderBtn.Text = "FM"
+    ExtFlingMurderBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtFlingMurderBtn.Font = Enum.Font.GothamBold
+    ExtFlingMurderBtn.TextSize = 18
+    ExtFlingMurderBtn.Visible = false
+    Instance.new("UICorner", ExtFlingMurderBtn).CornerRadius = UDim.new(1, 0)
+    local ExtFlingMurderStroke = Instance.new("UIStroke", ExtFlingMurderBtn)
+    ExtFlingMurderStroke.Thickness = 1.5
+    RegisterDynamic(ExtFlingMurderStroke, "Color")
+    MakeDraggable(ExtFlingMurderBtn)
+
+    -- [[ TOMBOL EXTERNAL FLING SHERIFF ]]
+    local ExtFlingSheriffBtn = Instance.new("TextButton", ScreenGui)
+    ExtFlingSheriffBtn.Name = "ExtFlingSheriff"
+    ExtFlingSheriffBtn.Size = UDim2.new(0, Settings.Size_FS, 0, Settings.Size_FS)
+    ExtFlingSheriffBtn.Position = UDim2.new(0, 70, 0.5, 80) -- Sebelah Spin
+    ExtFlingSheriffBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtFlingSheriffBtn.Text = "FS"
+    ExtFlingSheriffBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtFlingSheriffBtn.Font = Enum.Font.GothamBold
+    ExtFlingSheriffBtn.TextSize = 18
+    ExtFlingSheriffBtn.Visible = false
+    Instance.new("UICorner", ExtFlingSheriffBtn).CornerRadius = UDim.new(1, 0)
+    local ExtFlingSheriffStroke = Instance.new("UIStroke", ExtFlingSheriffBtn)
+    ExtFlingSheriffStroke.Thickness = 1.5
+    RegisterDynamic(ExtFlingSheriffStroke, "Color")
+    MakeDraggable(ExtFlingSheriffBtn)
+
 
     -- UPDATE UKURAN TOMBOL EKSTERNAL DARI SLIDER
     local function updateExternalButtonSizes()
@@ -1401,6 +1440,8 @@ return function(AccessKey)
         ExtSpinBtn.Size = UDim2.new(0, Settings.Size_S, 0, Settings.Size_S)
         ExtTpSheriffBtn.Size = UDim2.new(0, Settings.Size_TPS, 0, Settings.Size_TPS)
         ExtTpMurderBtn.Size = UDim2.new(0, Settings.Size_TPM, 0, Settings.Size_TPM)
+        ExtFlingMurderBtn.Size = UDim2.new(0, Settings.Size_FM, 0, Settings.Size_FM)
+        ExtFlingSheriffBtn.Size = UDim2.new(0, Settings.Size_FS, 0, Settings.Size_FS)
     end
 
     -- [[ HUD ELEMENTS ]]
@@ -1801,12 +1842,31 @@ return function(AccessKey)
 
 
     -- BOX 4: FLING SYSTEM
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 46)
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 125)
+    
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
     
     local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
+
+    local ExtFlingSheriffToggleBtn = createBtn("FLING SHERIFF (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    ExtFlingSheriffToggleBtn.Parent = BoxFling; ExtFlingSheriffToggleBtn.LayoutOrder = 3
+
+    local sliderFS = createSlider(BoxFling, "BUTTON 'FS' SIZE: %d", 20, 100, Settings.Size_FS, function(val)
+        Settings.Size_FS = val
+        updateExternalButtonSizes()
+    end)
+    sliderFS.LayoutOrder = 4
+
+    local ExtFlingMurderToggleBtn = createBtn("FLING MURDER (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    ExtFlingMurderToggleBtn.Parent = BoxFling; ExtFlingMurderToggleBtn.LayoutOrder = 5
+
+    local sliderFM = createSlider(BoxFling, "BUTTON 'FM' SIZE: %d", 20, 100, Settings.Size_FM, function(val)
+        Settings.Size_FM = val
+        updateExternalButtonSizes()
+    end)
+    sliderFM.LayoutOrder = 6
 
 
     -- BOX 5: GRAB GUN SYSTEM
@@ -1837,7 +1897,7 @@ return function(AccessKey)
     end)
 
 
-    -- [[ BOX BARU 7: PLAYER TELEPORTS ]]
+    -- [[ BOX 7: PLAYER TELEPORTS ]]
     local BoxTeleport = createGroupContainer("Combat", "Player Teleports", 125)
     
     local TpSheriffBtn = createBtn("TELEPORT TO SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1987,6 +2047,8 @@ return function(AccessKey)
             if Settings.SpinExtEnabled then ExtSpinBtn.Visible = true end
             if Settings.TpSheriffExtEnabled then ExtTpSheriffBtn.Visible = true end
             if Settings.TpMurderExtEnabled then ExtTpMurderBtn.Visible = true end
+            if Settings.FlingMurderExtEnabled then ExtFlingMurderBtn.Visible = true end
+            if Settings.FlingSheriffExtEnabled then ExtFlingSheriffBtn.Visible = true end
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 160, 0, 0)})
             t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
@@ -1998,6 +2060,8 @@ return function(AccessKey)
             ExtSpinBtn.Visible = Settings.SpinExtEnabled
             ExtTpSheriffBtn.Visible = Settings.TpSheriffExtEnabled
             ExtTpMurderBtn.Visible = Settings.TpMurderExtEnabled
+            ExtFlingMurderBtn.Visible = Settings.FlingMurderExtEnabled
+            ExtFlingSheriffBtn.Visible = Settings.FlingSheriffExtEnabled
         end
     end)
 
@@ -2155,8 +2219,11 @@ return function(AccessKey)
     _G.SyncFlingButtons = function()
         FlingMurderBtn.Text = Settings.AutoFlingMurder and "FLING MURDER: ON" or "AUTO FLING MURDER"
         SetToggleState(FlingMurderBtn, Settings.AutoFlingMurder)
+        SetToggleState(ExtFlingMurderBtn, Settings.AutoFlingMurder)
+
         FlingSheriffBtn.Text = Settings.AutoFlingSheriff and "FLING SHERIFF: ON" or "AUTO FLING SHERIFF"
         SetToggleState(FlingSheriffBtn, Settings.AutoFlingSheriff)
+        SetToggleState(ExtFlingSheriffBtn, Settings.AutoFlingSheriff)
     end
 
     local function toggleFlingMurder()
@@ -2221,6 +2288,21 @@ return function(AccessKey)
         ExtTpMurderBtn.Visible = Settings.TpMurderExtEnabled
     end
 
+    -- TOGGLE FLING EKSTERNAL BARU
+    local function toggleFlingMurderExt()
+        Settings.FlingMurderExtEnabled = not Settings.FlingMurderExtEnabled
+        ExtFlingMurderToggleBtn.Text = Settings.FlingMurderExtEnabled and "FLING MURDER (EXT): ON" or "FLING MURDER (EXT): OFF"
+        SetToggleState(ExtFlingMurderToggleBtn, Settings.FlingMurderExtEnabled)
+        ExtFlingMurderBtn.Visible = Settings.FlingMurderExtEnabled
+    end
+
+    local function toggleFlingSheriffExt()
+        Settings.FlingSheriffExtEnabled = not Settings.FlingSheriffExtEnabled
+        ExtFlingSheriffToggleBtn.Text = Settings.FlingSheriffExtEnabled and "FLING SHERIFF (EXT): ON" or "FLING SHERIFF (EXT): OFF"
+        SetToggleState(ExtFlingSheriffToggleBtn, Settings.FlingSheriffExtEnabled)
+        ExtFlingSheriffBtn.Visible = Settings.FlingSheriffExtEnabled
+    end
+
     -- KONEKSI EVENT KE TOMBOL-TOMBOL FITUR
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
@@ -2268,6 +2350,12 @@ return function(AccessKey)
     ExtTpMurderToggleBtn.MouseButton1Click:Connect(toggleTpMurderExt)
     ExtTpSheriffBtn.MouseButton1Click:Connect(TeleportToSheriff)
     ExtTpMurderBtn.MouseButton1Click:Connect(TeleportToMurderer)
+
+    -- KONEKSI FLING EKSTERNAL BARU
+    ExtFlingMurderToggleBtn.MouseButton1Click:Connect(toggleFlingMurderExt)
+    ExtFlingSheriffToggleBtn.MouseButton1Click:Connect(toggleFlingSheriffExt)
+    ExtFlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
+    ExtFlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
