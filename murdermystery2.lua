@@ -31,11 +31,9 @@ return function(AccessKey)
 
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
     local function IntegrityCheck()
-        local success, test = pcall(function() return tostring(game.HttpGet) end)
-        if not success or not test:find("function") or test:find("custom") or test:find("hook") then
-            if LocalPlayer then
-                LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
-            end
+        local test = tostring(game.HttpGet)
+        if not test:find("function") or test:find("custom") or test:find("hook") then
+            LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
             return false
         end
         return true
@@ -51,17 +49,7 @@ return function(AccessKey)
     -- ========================================================
     -- [[ MASALAH 1 & 2: RE-EXECUTION CLEANUP ENGINE ]]
     -- ========================================================
-    local parentGui
-    pcall(function()
-        parentGui = (gethui and gethui()) or game:GetService("CoreGui")
-    end)
-    if not parentGui then
-        pcall(function()
-            parentGui = LocalPlayer:WaitForChild("PlayerGui")
-        end)
-    end
-
-    local oldGui = parentGui and parentGui:FindFirstChild("LouisHub_FREE_Edition")
+    local oldGui = (gethui and gethui():FindFirstChild("LouisHub_FREE_Edition")) or game:GetService("CoreGui"):FindFirstChild("LouisHub_FREE_Edition")
     if oldGui then oldGui:Destroy() end
 
     if _G.LouisConnections then
@@ -85,7 +73,6 @@ return function(AccessKey)
     _G.LouisDrawings = {}
 
     local function SafeDrawing(className)
-        if not Drawing or not Drawing.new then return nil end
         local drawing = Drawing.new(className)
         table.insert(_G.LouisDrawings, drawing)
         return drawing
@@ -253,7 +240,8 @@ return function(AccessKey)
         FlingSheriffExtEnabled = false,
         Size_FM = 40,
         Size_FS = 40,
-        AntiFling = false -- Fitur Anti Fling
+        -- Sistem Anti-Fling
+        AntiFlingEnabled = false
     }
 
     local OriginalFOV = Camera.FieldOfView
@@ -365,7 +353,7 @@ return function(AccessKey)
         local profileImage = Instance.new("ImageLabel", profileFrame)
         profileImage.Size = UDim2.new(0, 55, 0, 55)
         profileImage.Position = UDim2.new(0, 0, 0.5, -27)
-        profileImage.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        profileImage.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
         profileImage.BorderSizePixel = 0
         profileImage.ImageTransparency = 1 
         profileImage.BackgroundTransparency = 1
@@ -581,24 +569,20 @@ return function(AccessKey)
     -- [[ LOGIKA EMULASI TEKNIS AIMBOT & ROLE DETECTION (MM2) ]]
     -- ========================================================================
     local FOVCircle = SafeDrawing("Circle")
-    if FOVCircle then
-        FOVCircle.Color = Color3.fromRGB(255, 0, 255)
-        FOVCircle.Thickness = 1.5
-        FOVCircle.NumSides = 60
-        FOVCircle.Radius = Settings.FOVSize
-        FOVCircle.Filled = false
-        FOVCircle.Visible = false
-    end
+    FOVCircle.Color = Color3.fromRGB(255, 0, 255)
+    FOVCircle.Thickness = 1.5
+    FOVCircle.NumSides = 60
+    FOVCircle.Radius = Settings.FOVSize
+    FOVCircle.Filled = false
+    FOVCircle.Visible = false
 
     SafeConnect(RunService.RenderStepped, function()
-        if FOVCircle then
-            if Settings.CameraAimbot and not Settings.HideFOVCircle then
-                FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                FOVCircle.Radius = Settings.FOVSize
-                FOVCircle.Visible = true
-            else
-                FOVCircle.Visible = false
-            end
+        if Settings.CameraAimbot and not Settings.HideFOVCircle then
+            FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            FOVCircle.Radius = Settings.FOVSize
+            FOVCircle.Visible = true
+        else
+            FOVCircle.Visible = false
         end
     end)
 
@@ -729,39 +713,52 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ VELOCITY LIMITER & ANTI FLING ENGINE ]]
+    -- [[ VELOCITY LIMITER ENGINE ]]
     -- ========================================================================
     SafeConnect(RunService.Heartbeat, function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local root = LocalPlayer.Character.HumanoidRootPart
             local hum = LocalPlayer.Character.Humanoid
-            
-            -- Velocity Limiter Standar
             if hum.FloorMaterial == Enum.Material.Air and root.Velocity.Magnitude > 100 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then 
                 root.Velocity = root.Velocity.Unit * 100 
             end
-            
-            -- Anti Fling: Mencegah velocity melompat tinggi saat terkena dorongan pemain lain
-            if Settings.AntiFling and root.Velocity.Magnitude > 150 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then
-                root.Velocity = Vector3.new(0, 0, 0)
-                pcall(function() root.RotVelocity = Vector3.new(0, 0, 0) end)
-            end
         end
+    end)
 
-        -- Anti Fling: Menonaktifkan kolisi fisik dari karakter lain secara lokal agar tidak memicu glitch dorongan physics
-        if Settings.AntiFling then
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    for _, part in ipairs(player.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                            pcall(function()
-                                part.Velocity = Vector3.new(0, 0, 0)
-                                part.RotVelocity = Vector3.new(0, 0, 0)
-                            end)
+    -- ========================================================================
+    -- [[ ANTI FLING ENGINE ]]
+    -- ========================================================================
+    SafeConnect(RunService.Stepped, function()
+        if not Settings.AntiFlingEnabled then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+
+        local VELOCITY_THRESHOLD = 75 
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local root = player.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local linearVel = root.AssemblyLinearVelocity or root.Velocity or Vector3.new()
+                    local angularVel = root.AssemblyAngularVelocity or root.RotVelocity or Vector3.new()
+
+                    if linearVel.Magnitude > VELOCITY_THRESHOLD or angularVel.Magnitude > VELOCITY_THRESHOLD then
+                        for _, part in ipairs(player.Character:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = false
+                            end
                         end
                     end
                 end
+            end
+        end
+
+        local localRoot = char:FindFirstChild("HumanoidRootPart")
+        if localRoot then
+            local currentVel = localRoot.AssemblyLinearVelocity or localRoot.Velocity or Vector3.new()
+            if currentVel.Magnitude > 250 then
+                localRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                localRoot.Velocity = Vector3.new(0, 0, 0)
             end
         end
     end)
@@ -1161,10 +1158,8 @@ return function(AccessKey)
 
     local function ClearAllTracers()
         for _, tracer in pairs(ActiveTracers) do
-            pcall(function()
-                tracer.Visible = false
-                tracer:Remove()
-            end)
+            tracer.Visible = false
+            tracer:Remove()
         end
         ActiveTracers = {}
     end
@@ -1241,25 +1236,21 @@ return function(AccessKey)
                             local Tracer = ActiveTracers[Player.Name]
                             if not Tracer then
                                 Tracer = SafeDrawing("Line")
-                                if Tracer then
-                                    Tracer.Thickness = 1.5
-                                    Tracer.Transparency = 0.8
-                                    ActiveTracers[Player.Name] = Tracer
-                                end
+                                Tracer.Thickness = 1.5
+                                Tracer.Transparency = 0.8
+                                ActiveTracers[Player.Name] = Tracer
                             end
-                            if Tracer then
-                                Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                                Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
-                                Tracer.Color = TargetColor
-                                Tracer.Visible = true
-                            end
+                            Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                            Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
+                            Tracer.Color = TargetColor
+                            Tracer.Visible = true
                         else
                             if ActiveTracers[Player.Name] then ActiveTracers[Player.Name].Visible = false end
                         end
                     else
                         if ActiveTracers[Player.Name] then
                             ActiveTracers[Player.Name].Visible = false
-                            pcall(function() ActiveTracers[Player.Name]:Remove() end)
+                            ActiveTracers[Player.Name]:Remove()
                             ActiveTracers[Player.Name] = nil
                         end
                     end
@@ -1273,7 +1264,7 @@ return function(AccessKey)
                 end
                 if ActiveTracers[Player.Name] then
                     ActiveTracers[Player.Name].Visible = false
-                    pcall(function() ActiveTracers[Player.Name]:Remove() end)
+                    ActiveTracers[Player.Name]:Remove()
                     ActiveTracers[Player.Name] = nil
                 end
             end
@@ -1291,7 +1282,7 @@ return function(AccessKey)
     -- ==========================================
     -- [[ 3. MAIN SCRIPT GUI & HUD STRUCT ]]
     -- ==========================================
-    local ScreenGui = Instance.new("ScreenGui", parentGui)
+    local ScreenGui = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
     ScreenGui.Name = "LouisHub_FREE_Edition"
     ScreenGui.ResetOnSpawn = false
 
@@ -1627,19 +1618,8 @@ return function(AccessKey)
         local b = createBtn(name, pos, UDim2.new(1, -10, 0, 18))
         b.Parent = InfoFrame; b.TextSize = 6; b.ZIndex = 11
         b.MouseButton1Click:Connect(function()
-            local success = pcall(function()
-                if setclipboard then
-                    setclipboard(link)
-                elseif toclipboard then
-                    toclipboard(link)
-                else
-                    error("Not supported")
-                end
-            end)
-            local oldText = b.Text
-            b.Text = success and "COPIED!" or "NOT SUPPORTED"
-            task.wait(1.5)
-            b.Text = oldText
+            setclipboard(link)
+            local oldText = b.Text; b.Text = "COPIED!"; task.wait(1.5); b.Text = oldText
         end)
     end
     createSocialBtn("DISCORD SERVER", "https://discord.gg/P2FEVBz2PG", UDim2.new(0, 5, 0, 25))
@@ -1901,8 +1881,8 @@ return function(AccessKey)
     end)
 
 
-    -- BOX 4: FLING SYSTEM (Ditambahkan Anti Fling)
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 144)
+    -- BOX 4: FLING SYSTEM
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 125)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
@@ -1927,9 +1907,6 @@ return function(AccessKey)
         updateExternalButtonSizes()
     end)
     sliderFM.LayoutOrder = 6
-
-    local AntiFlingToggleBtn = createBtn("ANTI FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    AntiFlingToggleBtn.Parent = BoxFling; AntiFlingToggleBtn.LayoutOrder = 7
 
 
     -- BOX 5: GRAB GUN SYSTEM
@@ -2083,6 +2060,11 @@ return function(AccessKey)
         Settings.Size_S = val
         updateExternalButtonSizes()
     end)
+
+    -- BOX 7: ANTI FLING SYSTEM
+    local BoxAntiFling = createGroupContainer("Utility", "Anti Fling System", 28)
+    local AntiFlingToggleBtn = createBtn("ANTI FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    AntiFlingToggleBtn.Parent = BoxAntiFling; AntiFlingToggleBtn.LayoutOrder = 1
 
 
     -- ========================================================================
@@ -2301,13 +2283,6 @@ return function(AccessKey)
         _G.SyncFlingButtons()
     end
 
-    -- Toggle Anti Fling
-    local function toggleAntiFling()
-        Settings.AntiFling = not Settings.AntiFling
-        AntiFlingToggleBtn.Text = Settings.AntiFling and "ANTI FLING: ON" or "ANTI FLING: OFF"
-        SetToggleState(AntiFlingToggleBtn, Settings.AntiFling)
-    end
-
     local function toggleSpeedWalk()
         Settings.SpeedWalkEnabled = not Settings.SpeedWalkEnabled
         SpeedWalkBtn.Text = Settings.SpeedWalkEnabled and "SPEED WALK: ON" or "SPEED WALK: OFF"
@@ -2373,6 +2348,13 @@ return function(AccessKey)
         ExtFlingSheriffBtn.Visible = Settings.FlingSheriffExtEnabled
     end
 
+    -- TOGGLE ANTI FLING BARU
+    local function toggleAntiFling()
+        Settings.AntiFlingEnabled = not Settings.AntiFlingEnabled
+        AntiFlingToggleBtn.Text = Settings.AntiFlingEnabled and "ANTI FLING: ON" or "ANTI FLING: OFF"
+        SetToggleState(AntiFlingToggleBtn, Settings.AntiFlingEnabled)
+    end
+
     -- KONEKSI EVENT KE TOMBOL-TOMBOL FITUR
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
@@ -2398,7 +2380,6 @@ return function(AccessKey)
 
     FlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     FlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
-    AntiFlingToggleBtn.MouseButton1Click:Connect(toggleAntiFling)
     SpeedWalkBtn.MouseButton1Click:Connect(toggleSpeedWalk)
 
     FlyToggleBtn.MouseButton1Click:Connect(toggleFly)
@@ -2427,6 +2408,9 @@ return function(AccessKey)
     ExtFlingSheriffToggleBtn.MouseButton1Click:Connect(toggleFlingSheriffExt)
     ExtFlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     ExtFlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
+
+    -- KONEKSI ANTI FLING BARU
+    AntiFlingToggleBtn.MouseButton1Click:Connect(toggleAntiFling)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
