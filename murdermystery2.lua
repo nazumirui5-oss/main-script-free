@@ -262,6 +262,55 @@ return function(AccessKey)
     local ToggleBtnMain, HUDMain, MainFrame, ContentFrame
 
     -- ==========================================
+    -- [[ SYSTEM INTEGRASI NAVIGASI & THEME SYNC ]]
+    -- ==========================================
+    local DynamicThemeElements = {}
+    local function RegisterDynamic(instance, property)
+        table.insert(DynamicThemeElements, {Instance = instance, Property = property})
+    end
+
+    SafeConnect(RunService.RenderStepped, function()
+        local hue = (tick() % 4) / 4
+        local rainbowColor = Color3.fromHSV(hue, 0.8, 1)
+        for _, item in ipairs(DynamicThemeElements) do
+            pcall(function()
+                if item.Instance and item.Instance.Parent then
+                    item.Instance[item.Property] = rainbowColor
+                end
+            end)
+        end
+    end)
+
+    local function SetToggleState(btn, state)
+        if state then
+            -- Hindari registrasi ganda
+            for i = #DynamicThemeElements, 1, -1 do
+                local item = DynamicThemeElements[i]
+                if item.Instance == btn and item.Property == "BackgroundColor3" then
+                    table.remove(DynamicThemeElements, i)
+                end
+            end
+            btn.TextColor3 = Color3.new(0, 0, 0)
+            RegisterDynamic(btn, "BackgroundColor3")
+            local stroke = btn:FindFirstChildOfClass("UIStroke")
+            if stroke then
+                RegisterDynamic(stroke, "Color")
+            end
+        else
+            for i = #DynamicThemeElements, 1, -1 do
+                local item = DynamicThemeElements[i]
+                if item.Instance == btn and (item.Property == "BackgroundColor3" or (item.Instance:IsA("UIStroke") and item.Instance.Parent == btn)) then
+                    table.remove(DynamicThemeElements, i)
+                end
+            end
+            btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+            btn.TextColor3 = Color3.new(1, 1, 1)
+            local stroke = btn:FindFirstChildOfClass("UIStroke")
+            if stroke then stroke.Color = Color3.fromRGB(45, 45, 50) end
+        end
+    end
+
+    -- ==========================================
     -- [[ 1. LOADING SCREEN ]]
     -- ==========================================
     local function startLoading()
@@ -303,8 +352,8 @@ return function(AccessKey)
         Instance.new("UICorner", profileImage).CornerRadius = UDim.new(1, 0)
         local pStroke = Instance.new("UIStroke", profileImage)
         pStroke.Thickness = 2
-        pStroke.Color = Color3.fromRGB(0, 180, 255)
         pStroke.Transparency = 1 
+        RegisterDynamic(pStroke, "Color")
 
         local userInfo = Instance.new("TextLabel", profileFrame)
         userInfo.Size = UDim2.new(1, -65, 1, 0)
@@ -326,8 +375,8 @@ return function(AccessKey)
         title.TextSize = 65
         title.RichText = true
         title.Text = 'LOUIS HUB <font color="rgb(255, 255, 255)">FREE</font>'
-        title.TextColor3 = Color3.fromRGB(0, 180, 255)
         title.TextTransparency = 1
+        RegisterDynamic(title, "TextColor3")
 
         local welcome = Instance.new("TextLabel", bg)
         welcome.Size = UDim2.new(1, 0, 0.1, 0)
@@ -357,8 +406,8 @@ return function(AccessKey)
         
         local barFill = Instance.new("Frame", barBg)
         barFill.Size = UDim2.new(0, 0, 1, 0)
-        barFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         Instance.new("UICorner", barFill)
+        RegisterDynamic(barFill, "BackgroundColor3")
 
         local skipBtn = Instance.new("TextButton", bg)
         skipBtn.Size = UDim2.new(0, 100, 0, 30)
@@ -1150,7 +1199,6 @@ return function(AccessKey)
     -- [[ 2. CORE SETTINGS FOR UI THEME ]]
     -- ==========================================
     local _GMainColor = Color3.fromRGB(15, 15, 20)
-    local _GAccentColor = Color3.fromRGB(0, 180, 255)
     local isMinimized = true
     local MainVisible = false
     local hudMinimized = false
@@ -1161,15 +1209,6 @@ return function(AccessKey)
     local ScreenGui = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
     ScreenGui.Name = "LouisHub_FREE_Edition"
     ScreenGui.ResetOnSpawn = false
-
-    -- HELPER: Penerapan warna neon bergerak pada stroke & transparansi tengah 60%
-    local function ApplyExternalButtonStyle(btn, stroke)
-        btn.BackgroundTransparency = 0.6
-        SafeConnect(RunService.RenderStepped, function()
-            local hue = (tick() % 4) / 4 -- Loop warna dalam waktu 4 detik
-            stroke.Color = Color3.fromHSV(hue, 0.8, 1)
-        end)
-    end
 
     -- HELPER: Mengatur sistem drag tombol dengan pengecekan status kunci dari UI
     local function MakeDraggable(button)
@@ -1199,19 +1238,19 @@ return function(AccessKey)
     ToggleBtnMain.Name = "FloatingToggle"
     ToggleBtnMain.Size = UDim2.new(0, Settings.Size_L, 0, Settings.Size_L)
     ToggleBtnMain.Position = UDim2.new(0, 20, 0.5, -25)
-    ToggleBtnMain.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    ToggleBtnMain.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ToggleBtnMain.BackgroundTransparency = 0.5
     ToggleBtnMain.Text = "L"
-    ToggleBtnMain.TextColor3 = _GAccentColor
+    ToggleBtnMain.TextColor3 = Color3.fromRGB(255, 255, 255)
     ToggleBtnMain.Font = Enum.Font.GothamBlack
     ToggleBtnMain.TextSize = 25
     ToggleBtnMain.AutoButtonColor = false
     ToggleBtnMain.Visible = false 
+    Instance.new("UICorner", ToggleBtnMain).CornerRadius = UDim.new(1, 0)
 
     local ToggleStroke = Instance.new("UIStroke", ToggleBtnMain)
     ToggleStroke.Thickness = 2
-    ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-    ApplyExternalButtonStyle(ToggleBtnMain, ToggleStroke)
+    RegisterDynamic(ToggleStroke, "Color")
     MakeDraggable(ToggleBtnMain)
 
     -- [[ TOMBOL EXTERNAL AIMBOT ]]
@@ -1229,7 +1268,7 @@ return function(AccessKey)
     local ExtAimbotStroke = Instance.new("UIStroke", ExtAimbotBtn)
     ExtAimbotStroke.Thickness = 1.5
 
-    ApplyExternalButtonStyle(ExtAimbotBtn, ExtAimbotStroke)
+    RegisterDynamic(ExtAimbotStroke, "Color")
     MakeDraggable(ExtAimbotBtn)
 
     -- [[ TOMBOL EXTERNAL GRAB GUN ]]
@@ -1247,7 +1286,7 @@ return function(AccessKey)
     local ExtGrabStroke = Instance.new("UIStroke", ExtGrabBtn)
     ExtGrabStroke.Thickness = 1.5
 
-    ApplyExternalButtonStyle(ExtGrabBtn, ExtGrabStroke)
+    RegisterDynamic(ExtGrabStroke, "Color")
     MakeDraggable(ExtGrabBtn)
 
     -- [[ TOMBOL EXTERNAL DOUBLE JUMP ]]
@@ -1265,7 +1304,7 @@ return function(AccessKey)
     local ExtDoubleJumpStroke = Instance.new("UIStroke", ExtDoubleJumpBtn)
     ExtDoubleJumpStroke.Thickness = 1.5
 
-    ApplyExternalButtonStyle(ExtDoubleJumpBtn, ExtDoubleJumpStroke)
+    RegisterDynamic(ExtDoubleJumpStroke, "Color")
     MakeDraggable(ExtDoubleJumpBtn)
 
     -- UPDATE UKURAN TOMBOL EKSTERNAL DARI SLIDER
@@ -1290,6 +1329,10 @@ return function(AccessKey)
     HUDFrame.ClipsDescendants = true
     Instance.new("UICorner", HUDFrame).CornerRadius = UDim.new(0, 6)
 
+    local HUDFrameStroke = Instance.new("UIStroke", HUDFrame)
+    HUDFrameStroke.Thickness = 1.5
+    RegisterDynamic(HUDFrameStroke, "Color")
+
     local FPSLabel = Instance.new("TextLabel", HUDFrame)
     FPSLabel.Size = UDim2.new(0, 60, 0.4, 0); FPSLabel.Position = UDim2.new(0, 5, 0, 4)
     FPSLabel.BackgroundTransparency = 1; FPSLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -1297,8 +1340,9 @@ return function(AccessKey)
 
     local PingLabel = Instance.new("TextLabel", HUDFrame)
     PingLabel.Size = UDim2.new(0, 60, 0.4, 0); PingLabel.Position = UDim2.new(0, 5, 0.4, 0)
-    PingLabel.BackgroundTransparency = 1; PingLabel.TextColor3 = _GAccentColor
+    PingLabel.BackgroundTransparency = 1
     PingLabel.Font = Enum.Font.GothamBold; PingLabel.TextSize = 9; PingLabel.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterDynamic(PingLabel, "TextColor3")
 
     local GraphFrame = Instance.new("Frame", HUDFrame)
     GraphFrame.Size = UDim2.new(0, 35, 0, 35); GraphFrame.Position = UDim2.new(1, -75, 0, 5); GraphFrame.BackgroundTransparency = 1
@@ -1307,7 +1351,8 @@ return function(AccessKey)
     for i = 1, 10 do
         local b = Instance.new("Frame", GraphFrame)
         b.Size = UDim2.new(0, 2, 0, 10); b.Position = UDim2.new(0, i*3, 1, -10)
-        b.BackgroundColor3 = _GAccentColor; b.BorderSizePixel = 0; bars[i] = b
+        b.BorderSizePixel = 0; bars[i] = b
+        RegisterDynamic(b, "BackgroundColor3")
     end
 
     local PotatoToggle = Instance.new("TextButton", HUDFrame)
@@ -1322,6 +1367,9 @@ return function(AccessKey)
     HUDToggleBtn.Size = UDim2.new(0, 15, 1, 0); HUDToggleBtn.Position = UDim2.new(1, -15, 0, 0)
     HUDToggleBtn.BackgroundColor3 = Color3.new(0,0,0); HUDToggleBtn.BackgroundTransparency = 0.8; HUDToggleBtn.Text = ">"
     HUDToggleBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", HUDToggleBtn)
+    local HUDToggleStroke = Instance.new("UIStroke", HUDToggleBtn)
+    HUDToggleStroke.Thickness = 1.5
+    RegisterDynamic(HUDToggleStroke, "Color")
 
     HUDToggleBtn.MouseButton1Click:Connect(function()
         hudMinimized = not hudMinimized
@@ -1337,51 +1385,47 @@ return function(AccessKey)
     MainFrame.Visible = false
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
     
-    local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
-
-    -- INTEGRASI WARNA UI PELANGI SEPERTI TOMBOL EKSTERNAL
-    SafeConnect(RunService.RenderStepped, function()
-        local hue = (tick() % 4) / 4
-        local rainbowColor = Color3.fromHSV(hue, 0.8, 1)
-        Stroke.Color = rainbowColor
-    end)
+    local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Thickness = 1.5
+    RegisterDynamic(Stroke, "Color")
 
     local function createBtn(txt, pos, size, color)
         local b = Instance.new("TextButton")
-        b.Size = size; b.Position = pos; b.BackgroundColor3 = color or Color3.fromRGB(30, 30, 35); b.TextColor3 = Color3.new(1,1,1)
+        b.Size = size; b.Position = pos; b.BackgroundColor3 = color or Color3.fromRGB(25, 25, 30); b.TextColor3 = Color3.new(1,1,1)
         b.Text = txt; b.Font = Enum.Font.GothamBold; b.TextSize = 6.5; b.ClipsDescendants = true
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4); return b
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+        
+        local btnStroke = Instance.new("UIStroke", b)
+        btnStroke.Color = Color3.fromRGB(45, 45, 50)
+        btnStroke.Thickness = 1
+
+        return b
     end
 
     local function createLabel(txt, pos, size)
         local l = Instance.new("TextLabel", MainFrame)
         l.Size = size or UDim2.new(0, 148, 0, 10); l.Position = pos
-        l.BackgroundTransparency = 1; l.Text = txt; l.TextColor3 = Color3.fromRGB(200, 200, 200)
+        l.BackgroundTransparency = 1; l.Text = txt
         l.TextSize = 7; l.Font = Enum.Font.GothamBold; return l
     end
 
     local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 95, 0, 12))
     HubLabel.TextSize = 6.5
-    
-    -- Sync Teks Judul Pelangi
-    SafeConnect(RunService.RenderStepped, function()
-        local hue = (tick() % 4) / 4
-        HubLabel.TextColor3 = Color3.fromHSV(hue, 0.8, 1)
-    end)
+    RegisterDynamic(HubLabel, "TextColor3")
 
     -- [[ PINDAHKAN LOCK / UNLOCK DI SAMPING TOMBOL INFO ]]
-    local LockDragBtn = createBtn("🔓", UDim2.new(0, 105, 0, 4), UDim2.new(0, 20, 0, 14), Color3.fromRGB(45, 45, 55))
-    LockDragBtn.Parent = MainFrame; LockDragBtn.TextSize = 10; LockDragBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    local LockDragBtn = createBtn("🔓", UDim2.new(0, 105, 0, 4), UDim2.new(0, 20, 0, 14), Color3.fromRGB(25, 25, 30))
+    LockDragBtn.Parent = MainFrame; LockDragBtn.TextSize = 10
+    RegisterDynamic(LockDragBtn, "TextColor3")
 
     local function toggleLockDrag()
         Settings.DragLocked = not Settings.DragLocked
         LockDragBtn.Text = Settings.DragLocked and "🔒" or "🔓"
-        LockDragBtn.TextColor3 = Settings.DragLocked and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(255, 255, 255)
     end
     LockDragBtn.MouseButton1Click:Connect(toggleLockDrag)
 
-    local InfoBtn = createBtn("i", UDim2.new(0, 128, 0, 4), UDim2.new(0, 26, 0, 14), Color3.fromRGB(45, 45, 55))
-    InfoBtn.Parent = MainFrame; InfoBtn.TextSize = 8; InfoBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
+    local InfoBtn = createBtn("i", UDim2.new(0, 128, 0, 4), UDim2.new(0, 26, 0, 14), Color3.fromRGB(25, 25, 30))
+    InfoBtn.Parent = MainFrame; InfoBtn.TextSize = 8
+    RegisterDynamic(InfoBtn, "TextColor3")
 
     -- [[ SOSMED / INFO PANEL ]]
     local InfoFrame = Instance.new("Frame", MainFrame)
@@ -1389,28 +1433,31 @@ return function(AccessKey)
     InfoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25); InfoFrame.BorderSizePixel = 0
     InfoFrame.ClipsDescendants = true; InfoFrame.Visible = false; InfoFrame.ZIndex = 10
     Instance.new("UICorner", InfoFrame)
-    local InfoStroke = Instance.new("UIStroke", InfoFrame); InfoStroke.Color = _GAccentColor; InfoStroke.Thickness = 1
+    local InfoStroke = Instance.new("UIStroke", InfoFrame); InfoStroke.Thickness = 1
+    RegisterDynamic(InfoStroke, "Color")
 
-    local function createInfoLabel(txt, pos, color)
+    local function createInfoLabel(txt, pos)
         local l = Instance.new("TextLabel", InfoFrame)
         l.Size = UDim2.new(1, 0, 0, 12); l.Position = pos; l.BackgroundTransparency = 1; l.Text = txt
-        l.TextColor3 = color or Color3.new(1,1,1); l.Font = Enum.Font.GothamBold; l.TextSize = 7; return l
+        l.Font = Enum.Font.GothamBold; l.TextSize = 7
+        RegisterDynamic(l, "TextColor3")
+        return l
     end
-    createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5), _GAccentColor)
+    createInfoLabel("--- SOCIAL MEDIA ---", UDim2.new(0, 0, 0, 5))
 
-    local function createSocialBtn(name, link, pos, color)
-        local b = createBtn(name, pos, UDim2.new(1, -10, 0, 18), color)
+    local function createSocialBtn(name, link, pos)
+        local b = createBtn(name, pos, UDim2.new(1, -10, 0, 18))
         b.Parent = InfoFrame; b.TextSize = 6; b.ZIndex = 11
         b.MouseButton1Click:Connect(function()
             setclipboard(link)
             local oldText = b.Text; b.Text = "COPIED!"; task.wait(1.5); b.Text = oldText
         end)
     end
-    createSocialBtn("DISCORD SERVER", "https://discord.gg/P2FEVBz2PG", UDim2.new(0, 5, 0, 25), Color3.fromRGB(88, 101, 242))
-    createSocialBtn("TIKTOK: @louismurdermystery2", "https://www.tiktok.com/@louismurdermystery2", UDim2.new(0, 5, 0, 48), Color3.fromRGB(0, 0, 0))
-    createSocialBtn("TIKTOK: @chillajakaliye_", "https://www.tiktok.com/@chillajakaliye_", UDim2.new(0, 5, 0, 71), Color3.fromRGB(0, 0, 0))
+    createSocialBtn("DISCORD SERVER", "https://discord.gg/P2FEVBz2PG", UDim2.new(0, 5, 0, 25))
+    createSocialBtn("TIKTOK: @louismurdermystery2", "https://www.tiktok.com/@louismurdermystery2", UDim2.new(0, 5, 0, 48))
+    createSocialBtn("TIKTOK: @chillajakaliye_", "https://www.tiktok.com/@chillajakaliye_", UDim2.new(0, 5, 0, 71))
 
-    local CloseInfo = createBtn("BACK TO MENU", UDim2.new(0, 5, 1, -22), UDim2.new(1, -10, 0, 18), Color3.fromRGB(40, 40, 45))
+    local CloseInfo = createBtn("BACK TO MENU", UDim2.new(0, 5, 1, -22), UDim2.new(1, -10, 0, 18))
     CloseInfo.Parent = InfoFrame; CloseInfo.ZIndex = 11
 
     local infoOpen = false
@@ -1437,7 +1484,6 @@ return function(AccessKey)
     local TabFrames = {}
     local CurrentTab = "Main"
 
-    -- DISINGKAT UTK MENIADAKAN EMTPY FARM TAB
     local TabNames = {"Main", "Combat", "ESP", "Utility"}
     local TabWidth = 1 / #TabNames
 
@@ -1470,8 +1516,19 @@ return function(AccessKey)
         CurrentTab = tabName
         for name, frame in pairs(TabFrames) do frame.Visible = (name == tabName) end
         for name, btn in pairs(TabButtons) do
-            btn.BackgroundColor3 = (name == tabName) and _GAccentColor or Color3.fromRGB(25, 25, 30)
-            btn.TextColor3 = (name == tabName) and Color3.new(0,0,0) or Color3.new(1,1,1)
+            if name == tabName then
+                RegisterDynamic(btn, "BackgroundColor3")
+                btn.TextColor3 = Color3.new(0, 0, 0)
+            else
+                for i = #DynamicThemeElements, 1, -1 do
+                    local item = DynamicThemeElements[i]
+                    if item.Instance == btn and item.Property == "BackgroundColor3" then
+                        table.remove(DynamicThemeElements, i)
+                    end
+                end
+                btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+                btn.TextColor3 = Color3.new(1, 1, 1)
+            end
         end
     end
 
@@ -1485,6 +1542,10 @@ return function(AccessKey)
         btn.TextColor3 = Color3.new(1,1,1)
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 3)
         TabButtons[name] = btn
+        
+        local tabStroke = Instance.new("UIStroke", btn)
+        tabStroke.Thickness = 1
+        tabStroke.Color = Color3.fromRGB(45, 45, 50)
         
         btn.MouseButton1Click:Connect(function() ShowTab(name) end)
     end
@@ -1517,10 +1578,10 @@ return function(AccessKey)
         title.Position = UDim2.new(0, 6, 0, 2)
         title.BackgroundTransparency = 1
         title.Text = titleText:upper()
-        title.TextColor3 = _GAccentColor
         title.Font = Enum.Font.GothamBold
         title.TextSize = 5.5
         title.TextXAlignment = Enum.TextXAlignment.Left
+        RegisterDynamic(title, "TextColor3")
 
         local list = Instance.new("UIListLayout", container)
         list.Padding = UDim.new(0, 4)
@@ -1539,8 +1600,8 @@ return function(AccessKey)
         Instance.new("UICorner", sliderFrame)
         
         local sliderFill = Instance.new("Frame", sliderFrame)
-        sliderFill.BackgroundColor3 = _GAccentColor
         Instance.new("UICorner", sliderFill)
+        RegisterDynamic(sliderFill, "BackgroundColor3")
         
         local sliderText = Instance.new("TextLabel", sliderFrame)
         sliderText.Size = UDim2.new(1, 0, 1, 0)
@@ -1616,7 +1677,7 @@ return function(AccessKey)
         Settings.KillAuraRadius = val
     end)
 
-    local KillAllBtn = createBtn("KILL ALL PLAYER (TP ALL)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(180, 0, 0))
+    local KillAllBtn = createBtn("KILL ALL PLAYER (TP ALL)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(45, 25, 30))
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
 
@@ -1689,7 +1750,7 @@ return function(AccessKey)
     end)
 
 
-    -- --- TAB 3: ESP (DENGAN FILTER & NAME ESP BARU) ---
+    -- --- TAB 3: ESP ---
     local BoxESP = createGroupContainer("ESP", "Visual & Hitbox Hack", 172)
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     EspBtn.Parent = BoxESP; EspBtn.LayoutOrder = 1
@@ -1702,27 +1763,31 @@ return function(AccessKey)
     NameEspBtn.Parent = BoxESP; NameEspBtn.LayoutOrder = 3
 
     -- TAMBAH FILTER ESP (MURDERER, SHERIFF, INNOCENT)
-    local FilterMurderBtn = createBtn("FILTER: MURDERER (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), _GAccentColor)
-    FilterMurderBtn.Parent = BoxESP; FilterMurderBtn.TextColor3 = Color3.new(0,0,0); FilterMurderBtn.LayoutOrder = 4
+    local FilterMurderBtn = createBtn("FILTER: MURDERER (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FilterMurderBtn.Parent = BoxESP; FilterMurderBtn.LayoutOrder = 4
+    SetToggleState(FilterMurderBtn, true)
 
-    local FilterSheriffBtn = createBtn("FILTER: SHERIFF (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), _GAccentColor)
-    FilterSheriffBtn.Parent = BoxESP; FilterSheriffBtn.TextColor3 = Color3.new(0,0,0); FilterSheriffBtn.LayoutOrder = 5
+    local FilterSheriffBtn = createBtn("FILTER: SHERIFF (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FilterSheriffBtn.Parent = BoxESP; FilterSheriffBtn.LayoutOrder = 5
+    SetToggleState(FilterSheriffBtn, true)
 
-    local FilterInnocentBtn = createBtn("FILTER: INNOCENT (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), _GAccentColor)
-    FilterInnocentBtn.Parent = BoxESP; FilterInnocentBtn.TextColor3 = Color3.new(0,0,0); FilterInnocentBtn.LayoutOrder = 6
+    local FilterInnocentBtn = createBtn("FILTER: INNOCENT (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FilterInnocentBtn.Parent = BoxESP; FilterInnocentBtn.LayoutOrder = 6
+    SetToggleState(FilterInnocentBtn, true)
     
     local HitboxBtn = createBtn("[C] HITBOX EXPANDER: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     HitboxBtn.Parent = BoxESP; HitboxBtn.LayoutOrder = 7
     
-    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), Color3.fromRGB(0, 120, 200))
+    local VisualBtn = createBtn("[V] HITBOX VISUAL: ON", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     VisualBtn.Parent = BoxESP; VisualBtn.LayoutOrder = 8
+    SetToggleState(VisualBtn, true)
 
     createSlider(BoxESP, "SIZE: %d STUDS", 1, 200, Settings.HitboxSize, function(val)
         Settings.HitboxSize = val
     end)
 
 
-    -- --- TAB 4: UTILITY (PINDAHAN WALKSPEED, JUMP, NOCLIP & FLY) ---
+    -- --- TAB 4: UTILITY ---
     
     -- BOX 1: WALKSPEED MODIFIER (PINDAHAN)
     local BoxSpeed = createGroupContainer("Utility", "Walkspeed Modifier", 46)
@@ -1770,8 +1835,9 @@ return function(AccessKey)
     -- ========================================================================
     -- [[ CLOSING / OPENING BAR MAIN CONTROLLER ]]
     -- ========================================================================
-    local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
-    CloseBar.Parent = MainFrame; CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6
+    local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.fromRGB(15, 15, 20))
+    CloseBar.Parent = MainFrame; CloseBar.TextSize = 6
+    RegisterDynamic(CloseBar, "TextColor3")
 
     CloseBar.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
@@ -1819,14 +1885,13 @@ return function(AccessKey)
     local function toggleKillAura()
         Settings.KillAuraEnabled = not Settings.KillAuraEnabled
         KillAuraToggleBtn.Text = Settings.KillAuraEnabled and "KILL AURA: ON" or "KILL AURA: OFF"
-        KillAuraToggleBtn.BackgroundColor3 = Settings.KillAuraEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(KillAuraToggleBtn, Settings.KillAuraEnabled)
     end
 
     local function syncAimbotVisual()
         ToggleBtn.Text = Settings.CameraAimbot and "[Q] AIMBOT: ON" or "[Q] AIMBOT: OFF"
-        ToggleBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        ExtAimbotBtn.BackgroundColor3 = Settings.CameraAimbot and _GAccentColor or Color3.fromRGB(20, 20, 25)
-        ExtAimbotBtn.TextColor3 = Settings.CameraAimbot and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+        SetToggleState(ToggleBtn, Settings.CameraAimbot)
+        SetToggleState(ExtAimbotBtn, Settings.CameraAimbot)
     end
 
     local function toggleAimbot()
@@ -1837,21 +1902,21 @@ return function(AccessKey)
     local function toggleExtAimbotMaster()
         Settings.AimbotExtEnabled = not Settings.AimbotExtEnabled
         ExtAimbotToggleBtn.Text = Settings.AimbotExtEnabled and "AIMBOT (EXT): ON" or "AIMBOT (EXT): OFF"
-        ExtAimbotToggleBtn.BackgroundColor3 = Settings.AimbotExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(ExtAimbotToggleBtn, Settings.AimbotExtEnabled)
         ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
     end
 
     local function toggleEsp()
         Settings.ESP = not Settings.ESP
         EspBtn.Text = Settings.ESP and "[X] ESP + GUN DROP: ON" or "[X] ESP + GUN DROP: OFF"
-        EspBtn.BackgroundColor3 = Settings.ESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(EspBtn, Settings.ESP)
         if not Settings.ESP then ClearGunOutlines() end
     end
 
     local function toggleTracersEsp()
         Settings.TracersESP = not Settings.TracersESP
         TracersEspBtn.Text = Settings.TracersESP and "TRACERS ESP LINE: ON" or "TRACERS ESP LINE: OFF"
-        TracersEspBtn.BackgroundColor3 = Settings.TracersESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(TracersEspBtn, Settings.TracersESP)
         if not Settings.TracersESP then ClearAllTracers() end
     end
 
@@ -1859,46 +1924,43 @@ return function(AccessKey)
     local function toggleNameEsp()
         Settings.NameESP = not Settings.NameESP
         NameEspBtn.Text = Settings.NameESP and "NAME ESP: ON" or "NAME ESP: OFF"
-        NameEspBtn.BackgroundColor3 = Settings.NameESP and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(NameEspBtn, Settings.NameESP)
     end
 
     local function toggleFilterMurder()
         Settings.EspMurderer = not Settings.EspMurderer
         FilterMurderBtn.Text = Settings.EspMurderer and "FILTER: MURDERER (ON)" or "FILTER: MURDERER (OFF)"
-        FilterMurderBtn.BackgroundColor3 = Settings.EspMurderer and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        FilterMurderBtn.TextColor3 = Settings.EspMurderer and Color3.new(0,0,0) or Color3.new(1,1,1)
+        SetToggleState(FilterMurderBtn, Settings.EspMurderer)
     end
 
     local function toggleFilterSheriff()
         Settings.EspSheriff = not Settings.EspSheriff
         FilterSheriffBtn.Text = Settings.EspSheriff and "FILTER: SHERIFF (ON)" or "FILTER: SHERIFF (OFF)"
-        FilterSheriffBtn.BackgroundColor3 = Settings.EspSheriff and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        FilterSheriffBtn.TextColor3 = Settings.EspSheriff and Color3.new(0,0,0) or Color3.new(1,1,1)
+        SetToggleState(FilterSheriffBtn, Settings.EspSheriff)
     end
 
     local function toggleFilterInnocent()
         Settings.EspInnocent = not Settings.EspInnocent
         FilterInnocentBtn.Text = Settings.EspInnocent and "FILTER: INNOCENT (ON)" or "FILTER: INNOCENT (OFF)"
-        FilterInnocentBtn.BackgroundColor3 = Settings.EspInnocent and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        FilterInnocentBtn.TextColor3 = Settings.EspInnocent and Color3.new(0,0,0) or Color3.new(1,1,1)
+        SetToggleState(FilterInnocentBtn, Settings.EspInnocent)
     end
 
     local function toggleHitbox()
         Settings.HitboxExpander = not Settings.HitboxExpander
         HitboxBtn.Text = Settings.HitboxExpander and "[C] HITBOX EXPANDER: ON" or "[C] HITBOX EXPANDER: OFF"
-        HitboxBtn.BackgroundColor3 = Settings.HitboxExpander and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(HitboxBtn, Settings.HitboxExpander)
     end
 
     local function toggleAutoGrab()
         Settings.AutoGrabGun = not Settings.AutoGrabGun
         GrabBtn.Text = Settings.AutoGrabGun and "[H] AUTO GRAB GUN: ON" or "[H] AUTO GRAB GUN: OFF"
-        GrabBtn.BackgroundColor3 = Settings.AutoGrabGun and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(GrabBtn, Settings.AutoGrabGun)
     end
 
     local function toggleManualGrabMaster()
         Settings.GrabGunExtEnabled = not Settings.GrabGunExtEnabled
         ManualGrabToggleBtn.Text = Settings.GrabGunExtEnabled and "GRAB GUN (EXT): ON" or "GRAB GUN (EXT): OFF"
-        ManualGrabToggleBtn.BackgroundColor3 = Settings.GrabGunExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(ManualGrabToggleBtn, Settings.GrabGunExtEnabled)
         ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
     end
 
@@ -1912,37 +1974,37 @@ return function(AccessKey)
     local function toggleHideFOV()
         Settings.HideFOVCircle = not Settings.HideFOVCircle
         FOVHideBtn.Text = Settings.HideFOVCircle and "[P] HIDE FOV CIRCLE: ON" or "[P] HIDE FOV CIRCLE: OFF"
-        FOVHideBtn.BackgroundColor3 = Settings.HideFOVCircle and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(FOVHideBtn, Settings.HideFOVCircle)
     end
 
     local function toggleCameraFOV()
         Settings.CameraFOVEnabled = not Settings.CameraFOVEnabled
         CamFOVToggleBtn.Text = Settings.CameraFOVEnabled and "CAMERA FOV MODIFIER: ON" or "CAMERA FOV MODIFIER: OFF"
-        CamFOVToggleBtn.BackgroundColor3 = Settings.CameraFOVEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(CamFOVToggleBtn, Settings.CameraFOVEnabled)
     end
 
     local function toggleFly()
         Settings.FlyEnabled = not Settings.FlyEnabled
         FlyToggleBtn.Text = Settings.FlyEnabled and "FLY HACK: ON" or "FLY HACK: OFF"
-        FlyToggleBtn.BackgroundColor3 = Settings.FlyEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(FlyToggleBtn, Settings.FlyEnabled)
     end
 
     local function toggleJumpHeight()
         Settings.JumpPowerEnabled = not Settings.JumpPowerEnabled
         JumpToggleBtn.Text = Settings.JumpPowerEnabled and "JUMP HEIGHT MOD: ON" or "JUMP HEIGHT MOD: OFF"
-        JumpToggleBtn.BackgroundColor3 = Settings.JumpPowerEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(JumpToggleBtn, Settings.JumpPowerEnabled)
     end
 
     local function toggleNoclip()
         Settings.NoclipEnabled = not Settings.NoclipEnabled
         NoclipToggleBtn.Text = Settings.NoclipEnabled and "NOCLIP: ON" or "NOCLIP (WALK THRU WALLS): OFF"
-        NoclipToggleBtn.BackgroundColor3 = Settings.NoclipEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(NoclipToggleBtn, Settings.NoclipEnabled)
     end
 
     local function toggleInvisible()
         Settings.InvisibleEnabled = not Settings.InvisibleEnabled
         InvisibleToggleBtn.Text = Settings.InvisibleEnabled and "INVISIBLE HACK: ON" or "INVISIBLE HACK: OFF"
-        InvisibleToggleBtn.BackgroundColor3 = Settings.InvisibleEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(InvisibleToggleBtn, Settings.InvisibleEnabled)
         
         if not Settings.InvisibleEnabled and LocalPlayer.Character then
             for _, child in ipairs(LocalPlayer.Character:GetDescendants()) do
@@ -1957,9 +2019,9 @@ return function(AccessKey)
 
     _G.SyncFlingButtons = function()
         FlingMurderBtn.Text = Settings.AutoFlingMurder and "FLING MURDER: ON" or "AUTO FLING MURDER"
-        FlingMurderBtn.BackgroundColor3 = Settings.AutoFlingMurder and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(30, 30, 35)
+        SetToggleState(FlingMurderBtn, Settings.AutoFlingMurder)
         FlingSheriffBtn.Text = Settings.AutoFlingSheriff and "FLING SHERIFF: ON" or "AUTO FLING SHERIFF"
-        FlingSheriffBtn.BackgroundColor3 = Settings.AutoFlingSheriff and Color3.fromRGB(0, 100, 255) or Color3.fromRGB(30, 30, 35)
+        SetToggleState(FlingSheriffBtn, Settings.AutoFlingSheriff)
     end
 
     local function toggleFlingMurder()
@@ -1977,23 +2039,21 @@ return function(AccessKey)
     local function toggleSpeedWalk()
         Settings.SpeedWalkEnabled = not Settings.SpeedWalkEnabled
         SpeedWalkBtn.Text = Settings.SpeedWalkEnabled and "SPEED WALK: ON" or "SPEED WALK: OFF"
-        SpeedWalkBtn.BackgroundColor3 = Settings.SpeedWalkEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(SpeedWalkBtn, Settings.SpeedWalkEnabled)
         if not Settings.SpeedWalkEnabled then pcall(function() LocalPlayer.Character.Humanoid.WalkSpeed = 16 end) end
     end
 
     local function toggleDoubleJump()
         Settings.DoubleJumpEnabled = not Settings.DoubleJumpEnabled
         DoubleJumpToggleBtn.Text = Settings.DoubleJumpEnabled and "DOUBLE JUMP: ON" or "DOUBLE JUMP: OFF"
-        DoubleJumpToggleBtn.BackgroundColor3 = Settings.DoubleJumpEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        
-        ExtDoubleJumpBtn.BackgroundColor3 = Settings.DoubleJumpEnabled and _GAccentColor or Color3.fromRGB(20, 20, 25)
-        ExtDoubleJumpBtn.TextColor3 = Settings.DoubleJumpEnabled and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+        SetToggleState(DoubleJumpToggleBtn, Settings.DoubleJumpEnabled)
+        SetToggleState(ExtDoubleJumpBtn, Settings.DoubleJumpEnabled)
     end
 
     local function toggleDoubleJumpExt()
         Settings.DoubleJumpExtEnabled = not Settings.DoubleJumpExtEnabled
         DoubleJumpExtToggleBtn.Text = Settings.DoubleJumpExtEnabled and "DOUBLE JUMP (EXT): ON" or "DOUBLE JUMP (EXT): OFF"
-        DoubleJumpExtToggleBtn.BackgroundColor3 = Settings.DoubleJumpExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
+        SetToggleState(DoubleJumpExtToggleBtn, Settings.DoubleJumpExtEnabled)
         ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
     end
 
@@ -2036,18 +2096,17 @@ return function(AccessKey)
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
         VisualBtn.Text = Settings.HitboxVisual and "[V] HITBOX VISUAL: ON" or "[V] HITBOX VISUAL: OFF"
-        VisualBtn.BackgroundColor3 = Settings.HitboxVisual and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(30, 30, 35)
+        SetToggleState(VisualBtn, Settings.HitboxVisual)
     end)
     
     local potatoEnabled = false
     PotatoToggle.MouseButton1Click:Connect(function()
         potatoEnabled = not potatoEnabled
+        SetToggleState(PotatoToggle, potatoEnabled)
         if potatoEnabled then
             ApplyPotato()
-            PotatoToggle.BackgroundColor3 = _GAccentColor
             PotatoStroke.Color = Color3.fromRGB(255, 255, 255)
         else
-            PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
             PotatoStroke.Color = Color3.fromRGB(100, 100, 100)
         end
     end)
@@ -2071,5 +2130,5 @@ return function(AccessKey)
     SafeConnect(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
     startLoading()
-    print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Memory Leak Patch Successfully Initialized.")
+    print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Unified Theme Successfully Initialized.")
 end
