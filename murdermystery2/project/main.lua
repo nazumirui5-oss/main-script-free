@@ -20,56 +20,56 @@ return function(AccessKey)
     end
 
     -- [Load Core Modules]
-    modules["core/init"] = loadstring(game:HttpGet("path_to/modules/core/init.lua"))()
-    modules["core/settings"] = loadstring(game:HttpGet("path_to/modules/core/settings.lua"))()
-    modules["core/connections"] = loadstring(game:HttpGet("path_to/modules/core/connections.lua"))()
-    modules["core/cleanup"] = loadstring(game:HttpGet("path_to/modules/core/cleanup.lua"))()
+    modules["core/init"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/core/modules_core_init.lua"))()
+    modules["core/settings"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/core/modules_core_settings.lua"))()
+    modules["core/connections"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/core/modules_core_connections.lua"))()
+    modules["core/cleanup"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/core/modules_core_cleanup.lua"))()
 
     -- [Load Utils Modules]
-    modules["utils/math"] = loadstring(game:HttpGet("path_to/modules/utils/math.lua"))()
-    modules["utils/tween"] = loadstring(game:HttpGet("path_to/modules/utils/tween.lua"))()
-    modules["utils/draggable"] = loadstring(game:HttpGet("path_to/modules/utils/draggable.lua"))()
-    modules["utils/drawing"] = loadstring(game:HttpGet("path_to/modules/utils/drawing.lua"))()
+    modules["utils/math"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/utils/modules_utils_math.lua"))()
+    modules["utils/tween"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/utils/modules_utils_tween.lua"))()
+    modules["utils/draggable"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/utils/modules_utils_draggable.lua"))()
+    modules["utils/drawing"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/utils/modules_utils_drawing.lua"))()
 
     -- [Load Security Modules]
-    modules["security/handshake"] = loadstring(game:HttpGet("path_to/modules/security/handshake.lua"))()
-    modules["security/antitamper"] = loadstring(game:HttpGet("path_to/modules/security/antitamper.lua"))()
-    modules["security/webhook"] = loadstring(game:HttpGet("path_to/modules/security/webhook.lua"))()
-    modules["security/debugger"] = loadstring(game:HttpGet("path_to/modules/security/debugger.lua"))()
+    modules["security/handshake"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/security/modules_security_handshake.lua"))()
+    modules["security/antitamper"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/security/modules_security_antitamper.lua"))()
+    modules["security/webhook"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/security/modules_security_webhook.lua"))()
+    modules["security/debugger"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/security/modules_security_debugger.lua"))()
 
     -- [Load Systems Modules]
-    modules["systems/rolemanager"] = loadstring(game:HttpGet("path_to/modules/systems/rolemanager.lua"))()
-    modules["systems/targetfinder"] = loadstring(game:HttpGet("path_to/modules/systems/targetfinder.lua"))()
-    modules["systems/prediction"] = loadstring(game:HttpGet("path_to/modules/systems/prediction.lua"))()
-    modules["systems/gungrab"] = loadstring(game:HttpGet("path_to/modules/systems/gungrab.lua"))()
-    modules["systems/potato"] = loadstring(game:HttpGet("path_to/modules/systems/potato.lua"))()
+    modules["systems/rolemanager"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/system/modules_systems_rolemanager.lua"))()
+    modules["systems/targetfinder"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/system/modules_systems_targetfinder.lua"))()
+    modules["systems/prediction"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/system/modules_systems_prediction.lua"))()
+    modules["systems/gungrab"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/system/modules_systems_gungrab.lua"))()
+    modules["systems/potato"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/system/modules_systems_potato.lua"))()
 
     -- [Load Combat Modules]
-    modules["combat/aimbot"] = loadstring(game:HttpGet("path_to/modules/combat/aimbot.lua"))()
-    modules["combat/hitbox"] = loadstring(game:HttpGet("path_to/modules/combat/hitbox.lua"))()
-    modules["combat/killaura"] = loadstring(game:HttpGet("path_to/modules/combat/killaura.lua"))()
-    modules["combat/autofling"] = loadstring(game:HttpGet("path_to/modules/combat/autofling.lua"))()
+    modules["combat/aimbot"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/combat/modules_combat_aimbot.lua"))()
+    modules["combat/hitbox"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/combat/modules_combat_hitbox.lua"))()
+    modules["combat/killaura"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/combat/modules_combat_killaura.lua"))()
+    modules["combat/autofling"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/combat/modules_combat_autofling.lua"))()
 
     -- [Load ESP Modules]
-    modules["esp/esp"] = loadstring(game:HttpGet("path_to/modules/esp/esp.lua"))()
-    modules["esp/tracers"] = loadstring(game:HttpGet("path_to/modules/esp/tracers.lua"))()
-    modules["esp/nameesp"] = loadstring(game:HttpGet("path_to/modules/esp/nameesp.lua"))()
-    modules["esp/gunesp"] = loadstring(game:HttpGet("path_to/modules/esp/gunesp.lua"))()
+    modules["esp/esp"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/esp/modules_esp_esp.lua"))()
+    modules["esp/tracers"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/esp/modules_esp_tracers.lua"))()
+    modules["esp/nameesp"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/esp/modules_esp_nameesp.lua"))()
+    modules["esp/gunesp"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/esp/modules_esp_gunesp.lua"))()
 
     -- [Load Movement Modules]
-    modules["movement/fly"] = loadstring(game:HttpGet("path_to/modules/movement/fly.lua"))()
-    modules["movement/speed"] = loadstring(game:HttpGet("path_to/modules/movement/speed.lua"))()
-    modules["movement/noclip"] = loadstring(game:HttpGet("path_to/modules/movement/noclip.lua"))()
-    modules["movement/doublejump"] = loadstring(game:HttpGet("path_to/modules/movement/doublejump.lua"))()
-    modules["movement/invisible"] = loadstring(game:HttpGet("path_to/modules/movement/invisible.lua"))()
+    modules["movement/fly"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/movement/modules_movement_fly.lua"))()
+    modules["movement/speed"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/movement/modules_movement_speed.lua"))()
+    modules["movement/noclip"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/movement/modules_movement_noclip.lua"))()
+    modules["movement/doublejump"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/movement/modules_movement_doublejump.lua"))()
+    modules["movement/invisible"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/movement/modules_movement_invisible.lua"))()
 
     -- [Load UI Modules]
-    modules["ui/components"] = loadstring(game:HttpGet("path_to/modules/ui/components.lua"))()
-    modules["ui/loading"] = loadstring(game:HttpGet("path_to/modules/ui/loading.lua"))()
-    modules["ui/hud"] = loadstring(game:HttpGet("path_to/modules/ui/hud.lua"))()
-    modules["ui/externalbuttons"] = loadstring(game:HttpGet("path_to/modules/ui/externalbuttons.lua"))()
-    modules["ui/tabs"] = loadstring(game:HttpGet("path_to/modules/ui/tabs.lua"))()
-    modules["ui/mainui"] = loadstring(game:HttpGet("path_to/modules/ui/mainui.lua"))()
+    modules["ui/components"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/Ui/modules_ui_components.lua"))()
+    modules["ui/loading"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/Ui/modules_ui_loading.lua"))()
+    modules["ui/hud"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/Ui/modules_ui_hud.lua"))()
+    modules["ui/externalbuttons"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/Ui/modules_ui_externalbuttons.lua"))()
+    modules["ui/tabs"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/Ui/modules_ui_tabs.lua"))()
+    modules["ui/mainui"] = loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murdermystery2/project/modules/Ui/modules_ui_mainui.lua"))()
 
     -- === EKSEKUSI PIPELINE INHERITANCE ===
     local init = require("core/init")
