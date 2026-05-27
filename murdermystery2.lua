@@ -205,8 +205,6 @@ return function(AccessKey)
         HideFOVCircle = false,
         AutoFlingMurder = false,
         AutoFlingSheriff = false,
-        TouchFlingEnabled = false,
-        TouchFlingPower = 100,
         SpeedWalkEnabled = false,
         SpeedWalkValue = 16,
         AimbotExtEnabled = false,
@@ -241,7 +239,11 @@ return function(AccessKey)
         FlingMurderExtEnabled = false,
         FlingSheriffExtEnabled = false,
         Size_FM = 40,
-        Size_FS = 40
+        Size_FS = 40,
+        -- FITUR BARU: TOUCH FLING & ANTI FLING
+        TouchFlingEnabled = false,
+        TouchFlingPower = 100,
+        AntiFlingEnabled = false
     }
 
     local OriginalFOV = Camera.FieldOfView
@@ -949,11 +951,6 @@ return function(AccessKey)
                     root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(Settings.SpinPower), 0)
                 end
 
-                if Settings.TouchFlingEnabled then
-                    root.RotVelocity = Vector3.new(0, Settings.TouchFlingPower * 100, 0)
-                    root.Velocity = Vector3.new(0, math.sin(tick() * 100) * (Settings.TouchFlingPower * 1.5), 0)
-                end
-
                 if Settings.JumpPowerEnabled then
                     humanoid.JumpPower = Settings.JumpPowerValue
                     humanoid.UseJumpPower = true
@@ -1052,6 +1049,41 @@ return function(AccessKey)
                 end
             end
             task.wait()
+        end
+    end)
+
+    -- ========================================================================
+    -- [[ TOUCH FLING & ANTI FLING SYSTEM ENGINE ]]
+    -- ========================================================================
+    SafeConnect(RunService.Heartbeat, function()
+        local character = LocalPlayer.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        
+        -- TOUCH FLING ENGINE
+        if Settings.TouchFlingEnabled and root and humanoid and humanoid.Health > 0 then
+            local p = Settings.TouchFlingPower * 10
+            root.RotVelocity = Vector3.new(0, p * 10, 0)
+            root.Velocity = root.Velocity + Vector3.new(0, p, 0)
+            task.wait()
+            if root then
+                root.Velocity = Vector3.new(root.Velocity.X, 0, root.Velocity.Z)
+            end
+        end
+
+        -- ANTI FLING ENGINE
+        if Settings.AntiFlingEnabled then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    for _, part in ipairs(player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                            part.Velocity = Vector3.new(0, 0, 0)
+                            part.RotVelocity = Vector3.new(0, 0, 0)
+                        end
+                    end
+                end
+            end
         end
     end)
 
@@ -1848,8 +1880,8 @@ return function(AccessKey)
     end)
 
 
-    -- BOX 4: FLING SYSTEM
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 165)
+    -- BOX 4: FLING SYSTEM (DIPERBESAR UKURANNYA HINGGA 185)
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 185)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
@@ -1875,14 +1907,17 @@ return function(AccessKey)
     end)
     sliderFM.LayoutOrder = 6
 
-    -- [TOUCH FLING & SLIDER POWER]
-    local TouchFlingToggleBtn = createBtn("TOUCH FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TouchFlingToggleBtn.Parent = BoxFling; TouchFlingToggleBtn.LayoutOrder = 7
+    -- INPUT FITUR BARU: TOUCH FLING, POWER SLIDER & ANTI FLING
+    local TouchFlingBtn = createBtn("TOUCH FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    TouchFlingBtn.Parent = BoxFling; TouchFlingBtn.LayoutOrder = 7
 
     local sliderTF = createSlider(BoxFling, "TF POWER: %d", 1, 200, Settings.TouchFlingPower, function(val)
         Settings.TouchFlingPower = val
     end)
     sliderTF.LayoutOrder = 8
+
+    local AntiFlingBtn = createBtn("ANTI FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    AntiFlingBtn.Parent = BoxFling; AntiFlingBtn.LayoutOrder = 9
 
 
     -- BOX 5: GRAB GUN SYSTEM
@@ -2254,14 +2289,35 @@ return function(AccessKey)
         _G.SyncFlingButtons()
     end
 
+    -- BARU: TOGGLE TOUCH FLING & ANTI FLING
     local function toggleTouchFling()
         Settings.TouchFlingEnabled = not Settings.TouchFlingEnabled
-        TouchFlingToggleBtn.Text = Settings.TouchFlingEnabled and "TOUCH FLING: ON" or "TOUCH FLING: OFF"
-        SetToggleState(TouchFlingToggleBtn, Settings.TouchFlingEnabled)
-        if not Settings.TouchFlingEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        TouchFlingBtn.Text = Settings.TouchFlingEnabled and "TOUCH FLING: ON" or "TOUCH FLING: OFF"
+        SetToggleState(TouchFlingBtn, Settings.TouchFlingEnabled)
+        
+        if not Settings.TouchFlingEnabled and LocalPlayer.Character then
             pcall(function()
                 LocalPlayer.Character.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
-                LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+            end)
+        end
+    end
+
+    local function toggleAntiFling()
+        Settings.AntiFlingEnabled = not Settings.AntiFlingEnabled
+        AntiFlingBtn.Text = Settings.AntiFlingEnabled and "ANTI FLING: ON" or "ANTI FLING: OFF"
+        SetToggleState(AntiFlingBtn, Settings.AntiFlingEnabled)
+        
+        if not Settings.AntiFlingEnabled then
+            pcall(function()
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        for _, part in ipairs(player.Character:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = true
+                            end
+                        end
+                    end
+                end
             end)
         end
     end
@@ -2356,7 +2412,6 @@ return function(AccessKey)
 
     FlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     FlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
-    TouchFlingToggleBtn.MouseButton1Click:Connect(toggleTouchFling)
     SpeedWalkBtn.MouseButton1Click:Connect(toggleSpeedWalk)
 
     FlyToggleBtn.MouseButton1Click:Connect(toggleFly)
@@ -2385,6 +2440,10 @@ return function(AccessKey)
     ExtFlingSheriffToggleBtn.MouseButton1Click:Connect(toggleFlingSheriffExt)
     ExtFlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     ExtFlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
+
+    -- KONEKSI EVENT BARU: TOUCH FLING & ANTI FLING
+    TouchFlingBtn.MouseButton1Click:Connect(toggleTouchFling)
+    AntiFlingBtn.MouseButton1Click:Connect(toggleAntiFling)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
@@ -2425,4 +2484,3 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Unified Theme Successfully Initialized.")
 end
-
