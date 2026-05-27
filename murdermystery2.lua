@@ -1242,11 +1242,11 @@ return function(AccessKey)
         end)
     end
 
-    -- [[ TOMBOL UTAMA L (Floating Toggle) ]]
+    -- [[ TOMBOL UTAMA L (Floating Toggle) - POSISI DIPERBAIKI (LEBIH KE ATAS) ]]
     ToggleBtnMain = Instance.new("TextButton", ScreenGui)
     ToggleBtnMain.Name = "FloatingToggle"
     ToggleBtnMain.Size = UDim2.new(0, Settings.Size_L, 0, Settings.Size_L)
-    ToggleBtnMain.Position = UDim2.new(0, 20, 0.5, -25)
+    ToggleBtnMain.Position = UDim2.new(0, 20, 0.5, -110)
     ToggleBtnMain.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     ToggleBtnMain.BackgroundTransparency = 0.5
     ToggleBtnMain.Text = "L"
@@ -1262,11 +1262,11 @@ return function(AccessKey)
     RegisterDynamic(ToggleStroke, "Color")
     MakeDraggable(ToggleBtnMain)
 
-    -- [[ TOMBOL EXTERNAL AIMBOT ]]
+    -- [[ TOMBOL EXTERNAL AIMBOT - POSISI DIPERBAIKI (LEBIH KE ATAS) ]]
     local ExtAimbotBtn = Instance.new("TextButton", ScreenGui)
     ExtAimbotBtn.Name = "ExtAimbot"
     ExtAimbotBtn.Size = UDim2.new(0, Settings.Size_A, 0, Settings.Size_A)
-    ExtAimbotBtn.Position = UDim2.new(0, 20, 0.5, 35)
+    ExtAimbotBtn.Position = UDim2.new(0, 20, 0.5, -55)
     ExtAimbotBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     ExtAimbotBtn.Text = "A"
     ExtAimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1280,11 +1280,11 @@ return function(AccessKey)
     RegisterDynamic(ExtAimbotStroke, "Color")
     MakeDraggable(ExtAimbotBtn)
 
-    -- [[ TOMBOL EXTERNAL GRAB GUN ]]
+    -- [[ TOMBOL EXTERNAL GRAB GUN - POSISI DIPERBAIKI (LEBIH KE ATAS) ]]
     local ExtGrabBtn = Instance.new("TextButton", ScreenGui)
     ExtGrabBtn.Name = "ExtGrabGun"
     ExtGrabBtn.Size = UDim2.new(0, Settings.Size_G, 0, Settings.Size_G)
-    ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, 85)
+    ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, -10)
     ExtGrabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     ExtGrabBtn.Text = "G"
     ExtGrabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1298,11 +1298,11 @@ return function(AccessKey)
     RegisterDynamic(ExtGrabStroke, "Color")
     MakeDraggable(ExtGrabBtn)
 
-    -- [[ TOMBOL EXTERNAL DOUBLE JUMP ]]
+    -- [[ TOMBOL EXTERNAL DOUBLE JUMP - POSISI DIPERBAIKI (LEBIH KE ATAS) ]]
     local ExtDoubleJumpBtn = Instance.new("TextButton", ScreenGui)
     ExtDoubleJumpBtn.Name = "ExtDoubleJump"
     ExtDoubleJumpBtn.Size = UDim2.new(0, Settings.Size_DJ, 0, Settings.Size_DJ)
-    ExtDoubleJumpBtn.Position = UDim2.new(0, 20, 0.5, 135)
+    ExtDoubleJumpBtn.Position = UDim2.new(0, 20, 0.5, 35)
     ExtDoubleJumpBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     ExtDoubleJumpBtn.Text = "DJ"
     ExtDoubleJumpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1316,11 +1316,11 @@ return function(AccessKey)
     RegisterDynamic(ExtDoubleJumpStroke, "Color")
     MakeDraggable(ExtDoubleJumpBtn)
 
-    -- [[ TOMBOL EXTERNAL SPIN ]]
+    -- [[ TOMBOL EXTERNAL SPIN - POSISI DIPERBAIKI (LEBIH KE ATAS & RAPAT) ]]
     local ExtSpinBtn = Instance.new("TextButton", ScreenGui)
     ExtSpinBtn.Name = "ExtSpin"
     ExtSpinBtn.Size = UDim2.new(0, Settings.Size_S, 0, Settings.Size_S)
-    ExtSpinBtn.Position = UDim2.new(0, 20, 0.5, 185)
+    ExtSpinBtn.Position = UDim2.new(0, 20, 0.5, 80)
     ExtSpinBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     ExtSpinBtn.Text = "S"
     ExtSpinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
