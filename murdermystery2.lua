@@ -205,6 +205,7 @@ return function(AccessKey)
         HideFOVCircle = false,
         AutoFlingMurder = false,
         AutoFlingSheriff = false,
+        AntiFling = false, -- Konfigurasi Anti Fling
         SpeedWalkEnabled = false,
         SpeedWalkValue = 16,
         AimbotExtEnabled = false,
@@ -711,7 +712,7 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ VELOCITY LIMITER ENGINE ]]
+    -- [[ VELOCITY LIMITER & ANTI FLING ENGINE ]]
     -- ========================================================================
     SafeConnect(RunService.Heartbeat, function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -720,6 +721,22 @@ return function(AccessKey)
             if hum.FloorMaterial == Enum.Material.Air and root.Velocity.Magnitude > 100 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then 
                 root.Velocity = root.Velocity.Unit * 100 
             end
+        end
+    end)
+
+    SafeConnect(RunService.Stepped, function()
+        if Settings.AntiFling then
+            pcall(function()
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        for _, part in ipairs(player.Character:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end)
         end
     end)
 
@@ -1842,7 +1859,7 @@ return function(AccessKey)
 
 
     -- BOX 4: FLING SYSTEM
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 125)
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 143)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
@@ -1867,6 +1884,9 @@ return function(AccessKey)
         updateExternalButtonSizes()
     end)
     sliderFM.LayoutOrder = 6
+
+    local AntiFlingBtn = createBtn("ANTI FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    AntiFlingBtn.Parent = BoxFling; AntiFlingBtn.LayoutOrder = 7
 
 
     -- BOX 5: GRAB GUN SYSTEM
@@ -2238,6 +2258,12 @@ return function(AccessKey)
         _G.SyncFlingButtons()
     end
 
+    local function toggleAntiFling()
+        Settings.AntiFling = not Settings.AntiFling
+        AntiFlingBtn.Text = Settings.AntiFling and "ANTI FLING: ON" or "ANTI FLING: OFF"
+        SetToggleState(AntiFlingBtn, Settings.AntiFling)
+    end
+
     local function toggleSpeedWalk()
         Settings.SpeedWalkEnabled = not Settings.SpeedWalkEnabled
         SpeedWalkBtn.Text = Settings.SpeedWalkEnabled and "SPEED WALK: ON" or "SPEED WALK: OFF"
@@ -2328,6 +2354,7 @@ return function(AccessKey)
 
     FlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     FlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
+    AntiFlingBtn.MouseButton1Click:Connect(toggleAntiFling)
     SpeedWalkBtn.MouseButton1Click:Connect(toggleSpeedWalk)
 
     FlyToggleBtn.MouseButton1Click:Connect(toggleFly)
