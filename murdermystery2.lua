@@ -31,9 +31,11 @@ return function(AccessKey)
 
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
     local function IntegrityCheck()
-        local test = tostring(game.HttpGet)
-        if not test:find("function") or test:find("custom") or test:find("hook") then
-            LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
+        local success, test = pcall(function() return tostring(game.HttpGet) end)
+        if not success or not test:find("function") or test:find("custom") or test:find("hook") then
+            if LocalPlayer then
+                LocalPlayer:Kick("LOUIS HUB: Security Violation (Hook Detected)")
+            end
             return false
         end
         return true
@@ -49,7 +51,17 @@ return function(AccessKey)
     -- ========================================================
     -- [[ MASALAH 1 & 2: RE-EXECUTION CLEANUP ENGINE ]]
     -- ========================================================
-    local oldGui = (gethui and gethui():FindFirstChild("LouisHub_FREE_Edition")) or game:GetService("CoreGui"):FindFirstChild("LouisHub_FREE_Edition")
+    local parentGui
+    pcall(function()
+        parentGui = (gethui and gethui()) or game:GetService("CoreGui")
+    end)
+    if not parentGui then
+        pcall(function()
+            parentGui = LocalPlayer:WaitForChild("PlayerGui")
+        end)
+    end
+
+    local oldGui = parentGui and parentGui:FindFirstChild("LouisHub_FREE_Edition")
     if oldGui then oldGui:Destroy() end
 
     if _G.LouisConnections then
@@ -73,6 +85,7 @@ return function(AccessKey)
     _G.LouisDrawings = {}
 
     local function SafeDrawing(className)
+        if not Drawing or not Drawing.new then return nil end
         local drawing = Drawing.new(className)
         table.insert(_G.LouisDrawings, drawing)
         return drawing
@@ -568,20 +581,24 @@ return function(AccessKey)
     -- [[ LOGIKA EMULASI TEKNIS AIMBOT & ROLE DETECTION (MM2) ]]
     -- ========================================================================
     local FOVCircle = SafeDrawing("Circle")
-    FOVCircle.Color = Color3.fromRGB(255, 0, 255)
-    FOVCircle.Thickness = 1.5
-    FOVCircle.NumSides = 60
-    FOVCircle.Radius = Settings.FOVSize
-    FOVCircle.Filled = false
-    FOVCircle.Visible = false
+    if FOVCircle then
+        FOVCircle.Color = Color3.fromRGB(255, 0, 255)
+        FOVCircle.Thickness = 1.5
+        FOVCircle.NumSides = 60
+        FOVCircle.Radius = Settings.FOVSize
+        FOVCircle.Filled = false
+        FOVCircle.Visible = false
+    end
 
     SafeConnect(RunService.RenderStepped, function()
-        if Settings.CameraAimbot and not Settings.HideFOVCircle then
-            FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-            FOVCircle.Radius = Settings.FOVSize
-            FOVCircle.Visible = true
-        else
-            FOVCircle.Visible = false
+        if FOVCircle then
+            if Settings.CameraAimbot and not Settings.HideFOVCircle then
+                FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                FOVCircle.Radius = Settings.FOVSize
+                FOVCircle.Visible = true
+            else
+                FOVCircle.Visible = false
+            end
         end
     end)
 
@@ -1144,8 +1161,10 @@ return function(AccessKey)
 
     local function ClearAllTracers()
         for _, tracer in pairs(ActiveTracers) do
-            tracer.Visible = false
-            tracer:Remove()
+            pcall(function()
+                tracer.Visible = false
+                tracer:Remove()
+            end)
         end
         ActiveTracers = {}
     end
@@ -1222,21 +1241,25 @@ return function(AccessKey)
                             local Tracer = ActiveTracers[Player.Name]
                             if not Tracer then
                                 Tracer = SafeDrawing("Line")
-                                Tracer.Thickness = 1.5
-                                Tracer.Transparency = 0.8
-                                ActiveTracers[Player.Name] = Tracer
+                                if Tracer then
+                                    Tracer.Thickness = 1.5
+                                    Tracer.Transparency = 0.8
+                                    ActiveTracers[Player.Name] = Tracer
+                                end
                             end
-                            Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                            Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
-                            Tracer.Color = TargetColor
-                            Tracer.Visible = true
+                            if Tracer then
+                                Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                                Tracer.To = Vector2.new(ScreenPos.X, ScreenPos.Y)
+                                Tracer.Color = TargetColor
+                                Tracer.Visible = true
+                            end
                         else
                             if ActiveTracers[Player.Name] then ActiveTracers[Player.Name].Visible = false end
                         end
                     else
                         if ActiveTracers[Player.Name] then
                             ActiveTracers[Player.Name].Visible = false
-                            ActiveTracers[Player.Name]:Remove()
+                            pcall(function() ActiveTracers[Player.Name]:Remove() end)
                             ActiveTracers[Player.Name] = nil
                         end
                     end
@@ -1250,7 +1273,7 @@ return function(AccessKey)
                 end
                 if ActiveTracers[Player.Name] then
                     ActiveTracers[Player.Name].Visible = false
-                    ActiveTracers[Player.Name]:Remove()
+                    pcall(function() ActiveTracers[Player.Name]:Remove() end)
                     ActiveTracers[Player.Name] = nil
                 end
             end
@@ -1268,7 +1291,7 @@ return function(AccessKey)
     -- ==========================================
     -- [[ 3. MAIN SCRIPT GUI & HUD STRUCT ]]
     -- ==========================================
-    local ScreenGui = Instance.new("ScreenGui", (gethui and gethui()) or game:GetService("CoreGui"))
+    local ScreenGui = Instance.new("ScreenGui", parentGui)
     ScreenGui.Name = "LouisHub_FREE_Edition"
     ScreenGui.ResetOnSpawn = false
 
@@ -1604,8 +1627,19 @@ return function(AccessKey)
         local b = createBtn(name, pos, UDim2.new(1, -10, 0, 18))
         b.Parent = InfoFrame; b.TextSize = 6; b.ZIndex = 11
         b.MouseButton1Click:Connect(function()
-            setclipboard(link)
-            local oldText = b.Text; b.Text = "COPIED!"; task.wait(1.5); b.Text = oldText
+            local success = pcall(function()
+                if setclipboard then
+                    setclipboard(link)
+                elseif toclipboard then
+                    toclipboard(link)
+                else
+                    error("Not supported")
+                end
+            end)
+            local oldText = b.Text
+            b.Text = success and "COPIED!" or "NOT SUPPORTED"
+            task.wait(1.5)
+            b.Text = oldText
         end)
     end
     createSocialBtn("DISCORD SERVER", "https://discord.gg/P2FEVBz2PG", UDim2.new(0, 5, 0, 25))
