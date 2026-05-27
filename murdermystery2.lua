@@ -239,7 +239,8 @@ return function(AccessKey)
         FlingMurderExtEnabled = false,
         FlingSheriffExtEnabled = false,
         Size_FM = 40,
-        Size_FS = 40
+        Size_FS = 40,
+        AntiFling = false -- Fitur Anti Fling
     }
 
     local OriginalFOV = Camera.FieldOfView
@@ -711,14 +712,39 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ VELOCITY LIMITER ENGINE ]]
+    -- [[ VELOCITY LIMITER & ANTI FLING ENGINE ]]
     -- ========================================================================
     SafeConnect(RunService.Heartbeat, function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local root = LocalPlayer.Character.HumanoidRootPart
             local hum = LocalPlayer.Character.Humanoid
+            
+            -- Velocity Limiter Standar
             if hum.FloorMaterial == Enum.Material.Air and root.Velocity.Magnitude > 100 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then 
                 root.Velocity = root.Velocity.Unit * 100 
+            end
+            
+            -- Anti Fling: Mencegah velocity melompat tinggi saat terkena dorongan pemain lain
+            if Settings.AntiFling and root.Velocity.Magnitude > 150 and not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then
+                root.Velocity = Vector3.new(0, 0, 0)
+                pcall(function() root.RotVelocity = Vector3.new(0, 0, 0) end)
+            end
+        end
+
+        -- Anti Fling: Menonaktifkan kolisi fisik dari karakter lain secara lokal agar tidak memicu glitch dorongan physics
+        if Settings.AntiFling then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    for _, part in ipairs(player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                            pcall(function()
+                                part.Velocity = Vector3.new(0, 0, 0)
+                                part.RotVelocity = Vector3.new(0, 0, 0)
+                            end)
+                        end
+                    end
+                end
             end
         end
     end)
@@ -1841,8 +1867,8 @@ return function(AccessKey)
     end)
 
 
-    -- BOX 4: FLING SYSTEM
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 125)
+    -- BOX 4: FLING SYSTEM (Ditambahkan Anti Fling)
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 144)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
@@ -1867,6 +1893,9 @@ return function(AccessKey)
         updateExternalButtonSizes()
     end)
     sliderFM.LayoutOrder = 6
+
+    local AntiFlingToggleBtn = createBtn("ANTI FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    AntiFlingToggleBtn.Parent = BoxFling; AntiFlingToggleBtn.LayoutOrder = 7
 
 
     -- BOX 5: GRAB GUN SYSTEM
@@ -2238,6 +2267,13 @@ return function(AccessKey)
         _G.SyncFlingButtons()
     end
 
+    -- Toggle Anti Fling
+    local function toggleAntiFling()
+        Settings.AntiFling = not Settings.AntiFling
+        AntiFlingToggleBtn.Text = Settings.AntiFling and "ANTI FLING: ON" or "ANTI FLING: OFF"
+        SetToggleState(AntiFlingToggleBtn, Settings.AntiFling)
+    end
+
     local function toggleSpeedWalk()
         Settings.SpeedWalkEnabled = not Settings.SpeedWalkEnabled
         SpeedWalkBtn.Text = Settings.SpeedWalkEnabled and "SPEED WALK: ON" or "SPEED WALK: OFF"
@@ -2328,6 +2364,7 @@ return function(AccessKey)
 
     FlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     FlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
+    AntiFlingToggleBtn.MouseButton1Click:Connect(toggleAntiFling)
     SpeedWalkBtn.MouseButton1Click:Connect(toggleSpeedWalk)
 
     FlyToggleBtn.MouseButton1Click:Connect(toggleFly)
