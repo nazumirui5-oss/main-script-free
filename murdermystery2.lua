@@ -194,10 +194,10 @@ return function(AccessKey)
         HitboxVisual = true,
         ESP = false,
         TracersESP = false,
-        NameESP = false,        -- FITUR BARU
-        EspInnocent = true,     -- FITUR BARU
-        EspSheriff = true,      -- FITUR BARU
-        EspMurderer = true,     -- FITUR BARU
+        NameESP = false,
+        EspInnocent = true,
+        EspSheriff = true,
+        EspMurderer = true,
         AutoGrabGun = false, 
         TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
@@ -222,16 +222,19 @@ return function(AccessKey)
         DoubleJumpEnabled = false,
         DoubleJumpExtEnabled = false,
         DragLocked = false,
-        -- Fitur Spin Baru
         SpinEnabled = false,
         SpinPower = 10,
         SpinExtEnabled = false,
         Size_S = 40,
-        -- Ukuran Tombol Eksternal
         Size_L = 50,
         Size_A = 40,
         Size_G = 40,
-        Size_DJ = 40
+        Size_DJ = 40,
+        -- Konfigurasi baru Teleport & Tombol Eksternal
+        TpSheriffExtEnabled = false,
+        TpMurderExtEnabled = false,
+        Size_TPS = 40,
+        Size_TPM = 40
     }
 
     local OriginalFOV = Camera.FieldOfView
@@ -288,7 +291,6 @@ return function(AccessKey)
 
     local function SetToggleState(btn, state)
         if state then
-            -- Hindari registrasi ganda
             for i = #DynamicThemeElements, 1, -1 do
                 local item = DynamicThemeElements[i]
                 if item.Instance == btn and item.Property == "BackgroundColor3" then
@@ -550,7 +552,6 @@ return function(AccessKey)
         if humanoid and root and humanoid.Health > 0 and Settings.DoubleJumpEnabled then
             if CanDoubleJump and not HasDoubleJumped then
                 HasDoubleJumped = true
-                -- Berikan velocity ke atas agar lompat sekali lagi
                 root.Velocity = Vector3.new(root.Velocity.X, humanoid.JumpPower * 1.15, root.Velocity.Z)
             end
         end
@@ -589,6 +590,19 @@ return function(AccessKey)
             return "Sheriff"
         end
         return "Innocent"
+    end
+
+    -- DETEKSI TARGET BERDASARKAN ROLE
+    local function GetTargetByRole(roleName)
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 and GetMM2Role(p) == roleName then
+                    return p
+                end
+            end
+        end
+        return nil
     end
 
     -- PENDETEKSIAN TARGET BARU: Pembunuh menargetkan Innocent/Sheriff
@@ -874,22 +888,31 @@ return function(AccessKey)
     end
 
     -- ========================================================================
+    -- [[ TELEPORT TO TARGET FUNCTIONS ]]
+    -- ========================================================================
+    local function TeleportToSheriff()
+        local target = GetTargetByRole("Sheriff")
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if root and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            root.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+        end
+    end
+
+    local function TeleportToMurderer()
+        local target = GetTargetByRole("Murderer")
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if root and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            root.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+        end
+    end
+
+    -- ========================================================================
     -- [[ CONSTRAINT-BASED FLY ENGINE, NOCLIP & INVISIBLE ]]
     -- ========================================================================
     local FlingFailsafeActive = false
     local OriginalCFrameBeforeFling = nil
-    
-    local function GetTargetByRole(roleName)
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                if hum and hum.Health > 0 and GetMM2Role(p) == roleName then
-                    return p
-                end
-            end
-        end
-        return nil
-    end
 
     SafeConnect(RunService.Heartbeat, function()
         local character = LocalPlayer.Character
@@ -1109,7 +1132,6 @@ return function(AccessKey)
                 if Root and Humanoid and Humanoid.Health > 0 then
                     local Role = GetMM2Role(Player)
                     
-                    -- Pengecekan Filter ESP
                     local passesFilter = false
                     if Role == "Murderer" and Settings.EspMurderer then
                         passesFilter = true
@@ -1242,7 +1264,7 @@ return function(AccessKey)
         end)
     end
 
-    -- [[ TOMBOL UTAMA L (Floating Toggle) - POSISI DIPERBAIKI (LEBIH KE ATAS) ]]
+    -- [[ TOMBOL UTAMA L (Floating Toggle) ]]
     ToggleBtnMain = Instance.new("TextButton", ScreenGui)
     ToggleBtnMain.Name = "FloatingToggle"
     ToggleBtnMain.Size = UDim2.new(0, Settings.Size_L, 0, Settings.Size_L)
@@ -1262,7 +1284,9 @@ return function(AccessKey)
     RegisterDynamic(ToggleStroke, "Color")
     MakeDraggable(ToggleBtnMain)
 
-    -- [[ TOMBOL EXTERNAL AIMBOT - POSISI DIPERBAIKI (LEBIH KE ATAS) ]]
+    -- [[ KOLOM 1 TOMBOL EKSTERNAL ]]
+
+    -- [[ TOMBOL EXTERNAL AIMBOT ]]
     local ExtAimbotBtn = Instance.new("TextButton", ScreenGui)
     ExtAimbotBtn.Name = "ExtAimbot"
     ExtAimbotBtn.Size = UDim2.new(0, Settings.Size_A, 0, Settings.Size_A)
@@ -1276,11 +1300,10 @@ return function(AccessKey)
     Instance.new("UICorner", ExtAimbotBtn).CornerRadius = UDim.new(1, 0)
     local ExtAimbotStroke = Instance.new("UIStroke", ExtAimbotBtn)
     ExtAimbotStroke.Thickness = 1.5
-
     RegisterDynamic(ExtAimbotStroke, "Color")
     MakeDraggable(ExtAimbotBtn)
 
-    -- [[ TOMBOL EXTERNAL GRAB GUN - POSISI DIPERBAIKI (LEBIH KE ATAS) ]]
+    -- [[ TOMBOL EXTERNAL GRAB GUN ]]
     local ExtGrabBtn = Instance.new("TextButton", ScreenGui)
     ExtGrabBtn.Name = "ExtGrabGun"
     ExtGrabBtn.Size = UDim2.new(0, Settings.Size_G, 0, Settings.Size_G)
@@ -1294,11 +1317,10 @@ return function(AccessKey)
     Instance.new("UICorner", ExtGrabBtn).CornerRadius = UDim.new(1, 0)
     local ExtGrabStroke = Instance.new("UIStroke", ExtGrabBtn)
     ExtGrabStroke.Thickness = 1.5
-
     RegisterDynamic(ExtGrabStroke, "Color")
     MakeDraggable(ExtGrabBtn)
 
-    -- [[ TOMBOL EXTERNAL DOUBLE JUMP - POSISI DIPERBAIKI (LEBIH KE ATAS) ]]
+    -- [[ TOMBOL EXTERNAL DOUBLE JUMP ]]
     local ExtDoubleJumpBtn = Instance.new("TextButton", ScreenGui)
     ExtDoubleJumpBtn.Name = "ExtDoubleJump"
     ExtDoubleJumpBtn.Size = UDim2.new(0, Settings.Size_DJ, 0, Settings.Size_DJ)
@@ -1312,11 +1334,10 @@ return function(AccessKey)
     Instance.new("UICorner", ExtDoubleJumpBtn).CornerRadius = UDim.new(1, 0)
     local ExtDoubleJumpStroke = Instance.new("UIStroke", ExtDoubleJumpBtn)
     ExtDoubleJumpStroke.Thickness = 1.5
-
     RegisterDynamic(ExtDoubleJumpStroke, "Color")
     MakeDraggable(ExtDoubleJumpBtn)
 
-    -- [[ TOMBOL EXTERNAL SPIN - POSISI DIPERBAIKI (LEBIH KE ATAS & RAPAT) ]]
+    -- [[ TOMBOL EXTERNAL SPIN ]]
     local ExtSpinBtn = Instance.new("TextButton", ScreenGui)
     ExtSpinBtn.Name = "ExtSpin"
     ExtSpinBtn.Size = UDim2.new(0, Settings.Size_S, 0, Settings.Size_S)
@@ -1330,9 +1351,46 @@ return function(AccessKey)
     Instance.new("UICorner", ExtSpinBtn).CornerRadius = UDim.new(1, 0)
     local ExtSpinStroke = Instance.new("UIStroke", ExtSpinBtn)
     ExtSpinStroke.Thickness = 1.5
-
     RegisterDynamic(ExtSpinStroke, "Color")
     MakeDraggable(ExtSpinBtn)
+
+
+    -- [[ KOLOM 2 TOMBOL EKSTERNAL (FLEXIBLE / MOBILE FRIENDLY) ]]
+
+    -- [[ TOMBOL EXTERNAL TP SHERIFF ]]
+    local ExtTpSheriffBtn = Instance.new("TextButton", ScreenGui)
+    ExtTpSheriffBtn.Name = "ExtTpSheriff"
+    ExtTpSheriffBtn.Size = UDim2.new(0, Settings.Size_TPS, 0, Settings.Size_TPS)
+    ExtTpSheriffBtn.Position = UDim2.new(0, 70, 0.5, -55) -- Sebelah Aimbot
+    ExtTpSheriffBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtTpSheriffBtn.Text = "TS"
+    ExtTpSheriffBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtTpSheriffBtn.Font = Enum.Font.GothamBold
+    ExtTpSheriffBtn.TextSize = 18
+    ExtTpSheriffBtn.Visible = false
+    Instance.new("UICorner", ExtTpSheriffBtn).CornerRadius = UDim.new(1, 0)
+    local ExtTpSheriffStroke = Instance.new("UIStroke", ExtTpSheriffBtn)
+    ExtTpSheriffStroke.Thickness = 1.5
+    RegisterDynamic(ExtTpSheriffStroke, "Color")
+    MakeDraggable(ExtTpSheriffBtn)
+
+    -- [[ TOMBOL EXTERNAL TP MURDERER ]]
+    local ExtTpMurderBtn = Instance.new("TextButton", ScreenGui)
+    ExtTpMurderBtn.Name = "ExtTpMurder"
+    ExtTpMurderBtn.Size = UDim2.new(0, Settings.Size_TPM, 0, Settings.Size_TPM)
+    ExtTpMurderBtn.Position = UDim2.new(0, 70, 0.5, -10) -- Sebelah Grab Gun
+    ExtTpMurderBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtTpMurderBtn.Text = "TM"
+    ExtTpMurderBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtTpMurderBtn.Font = Enum.Font.GothamBold
+    ExtTpMurderBtn.TextSize = 18
+    ExtTpMurderBtn.Visible = false
+    Instance.new("UICorner", ExtTpMurderBtn).CornerRadius = UDim.new(1, 0)
+    local ExtTpMurderStroke = Instance.new("UIStroke", ExtTpMurderBtn)
+    ExtTpMurderStroke.Thickness = 1.5
+    RegisterDynamic(ExtTpMurderStroke, "Color")
+    MakeDraggable(ExtTpMurderBtn)
+
 
     -- UPDATE UKURAN TOMBOL EKSTERNAL DARI SLIDER
     local function updateExternalButtonSizes()
@@ -1341,6 +1399,8 @@ return function(AccessKey)
         ExtGrabBtn.Size = UDim2.new(0, Settings.Size_G, 0, Settings.Size_G)
         ExtDoubleJumpBtn.Size = UDim2.new(0, Settings.Size_DJ, 0, Settings.Size_DJ)
         ExtSpinBtn.Size = UDim2.new(0, Settings.Size_S, 0, Settings.Size_S)
+        ExtTpSheriffBtn.Size = UDim2.new(0, Settings.Size_TPS, 0, Settings.Size_TPS)
+        ExtTpMurderBtn.Size = UDim2.new(0, Settings.Size_TPM, 0, Settings.Size_TPM)
     end
 
     -- [[ HUD ELEMENTS ]]
@@ -1440,7 +1500,7 @@ return function(AccessKey)
     HubLabel.TextSize = 6.5
     RegisterDynamic(HubLabel, "TextColor3")
 
-    -- [[ PINDAHKAN LOCK / UNLOCK DI SAMPING TOMBOL INFO ]]
+    -- PINDAHKAN LOCK / UNLOCK DI SAMPING TOMBOL INFO
     local LockDragBtn = createBtn("🔓", UDim2.new(0, 105, 0, 4), UDim2.new(0, 20, 0, 14), Color3.fromRGB(25, 25, 30))
     LockDragBtn.Parent = MainFrame; LockDragBtn.TextSize = 10
     RegisterDynamic(LockDragBtn, "TextColor3")
@@ -1709,7 +1769,7 @@ return function(AccessKey)
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
 
-    -- BOX 2: AIM UTAMA (DENGAN SLIDER UKURAN TOMBOL EKSTERNAL 'A')
+    -- BOX 2: AIM UTAMA
     local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 64)
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ToggleBtn.Parent = BoxAim; ToggleBtn.LayoutOrder = 1
@@ -1749,7 +1809,7 @@ return function(AccessKey)
     FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
 
 
-    -- BOX 5: GRAB GUN SYSTEM (DENGAN SLIDER UKURAN TOMBOL EKSTERNAL 'G')
+    -- BOX 5: GRAB GUN SYSTEM
     local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 64)
     local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     GrabBtn.Parent = BoxGrab; GrabBtn.LayoutOrder = 1
@@ -1763,8 +1823,7 @@ return function(AccessKey)
     end)
 
 
-    -- [[ PINDAHKAN GRUP DOUBLE JUMP KE COMBAT ]]
-    -- BOX 6: DOUBLE JUMP SYSTEM (DENGAN SLIDER UKURAN TOMBOL EKSTERNAL 'DJ')
+    -- BOX 6: DOUBLE JUMP SYSTEM
     local BoxDoubleJump = createGroupContainer("Combat", "Double Jump System", 64)
     local DoubleJumpToggleBtn = createBtn("DOUBLE JUMP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     DoubleJumpToggleBtn.Parent = BoxDoubleJump; DoubleJumpToggleBtn.LayoutOrder = 1
@@ -1778,6 +1837,34 @@ return function(AccessKey)
     end)
 
 
+    -- [[ BOX BARU 7: PLAYER TELEPORTS ]]
+    local BoxTeleport = createGroupContainer("Combat", "Player Teleports", 125)
+    
+    local TpSheriffBtn = createBtn("TELEPORT TO SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    TpSheriffBtn.Parent = BoxTeleport; TpSheriffBtn.LayoutOrder = 1
+    
+    local TpMurderBtn = createBtn("TELEPORT TO MURDERER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    TpMurderBtn.Parent = BoxTeleport; TpMurderBtn.LayoutOrder = 2
+    
+    local ExtTpSheriffToggleBtn = createBtn("TP SHERIFF (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    ExtTpSheriffToggleBtn.Parent = BoxTeleport; ExtTpSheriffToggleBtn.LayoutOrder = 3
+    
+    local sliderTPS = createSlider(BoxTeleport, "BUTTON 'TS' SIZE: %d", 20, 100, Settings.Size_TPS, function(val)
+        Settings.Size_TPS = val
+        updateExternalButtonSizes()
+    end)
+    sliderTPS.LayoutOrder = 4
+    
+    local ExtTpMurderToggleBtn = createBtn("TP MURDER (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    ExtTpMurderToggleBtn.Parent = BoxTeleport; ExtTpMurderToggleBtn.LayoutOrder = 5
+    
+    local sliderTPM = createSlider(BoxTeleport, "BUTTON 'TM' SIZE: %d", 20, 100, Settings.Size_TPM, function(val)
+        Settings.Size_TPM = val
+        updateExternalButtonSizes()
+    end)
+    sliderTPM.LayoutOrder = 6
+
+
     -- --- TAB 3: ESP ---
     local BoxESP = createGroupContainer("ESP", "Visual & Hitbox Hack", 172)
     local EspBtn = createBtn("[X] ESP + GUN DROP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1786,11 +1873,9 @@ return function(AccessKey)
     local TracersEspBtn = createBtn("TRACERS ESP LINE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     TracersEspBtn.Parent = BoxESP; TracersEspBtn.LayoutOrder = 2
 
-    -- TAMBAH NAME ESP
     local NameEspBtn = createBtn("NAME ESP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     NameEspBtn.Parent = BoxESP; NameEspBtn.LayoutOrder = 3
 
-    -- TAMBAH FILTER ESP (MURDERER, SHERIFF, INNOCENT)
     local FilterMurderBtn = createBtn("FILTER: MURDERER (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FilterMurderBtn.Parent = BoxESP; FilterMurderBtn.LayoutOrder = 4
     SetToggleState(FilterMurderBtn, true)
@@ -1817,7 +1902,7 @@ return function(AccessKey)
 
     -- --- TAB 4: UTILITY ---
     
-    -- BOX 1: WALKSPEED MODIFIER (PINDAHAN)
+    -- BOX 1: WALKSPEED MODIFIER
     local BoxSpeed = createGroupContainer("Utility", "Walkspeed Modifier", 46)
     local SpeedWalkBtn = createBtn("SPEED WALK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     SpeedWalkBtn.Parent = BoxSpeed; SpeedWalkBtn.LayoutOrder = 1
@@ -1826,7 +1911,7 @@ return function(AccessKey)
         Settings.SpeedWalkValue = val
     end)
 
-    -- BOX 2: JUMP MODIFIER (PINDAHAN)
+    -- BOX 2: JUMP MODIFIER
     local BoxPlayerJump = createGroupContainer("Utility", "Jump Power Modifier", 46)
     local JumpToggleBtn = createBtn("JUMP HEIGHT MOD: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     JumpToggleBtn.Parent = BoxPlayerJump; JumpToggleBtn.LayoutOrder = 1
@@ -1835,7 +1920,7 @@ return function(AccessKey)
         Settings.JumpPowerValue = val
     end)
 
-    -- BOX 3: FLY & NOCLIP (PINDAHAN)
+    -- BOX 3: FLY & NOCLIP
     local BoxFlyNoclip = createGroupContainer("Utility", "No Clip & Fly Hack", 64)
     local FlyToggleBtn = createBtn("FLY HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlyToggleBtn.Parent = BoxFlyNoclip; FlyToggleBtn.LayoutOrder = 1
@@ -1852,14 +1937,14 @@ return function(AccessKey)
     local InvisibleToggleBtn = createBtn("INVISIBLE HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     InvisibleToggleBtn.Parent = BoxInvisible; InvisibleToggleBtn.LayoutOrder = 1
 
-    -- BOX 5: FLOATING BUTTON 'L' SIZE SLIDER (FITUR BARU)
+    -- BOX 5: FLOATING BUTTON 'L' SIZE SLIDER
     local BoxUIControls = createGroupContainer("Utility", "UI Button Settings", 28)
     createSlider(BoxUIControls, "BUTTON 'L' SIZE: %d", 20, 100, Settings.Size_L, function(val)
         Settings.Size_L = val
         updateExternalButtonSizes()
     end)
 
-    -- BOX 6: SPIN BOT SYSTEM (FITUR BARU)
+    -- BOX 6: SPIN BOT SYSTEM
     local BoxSpin = createGroupContainer("Utility", "Spin Bot System", 82)
     local SpinToggleBtn = createBtn("SPIN BOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     SpinToggleBtn.Parent = BoxSpin; SpinToggleBtn.LayoutOrder = 1
@@ -1900,6 +1985,8 @@ return function(AccessKey)
             if Settings.GrabGunExtEnabled then ExtGrabBtn.Visible = true end
             if Settings.DoubleJumpExtEnabled then ExtDoubleJumpBtn.Visible = true end
             if Settings.SpinExtEnabled then ExtSpinBtn.Visible = true end
+            if Settings.TpSheriffExtEnabled then ExtTpSheriffBtn.Visible = true end
+            if Settings.TpMurderExtEnabled then ExtTpMurderBtn.Visible = true end
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 160, 0, 0)})
             t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
@@ -1909,6 +1996,8 @@ return function(AccessKey)
             ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
             ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
             ExtSpinBtn.Visible = Settings.SpinExtEnabled
+            ExtTpSheriffBtn.Visible = Settings.TpSheriffExtEnabled
+            ExtTpMurderBtn.Visible = Settings.TpMurderExtEnabled
         end
     end)
 
@@ -1967,7 +2056,6 @@ return function(AccessKey)
         if not Settings.TracersESP then ClearAllTracers() end
     end
 
-    -- TOGGLE & LOGIKA FILTER BARU
     local function toggleNameEsp()
         Settings.NameESP = not Settings.NameESP
         NameEspBtn.Text = Settings.NameESP and "NAME ESP: ON" or "NAME ESP: OFF"
@@ -2118,6 +2206,21 @@ return function(AccessKey)
         ExtSpinBtn.Visible = Settings.SpinExtEnabled
     end
 
+    -- TOGGLE TELEPORT BARU
+    local function toggleTpSheriffExt()
+        Settings.TpSheriffExtEnabled = not Settings.TpSheriffExtEnabled
+        ExtTpSheriffToggleBtn.Text = Settings.TpSheriffExtEnabled and "TP SHERIFF (EXT): ON" or "TP SHERIFF (EXT): OFF"
+        SetToggleState(ExtTpSheriffToggleBtn, Settings.TpSheriffExtEnabled)
+        ExtTpSheriffBtn.Visible = Settings.TpSheriffExtEnabled
+    end
+
+    local function toggleTpMurderExt()
+        Settings.TpMurderExtEnabled = not Settings.TpMurderExtEnabled
+        ExtTpMurderToggleBtn.Text = Settings.TpMurderExtEnabled and "TP MURDER (EXT): ON" or "TP MURDER (EXT): OFF"
+        SetToggleState(ExtTpMurderToggleBtn, Settings.TpMurderExtEnabled)
+        ExtTpMurderBtn.Visible = Settings.TpMurderExtEnabled
+    end
+
     -- KONEKSI EVENT KE TOMBOL-TOMBOL FITUR
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
@@ -2157,6 +2260,14 @@ return function(AccessKey)
     SpinToggleBtn.MouseButton1Click:Connect(toggleSpin)
     SpinExtToggleBtn.MouseButton1Click:Connect(toggleSpinExt)
     ExtSpinBtn.MouseButton1Click:Connect(toggleSpin)
+
+    -- KONEKSI TELEPORTASI & TOMBOL BARU
+    TpSheriffBtn.MouseButton1Click:Connect(TeleportToSheriff)
+    TpMurderBtn.MouseButton1Click:Connect(TeleportToMurderer)
+    ExtTpSheriffToggleBtn.MouseButton1Click:Connect(toggleTpSheriffExt)
+    ExtTpMurderToggleBtn.MouseButton1Click:Connect(toggleTpMurderExt)
+    ExtTpSheriffBtn.MouseButton1Click:Connect(TeleportToSheriff)
+    ExtTpMurderBtn.MouseButton1Click:Connect(TeleportToMurderer)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
