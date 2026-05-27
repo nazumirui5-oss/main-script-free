@@ -222,6 +222,11 @@ return function(AccessKey)
         DoubleJumpEnabled = false,
         DoubleJumpExtEnabled = false,
         DragLocked = false,
+        -- Fitur Spin Baru
+        SpinEnabled = false,
+        SpinPower = 10,
+        SpinExtEnabled = false,
+        Size_S = 40,
         -- Ukuran Tombol Eksternal
         Size_L = 50,
         Size_A = 40,
@@ -910,6 +915,10 @@ return function(AccessKey)
                     humanoid.WalkSpeed = Settings.SpeedWalkValue
                 end
 
+                if Settings.SpinEnabled then
+                    root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(Settings.SpinPower), 0)
+                end
+
                 if Settings.JumpPowerEnabled then
                     humanoid.JumpPower = Settings.JumpPowerValue
                     humanoid.UseJumpPower = true
@@ -1307,12 +1316,31 @@ return function(AccessKey)
     RegisterDynamic(ExtDoubleJumpStroke, "Color")
     MakeDraggable(ExtDoubleJumpBtn)
 
+    -- [[ TOMBOL EXTERNAL SPIN ]]
+    local ExtSpinBtn = Instance.new("TextButton", ScreenGui)
+    ExtSpinBtn.Name = "ExtSpin"
+    ExtSpinBtn.Size = UDim2.new(0, Settings.Size_S, 0, Settings.Size_S)
+    ExtSpinBtn.Position = UDim2.new(0, 20, 0.5, 185)
+    ExtSpinBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtSpinBtn.Text = "S"
+    ExtSpinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtSpinBtn.Font = Enum.Font.GothamBold
+    ExtSpinBtn.TextSize = 18
+    ExtSpinBtn.Visible = false
+    Instance.new("UICorner", ExtSpinBtn).CornerRadius = UDim.new(1, 0)
+    local ExtSpinStroke = Instance.new("UIStroke", ExtSpinBtn)
+    ExtSpinStroke.Thickness = 1.5
+
+    RegisterDynamic(ExtSpinStroke, "Color")
+    MakeDraggable(ExtSpinBtn)
+
     -- UPDATE UKURAN TOMBOL EKSTERNAL DARI SLIDER
     local function updateExternalButtonSizes()
         ToggleBtnMain.Size = UDim2.new(0, Settings.Size_L, 0, Settings.Size_L)
         ExtAimbotBtn.Size = UDim2.new(0, Settings.Size_A, 0, Settings.Size_A)
         ExtGrabBtn.Size = UDim2.new(0, Settings.Size_G, 0, Settings.Size_G)
         ExtDoubleJumpBtn.Size = UDim2.new(0, Settings.Size_DJ, 0, Settings.Size_DJ)
+        ExtSpinBtn.Size = UDim2.new(0, Settings.Size_S, 0, Settings.Size_S)
     end
 
     -- [[ HUD ELEMENTS ]]
@@ -1831,6 +1859,23 @@ return function(AccessKey)
         updateExternalButtonSizes()
     end)
 
+    -- BOX 6: SPIN BOT SYSTEM (FITUR BARU)
+    local BoxSpin = createGroupContainer("Utility", "Spin Bot System", 82)
+    local SpinToggleBtn = createBtn("SPIN BOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    SpinToggleBtn.Parent = BoxSpin; SpinToggleBtn.LayoutOrder = 1
+
+    local SpinExtToggleBtn = createBtn("SPIN BOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    SpinExtToggleBtn.Parent = BoxSpin; SpinExtToggleBtn.LayoutOrder = 2
+
+    createSlider(BoxSpin, "SPIN POWER: %d", 1, 100, Settings.SpinPower, function(val)
+        Settings.SpinPower = val
+    end)
+
+    createSlider(BoxSpin, "BUTTON 'S' SIZE: %d", 20, 100, Settings.Size_S, function(val)
+        Settings.Size_S = val
+        updateExternalButtonSizes()
+    end)
+
 
     -- ========================================================================
     -- [[ CLOSING / OPENING BAR MAIN CONTROLLER ]]
@@ -1854,6 +1899,7 @@ return function(AccessKey)
             if Settings.AimbotExtEnabled then ExtAimbotBtn.Visible = true end
             if Settings.GrabGunExtEnabled then ExtGrabBtn.Visible = true end
             if Settings.DoubleJumpExtEnabled then ExtDoubleJumpBtn.Visible = true end
+            if Settings.SpinExtEnabled then ExtSpinBtn.Visible = true end
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 160, 0, 0)})
             t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
@@ -1862,6 +1908,7 @@ return function(AccessKey)
             ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
             ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
             ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
+            ExtSpinBtn.Visible = Settings.SpinExtEnabled
         end
     end)
 
@@ -2057,6 +2104,20 @@ return function(AccessKey)
         ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
     end
 
+    local function toggleSpin()
+        Settings.SpinEnabled = not Settings.SpinEnabled
+        SpinToggleBtn.Text = Settings.SpinEnabled and "SPIN BOT: ON" or "SPIN BOT: OFF"
+        SetToggleState(SpinToggleBtn, Settings.SpinEnabled)
+        SetToggleState(ExtSpinBtn, Settings.SpinEnabled)
+    end
+
+    local function toggleSpinExt()
+        Settings.SpinExtEnabled = not Settings.SpinExtEnabled
+        SpinExtToggleBtn.Text = Settings.SpinExtEnabled and "SPIN BOT (EXT): ON" or "SPIN BOT (EXT): OFF"
+        SetToggleState(SpinExtToggleBtn, Settings.SpinExtEnabled)
+        ExtSpinBtn.Visible = Settings.SpinExtEnabled
+    end
+
     -- KONEKSI EVENT KE TOMBOL-TOMBOL FITUR
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
@@ -2092,6 +2153,10 @@ return function(AccessKey)
     DoubleJumpToggleBtn.MouseButton1Click:Connect(toggleDoubleJump)
     DoubleJumpExtToggleBtn.MouseButton1Click:Connect(toggleDoubleJumpExt)
     ExtDoubleJumpBtn.MouseButton1Click:Connect(toggleDoubleJump)
+
+    SpinToggleBtn.MouseButton1Click:Connect(toggleSpin)
+    SpinExtToggleBtn.MouseButton1Click:Connect(toggleSpinExt)
+    ExtSpinBtn.MouseButton1Click:Connect(toggleSpin)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
