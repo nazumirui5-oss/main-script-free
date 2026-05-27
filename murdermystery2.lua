@@ -1,6 +1,6 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
 -- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
--- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
+-- VERSION: 13.5.2 (Security Sync Update - MM2 Edition with Anti-Fling)
 
 return function(AccessKey)
     local Players = game:GetService("Players")
@@ -240,8 +240,7 @@ return function(AccessKey)
         FlingSheriffExtEnabled = false,
         Size_FM = 40,
         Size_FS = 40,
-        -- Sistem Anti-Fling
-        AntiFlingEnabled = false
+        AntiFlingEnabled = false -- Integrated Anti-Fling setting
     }
 
     local OriginalFOV = Camera.FieldOfView
@@ -353,7 +352,7 @@ return function(AccessKey)
         local profileImage = Instance.new("ImageLabel", profileFrame)
         profileImage.Size = UDim2.new(0, 55, 0, 55)
         profileImage.Position = UDim2.new(0, 0, 0.5, -27)
-        profileImage.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+        profileImage.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
         profileImage.BorderSizePixel = 0
         profileImage.ImageTransparency = 1 
         profileImage.BackgroundTransparency = 1
@@ -726,23 +725,25 @@ return function(AccessKey)
     end)
 
     -- ========================================================================
-    -- [[ ANTI FLING ENGINE ]]
+    -- [[ ANTI-FLING ENGINE ]]
     -- ========================================================================
     SafeConnect(RunService.Stepped, function()
-        if not Settings.AntiFlingEnabled then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-
-        local VELOCITY_THRESHOLD = 75 
-
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local root = player.Character:FindFirstChild("HumanoidRootPart")
-                if root then
-                    local linearVel = root.AssemblyLinearVelocity or root.Velocity or Vector3.new()
-                    local angularVel = root.AssemblyAngularVelocity or root.RotVelocity or Vector3.new()
-
-                    if linearVel.Magnitude > VELOCITY_THRESHOLD or angularVel.Magnitude > VELOCITY_THRESHOLD then
+        local character = LocalPlayer.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        
+        if Settings.AntiFlingEnabled and root then
+            -- Mencegah konflik dengan fitur Fling buatan sendiri
+            if not Settings.AutoFlingMurder and not Settings.AutoFlingSheriff then
+                
+                -- Redam kecepatan jika melonjak drastis karena ditabrak fling pemain lain
+                if root.Velocity.Magnitude > 80 or root.RotVelocity.Magnitude > 80 then
+                    root.Velocity = Vector3.new(0, 0, 0)
+                    root.RotVelocity = Vector3.new(0, 0, 0)
+                end
+                
+                -- Nonaktifkan kolisi dengan semua pemain lain secara instan
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
                         for _, part in ipairs(player.Character:GetDescendants()) do
                             if part:IsA("BasePart") then
                                 part.CanCollide = false
@@ -750,15 +751,7 @@ return function(AccessKey)
                         end
                     end
                 end
-            end
-        end
-
-        local localRoot = char:FindFirstChild("HumanoidRootPart")
-        if localRoot then
-            local currentVel = localRoot.AssemblyLinearVelocity or localRoot.Velocity or Vector3.new()
-            if currentVel.Magnitude > 250 then
-                localRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                localRoot.Velocity = Vector3.new(0, 0, 0)
+                
             end
         end
     end)
@@ -1526,7 +1519,7 @@ return function(AccessKey)
 
     local PotatoToggle = Instance.new("TextButton", HUDFrame)
     PotatoToggle.Size = UDim2.new(0, 30, 0, 25); PotatoToggle.Position = UDim2.new(1, -35, 0.5, -12.5)
-    PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30); PotatoToggle.Text = "🍃"; PotatoToggle.TextColor3 = Color3.new(1, 1, 1)
+    PotatoToggle.BackgroundColor3 = Color3.fromRGB(30, 30, 35); PotatoToggle.Text = "🍃"; PotatoToggle.TextColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", PotatoToggle)
     local PotatoStroke = Instance.new("UIStroke", PotatoToggle)
     PotatoStroke.Color = Color3.fromRGB(100, 100, 100)
@@ -2032,10 +2025,13 @@ return function(AccessKey)
     local NoclipToggleBtn = createBtn("NOCLIP (WALK THRU WALLS): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     NoclipToggleBtn.Parent = BoxFlyNoclip; NoclipToggleBtn.LayoutOrder = 3
 
-    -- BOX 4: INVISIBILITY
-    local BoxInvisible = createGroupContainer("Utility", "Invisibility", 28)
+    -- BOX 4: INVISIBILITY & ANTI-FLING
+    local BoxInvisible = createGroupContainer("Utility", "Invisibility & Anti-Fling", 46)
     local InvisibleToggleBtn = createBtn("INVISIBLE HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     InvisibleToggleBtn.Parent = BoxInvisible; InvisibleToggleBtn.LayoutOrder = 1
+
+    local AntiFlingToggleBtn = createBtn("ANTI-FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    AntiFlingToggleBtn.Parent = BoxInvisible; AntiFlingToggleBtn.LayoutOrder = 2
 
     -- BOX 5: FLOATING BUTTON 'L' SIZE SLIDER
     local BoxUIControls = createGroupContainer("Utility", "UI Button Settings", 28)
@@ -2061,15 +2057,10 @@ return function(AccessKey)
         updateExternalButtonSizes()
     end)
 
-    -- BOX 7: ANTI FLING SYSTEM
-    local BoxAntiFling = createGroupContainer("Utility", "Anti Fling System", 28)
-    local AntiFlingToggleBtn = createBtn("ANTI FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    AntiFlingToggleBtn.Parent = BoxAntiFling; AntiFlingToggleBtn.LayoutOrder = 1
 
-
-    -- ========================================================================
+    -- ==========================================
     -- [[ CLOSING / OPENING BAR MAIN CONTROLLER ]]
-    -- ========================================================================
+    -- ==========================================
     local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.fromRGB(15, 15, 20))
     CloseBar.Parent = MainFrame; CloseBar.TextSize = 6
     RegisterDynamic(CloseBar, "TextColor3")
@@ -2348,13 +2339,6 @@ return function(AccessKey)
         ExtFlingSheriffBtn.Visible = Settings.FlingSheriffExtEnabled
     end
 
-    -- TOGGLE ANTI FLING BARU
-    local function toggleAntiFling()
-        Settings.AntiFlingEnabled = not Settings.AntiFlingEnabled
-        AntiFlingToggleBtn.Text = Settings.AntiFlingEnabled and "ANTI FLING: ON" or "ANTI FLING: OFF"
-        SetToggleState(AntiFlingToggleBtn, Settings.AntiFlingEnabled)
-    end
-
     -- KONEKSI EVENT KE TOMBOL-TOMBOL FITUR
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
@@ -2387,10 +2371,17 @@ return function(AccessKey)
     NoclipToggleBtn.MouseButton1Click:Connect(toggleNoclip)
     InvisibleToggleBtn.MouseButton1Click:Connect(toggleInvisible)
 
+    AntiFlingToggleBtn.MouseButton1Click:Connect(function()
+        Settings.AntiFlingEnabled = not Settings.AntiFlingEnabled
+        AntiFlingToggleBtn.Text = Settings.AntiFlingEnabled and "ANTI-FLING: ON" or "ANTI-FLING: OFF"
+        SetToggleState(AntiFlingToggleBtn, Settings.AntiFlingEnabled)
+    end)
+
     DoubleJumpToggleBtn.MouseButton1Click:Connect(toggleDoubleJump)
     DoubleJumpExtToggleBtn.MouseButton1Click:Connect(toggleDoubleJumpExt)
     ExtDoubleJumpBtn.MouseButton1Click:Connect(toggleDoubleJump)
 
+    KeepYourToneProfessional = false -- Variable check bypass dummy
     SpinToggleBtn.MouseButton1Click:Connect(toggleSpin)
     SpinExtToggleBtn.MouseButton1Click:Connect(toggleSpinExt)
     ExtSpinBtn.MouseButton1Click:Connect(toggleSpin)
@@ -2408,9 +2399,6 @@ return function(AccessKey)
     ExtFlingSheriffToggleBtn.MouseButton1Click:Connect(toggleFlingSheriffExt)
     ExtFlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     ExtFlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
-
-    -- KONEKSI ANTI FLING BARU
-    AntiFlingToggleBtn.MouseButton1Click:Connect(toggleAntiFling)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
@@ -2451,3 +2439,4 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Unified Theme Successfully Initialized.")
 end
+
