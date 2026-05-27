@@ -1,8 +1,8 @@
 -- [[ LOUIS HUB FREE - INTEGRATED & PROTECTED EDITION ]]
--- AUTH: Louis | LAYERS: 4 (Anti-Tamper)
+-- AUTH: Louis | LAYERS: 1, 3, 4 (Handshake, Key, Anti-Tamper)
 -- VERSION: 13.5.2 (Security Sync Update - MM2 Edition)
 
-return function()
+return function(AccessKey)
     local Players = game:GetService("Players")
     
     -- ========================================================
@@ -17,6 +17,18 @@ return function()
         MyID = LocalPlayer.UserId
     end
 
+    -- ========================================================
+    -- [[ PROTEKSI 1: SESSION HANDSHAKE ]]
+    -- ========================================================
+    if not getgenv().LouisVerify or getgenv().LouisVerify() ~= "LouisVIP_Validated_" .. MyID then
+        if LocalPlayer then
+            LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
+        else
+            game.Players.LocalPlayer:Kick("LOUIS HUB: Illegal Execution (Handshake Failed)")
+        end
+        return
+    end
+
     -- [[ PROTEKSI 4: ANTI-TAMPER ]]
     local function IntegrityCheck()
         local test = tostring(game.HttpGet)
@@ -27,6 +39,12 @@ return function()
         return true
     end
     if not IntegrityCheck() then return end
+
+    -- [[ PROTEKSI 3: KUNCI FUNGSI ]]
+    if AccessKey ~= "LouisVIP_Secret_Key_9922" then 
+        LocalPlayer:Kick("LOUIS HUB: Bypass Detected (Key Error)")
+        return 
+    end
 
     -- ========================================================
     -- [[ MASALAH 1 & 2: RE-EXECUTION CLEANUP ENGINE ]]
@@ -176,10 +194,10 @@ return function()
         HitboxVisual = true,
         ESP = false,
         TracersESP = false,
-        NameESP = false,
-        EspInnocent = true,
-        EspSheriff = true,
-        EspMurderer = true,
+        NameESP = false,        -- FITUR BARU
+        EspInnocent = true,     -- FITUR BARU
+        EspSheriff = true,      -- FITUR BARU
+        EspMurderer = true,     -- FITUR BARU
         AutoGrabGun = false, 
         TargetPart = "HumanoidRootPart",
         HitboxSize = 20,
@@ -204,44 +222,11 @@ return function()
         DoubleJumpEnabled = false,
         DoubleJumpExtEnabled = false,
         DragLocked = false,
-        
-        -- Ukuran Tombol Eksternal Standar
+        -- Ukuran Tombol Eksternal
         Size_L = 50,
         Size_A = 40,
         Size_G = 40,
-        Size_DJ = 40,
-
-        -- FITUR BARU: Variabel State & Ukuran Tombol Eksternal Baru
-        ExtButtonsMaster = true,
-        SpinbotEnabled = false,
-        SpinSpeed = 50,
-        SpinExtEnabled = false,
-        Size_Spin = 40,
-        
-        TPSheriffExtEnabled = false,
-        Size_TPSheriff = 40,
-        TPMurderExtEnabled = false,
-        Size_TPMurder = 40,
-        
-        FlingMurderExtEnabled = false,
-        Size_FlingMurder = 40,
-        FlingSheriffExtEnabled = false,
-        Size_FlingSheriff = 40,
-        
-        AntiFlingEnabled = false,
-        TouchFlingEnabled = false,
-        TouchFlingPower = 100,
-        InfiniteJumpEnabled = false,
-        
-        TPLobbyExtEnabled = false,
-        Size_TPLobby = 40,
-        TPUndergroundExtEnabled = false,
-        Size_TPUnderground = 40,
-        
-        AntiVoidEnabled = false,
-        AutoTPBackPreFling = false,
-        TPPreFlingExtEnabled = false,
-        Size_TPPreFling = 40
+        Size_DJ = 40
     }
 
     local OriginalFOV = Camera.FieldOfView
@@ -511,6 +496,7 @@ return function()
         if humanoid and root and humanoid.Health > 0 and Settings.DoubleJumpEnabled then
             if CanDoubleJump and not HasDoubleJumped then
                 HasDoubleJumped = true
+                -- Berikan velocity ke atas agar lompat sekali lagi
                 root.Velocity = Vector3.new(root.Velocity.X, humanoid.JumpPower * 1.15, root.Velocity.Z)
             end
         end
@@ -551,6 +537,7 @@ return function()
         return "Innocent"
     end
 
+    -- PENDETEKSIAN TARGET BARU: Pembunuh menargetkan Innocent/Sheriff
     local function GetTargetForMurderer()
         local Target = nil
         local ShortestDistance = math.huge
@@ -579,6 +566,7 @@ return function()
         return Target
     end
 
+    -- PENDETEKSIAN TARGET BARU: Innocent/Sheriff hanya menargetkan Pembunuh
     local function GetTargetForInnocentOrSheriff()
         local Target = nil
         local ShortestDistance = math.huge
@@ -621,13 +609,11 @@ return function()
         return predictedPos
     end
 
-    -- AIMBOT RENDER: Dipicu saat memegang "Gun" ATAU jika memegang/memiliki "Knife" di tas/tangan (Knife Aimbot Berfungsi)
+    -- AIMBOT RENDER: Dipicu hanya saat memegang "Gun" (Aktif di tangan)
     SafeConnect(RunService.RenderStepped, function()
         if Settings.CameraAimbot and LocalPlayer.Character then
             local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun")
-            local HoldsKnife = LocalPlayer.Character:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife")
-            
-            if (HoldsGun and HoldsGun:IsA("Tool")) or (HoldsKnife and HoldsKnife:IsA("Tool")) then
+            if HoldsGun and HoldsGun:IsA("Tool") then
                 local MyRole = GetMM2Role(LocalPlayer)
                 
                 if MyRole == "Murderer" then
@@ -782,32 +768,27 @@ return function()
             task.wait(0.1)
             local char = LocalPlayer.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
-            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
             
-            if Settings.KillAuraEnabled and char and root and humanoid then
-                local knife = char:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife")
+            if Settings.KillAuraEnabled and char and root then
+                local knife = char:FindFirstChild("Knife")
                 if knife and GetMM2Role(LocalPlayer) == "Murderer" then
-                    -- FITUR DIPERBAIKI: Otomatis memegang pisau jika belum dipegang agar Kill Aura berfungsi
-                    if knife.Parent == LocalPlayer.Backpack then
-                        humanoid:EquipTool(knife)
-                    end
-                    pcall(function()
-                        knife:Activate()
-                        for _, p in ipairs(Players:GetPlayers()) do
-                            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                                local tRoot = p.Character.HumanoidRootPart
-                                local tHum = p.Character:FindFirstChildOfClass("Humanoid")
-                                
-                                if tHum and tHum.Health > 0 then
-                                    local distance = (root.Position - tRoot.Position).Magnitude
-                                    if distance <= Settings.KillAuraRadius then
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                            local tRoot = p.Character.HumanoidRootPart
+                            local tHum = p.Character:FindFirstChildOfClass("Humanoid")
+                            
+                            if tHum and tHum.Health > 0 then
+                                local distance = (root.Position - tRoot.Position).Magnitude
+                                if distance <= Settings.KillAuraRadius then
+                                    pcall(function()
+                                        knife:Activate()
                                         firetouchinterest(tRoot, knife.Handle, 0)
                                         firetouchinterest(tRoot, knife.Handle, 1)
-                                    end
+                                    end)
                                 end
                             end
                         end
-                    end)
+                    end
                 end
             end
         end
@@ -839,145 +820,35 @@ return function()
     end
 
     -- ========================================================================
-    -- [[ TELEPORT FUNCTIONS ]]
+    -- [[ CONSTRAINT-BASED FLY ENGINE, NOCLIP & INVISIBLE ]]
     -- ========================================================================
-    local function TeleportToLobby()
-        local char = LocalPlayer.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-        if root then
-            local lobby = workspace:FindFirstChild("Lobby") or workspace:FindFirstChild("LobbyModel")
-            if lobby then
-                local spawn = lobby:FindFirstChildOfClass("SpawnLocation") or lobby:FindFirstChild("SpawnLocation") or lobby:FindFirstChildOfClass("BasePart")
-                if spawn then
-                    root.CFrame = spawn.CFrame + Vector3.new(0, 3, 0)
-                    return
+    local FlingFailsafeActive = false
+    local OriginalCFrameBeforeFling = nil
+    
+    local function GetTargetByRole(roleName)
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 and GetMM2Role(p) == roleName then
+                    return p
                 end
             end
-            root.CFrame = CFrame.new(-109.5, 138.5, 8) -- Koordinat fallback lobby MM2 standard
         end
+        return nil
     end
 
-    local function TeleportToUnderground()
-        local char = LocalPlayer.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.CFrame = CFrame.new(-109.5, 98, 8) -- Koordinat fallback tempat rahasia underground lobby MM2 standard
-        end
-    end
-
-    local function TeleportToSheriff()
-        local target = GetTargetByRole("Sheriff")
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                root.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-            end
-        end
-    end
-
-    local function TeleportToMurderer()
-        local target = GetTargetByRole("Murderer")
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                root.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-            end
-        end
-    end
-
-    local function TeleportToPreFling()
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if root and OriginalCFrameBeforeFling then
-            root.CFrame = OriginalCFrameBeforeFling
-        end
-    end
-
-    -- ========================================================================
-    -- [[ INFINITE JUMP ENGINE ]]
-    -- ========================================================================
-    local JumpConnection = UserInputService.JumpRequest:Connect(function()
-        if Settings.InfiniteJumpEnabled and LocalPlayer.Character then
-            local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end)
-    table.insert(_G.LouisConnections, JumpConnection)
-
-    -- ========================================================================
-    -- [[ ANTI VOID ENGINE ]]
-    -- ========================================================================
     SafeConnect(RunService.Heartbeat, function()
-        if Settings.AntiVoidEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local root = LocalPlayer.Character.HumanoidRootPart
-            if root.Position.Y < -50 then
-                TeleportToLobby()
-            end
-        end
-    end)
-
-    -- ========================================================================
-    -- [[ ANTI FLING ENGINE ]]
-    -- ========================================================================
-    SafeConnect(RunService.Heartbeat, function()
-        if Settings.AntiFlingEnabled and LocalPlayer.Character then
-            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if root and hum then
-                if root.Velocity.Magnitude > 60 then
-                    root.Velocity = Vector3.new(0, 0, 0)
-                    root.RotVelocity = Vector3.new(0, 0, 0)
-                end
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= LocalPlayer and p.Character then
-                        for _, part in ipairs(p.Character:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.CanCollide = false
-                            end
-                        end
+        local character = LocalPlayer.Character
+        if Settings.InvisibleEnabled and character and character:FindFirstChild("HumanoidRootPart") then
+            for _, child in ipairs(character:GetDescendants()) do
+                if child:IsA("BasePart") or child:IsA("Decal") then
+                    if child.Name ~= "HumanoidRootPart" then
+                        child.Transparency = 1
                     end
                 end
             end
         end
     end)
-
-    -- ========================================================================
-    -- [[ TOUCH FLING ENGINE ]]
-    -- ========================================================================
-    SafeConnect(RunService.Heartbeat, function()
-        if Settings.TouchFlingEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local root = LocalPlayer.Character.HumanoidRootPart
-            local bav = root:FindFirstChild("TouchFlingBAV") or Instance.new("BodyAngularVelocity")
-            bav.Name = "TouchFlingBAV"
-            bav.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-            bav.AngularVelocity = Vector3.new(0, Settings.TouchFlingPower * 50, 0)
-            bav.Parent = root
-        else
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local bav = LocalPlayer.Character.HumanoidRootPart:FindFirstChild("TouchFlingBAV")
-                if bav then bav:Destroy() end
-            end
-        end
-    end)
-
-    -- ========================================================================
-    -- [[ SPINBOT LOOP ]]
-    -- ========================================================================
-    local spinDegree = 0
-    SafeConnect(RunService.Heartbeat, function()
-        if Settings.SpinbotEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local root = LocalPlayer.Character.HumanoidRootPart
-            spinDegree = (spinDegree + Settings.SpinSpeed) % 360
-            root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(Settings.SpinSpeed), 0)
-        end
-    end)
-
-    -- ========================================================================
-    -- [[ CONSTRAINT-BASED FLY ENGINE, NOCLIP & INVISIBLE ]]
-    -- ========================================================================
-    local FlingFailsafeActive = false
-    local OriginalCFrameBeforeFling = nil
 
     task.spawn(function()
         while true do
@@ -1076,11 +947,12 @@ return function()
                             root.Velocity = Vector3.new(0, 0, 0)
                             root.RotVelocity = Vector3.new(0, 0, 0)
                             task.wait(0.1)
-                            -- FITUR DIPERBAIKI: Otomatis kembali ke CFrame sebelum kita melakukan fling (TP Return)
-                            if OriginalCFrameBeforeFling and Settings.AutoTPBackPreFling then
+                            if OriginalCFrameBeforeFling then
                                 root.CFrame = OriginalCFrameBeforeFling
                             end
                             FlingFailsafeActive = false
+                            OriginalCFrameBeforeFling = nil
+                            
                             if _G.SyncFlingButtons then _G.SyncFlingButtons() end
                         end
                     end
@@ -1154,7 +1026,7 @@ return function()
     end
 
     -- ========================================================================
-    -- LOOPING RENDER: ESP OUTLINE & TRACERS SYSTEM (DENGAN FILTER)
+    -- LOOPING RENDER: HITBOX EXPANDER, ESP OUTLINE & TRACERS SYSTEM (DENGAN FILTER)
     -- ========================================================================
     local ActiveTracers = {}
 
@@ -1179,6 +1051,7 @@ return function()
                 if Root and Humanoid and Humanoid.Health > 0 then
                     local Role = GetMM2Role(Player)
                     
+                    -- Pengecekan Filter ESP
                     local passesFilter = false
                     if Role == "Murderer" and Settings.EspMurderer then
                         passesFilter = true
@@ -1208,6 +1081,7 @@ return function()
                     if Role == "Murderer" then TargetColor = Color3.fromRGB(255, 0, 0)
                     elseif Role == "Sheriff" then TargetColor = Color3.fromRGB(0, 0, 225) end
 
+                    -- Outline ESP
                     local Highlight = Player.Character:FindFirstChild("MM2_ESP")
                     if Settings.ESP and passesFilter then
                         if not Highlight then
@@ -1223,12 +1097,14 @@ return function()
                         if Highlight then Highlight:Destroy() end
                     end
 
+                    -- Name ESP
                     if Settings.ESP and Settings.NameESP and passesFilter then
                         ApplyNameESP(Player)
                     else
                         ClearNameESP(Player)
                     end
 
+                    -- Tracers ESP
                     if Settings.TracersESP and passesFilter then
                         local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
                         if OnScreen then
@@ -1290,11 +1166,12 @@ return function()
     local function ApplyExternalButtonStyle(btn, stroke)
         btn.BackgroundTransparency = 0.6
         SafeConnect(RunService.RenderStepped, function()
-            local hue = (tick() % 4) / 4
+            local hue = (tick() % 4) / 4 -- Loop warna dalam waktu 4 detik
             stroke.Color = Color3.fromHSV(hue, 0.8, 1)
         end)
     end
 
+    -- HELPER: Mengatur sistem drag tombol dengan pengecekan status kunci dari UI
     local function MakeDraggable(button)
         local dragging, dragStart, startPos
         SafeConnect(button.InputBegan, function(i) 
@@ -1317,26 +1194,6 @@ return function()
         end)
     end
 
-    -- FUNGSI PEMBUAT TOMBOL EKSTERNAL DENGAN SHAPE LINGKARAN & STROKE NEON WARNA-WARNI
-    local function CreateExtButton(name, text, defaultPos)
-        local btn = Instance.new("TextButton", ScreenGui)
-        btn.Name = name
-        btn.Size = UDim2.new(0, 40, 0, 40)
-        btn.Position = defaultPos
-        btn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-        btn.Text = text
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 14
-        btn.Visible = false
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-        local stroke = Instance.new("UIStroke", btn)
-        stroke.Thickness = 1.5
-        ApplyExternalButtonStyle(btn, stroke)
-        MakeDraggable(btn)
-        return btn
-    end
-
     -- [[ TOMBOL UTAMA L (Floating Toggle) ]]
     ToggleBtnMain = Instance.new("TextButton", ScreenGui)
     ToggleBtnMain.Name = "FloatingToggle"
@@ -1357,36 +1214,59 @@ return function()
     ApplyExternalButtonStyle(ToggleBtnMain, ToggleStroke)
     MakeDraggable(ToggleBtnMain)
 
-    -- [[ KREASI SELURUH TOMBOL EKSTERNAL BARU ]]
-    local ExtAimbotBtn = CreateExtButton("ExtAimbot", "A", UDim2.new(0, 20, 0.5, 35))
-    local ExtGrabBtn = CreateExtButton("ExtGrabGun", "G", UDim2.new(0, 20, 0.5, 85))
-    local ExtDoubleJumpBtn = CreateExtButton("ExtDoubleJump", "DJ", UDim2.new(0, 20, 0.5, 135))
-    local ExtSpinBtn = CreateExtButton("ExtSpin", "SP", UDim2.new(0, 20, 0.5, 185))
-    local ExtTPSheriffBtn = CreateExtButton("ExtTPSheriff", "TS", UDim2.new(0, 20, 0.5, 235))
-    local ExtTPMurderBtn = CreateExtButton("ExtTPMurder", "TM", UDim2.new(0, 20, 0.5, 285))
-    
-    local ExtFlingMurderBtn = CreateExtButton("ExtFlingMurder", "FM", UDim2.new(0, 70, 0.5, 35))
-    local ExtFlingSheriffBtn = CreateExtButton("ExtFlingSheriff", "FS", UDim2.new(0, 70, 0.5, 85))
-    local ExtTPLobbyBtn = CreateExtButton("ExtTPLobby", "TL", UDim2.new(0, 70, 0.5, 135))
-    local ExtTPUndergroundBtn = CreateExtButton("ExtTPUnderground", "TU", UDim2.new(0, 70, 0.5, 185))
-    local ExtTPPreFlingBtn = CreateExtButton("ExtTPPreFling", "PF", UDim2.new(0, 70, 0.5, 235))
+    -- [[ TOMBOL EXTERNAL AIMBOT ]]
+    local ExtAimbotBtn = Instance.new("TextButton", ScreenGui)
+    ExtAimbotBtn.Name = "ExtAimbot"
+    ExtAimbotBtn.Size = UDim2.new(0, Settings.Size_A, 0, Settings.Size_A)
+    ExtAimbotBtn.Position = UDim2.new(0, 20, 0.5, 35)
+    ExtAimbotBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtAimbotBtn.Text = "A"
+    ExtAimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtAimbotBtn.Font = Enum.Font.GothamBold
+    ExtAimbotBtn.TextSize = 18
+    ExtAimbotBtn.Visible = false
+    Instance.new("UICorner", ExtAimbotBtn).CornerRadius = UDim.new(1, 0)
+    local ExtAimbotStroke = Instance.new("UIStroke", ExtAimbotBtn)
+    ExtAimbotStroke.Thickness = 1.5
 
-    -- UPDATE VISIBILITAS TOMBOL EKSTERNAL BERDASARKAN MASTER SWITCH & TOGGLE AKTIF
-    local function updateExternalButtonsVisibility()
-        local master = Settings.ExtButtonsMaster
-        ExtAimbotBtn.Visible = master and Settings.AimbotExtEnabled
-        ExtGrabBtn.Visible = master and Settings.GrabGunExtEnabled
-        ExtDoubleJumpBtn.Visible = master and Settings.DoubleJumpExtEnabled
-        
-        ExtSpinBtn.Visible = master and Settings.SpinExtEnabled
-        ExtTPSheriffBtn.Visible = master and Settings.TPSheriffExtEnabled
-        ExtTPMurderBtn.Visible = master and Settings.TPMurderExtEnabled
-        ExtFlingMurderBtn.Visible = master and Settings.FlingMurderExtEnabled
-        ExtFlingSheriffBtn.Visible = master and Settings.FlingSheriffExtEnabled
-        ExtTPLobbyBtn.Visible = master and Settings.TPLobbyExtEnabled
-        ExtTPUndergroundBtn.Visible = master and Settings.TPUndergroundExtEnabled
-        ExtTPPreFlingBtn.Visible = master and Settings.TPPreFlingExtEnabled
-    end
+    ApplyExternalButtonStyle(ExtAimbotBtn, ExtAimbotStroke)
+    MakeDraggable(ExtAimbotBtn)
+
+    -- [[ TOMBOL EXTERNAL GRAB GUN ]]
+    local ExtGrabBtn = Instance.new("TextButton", ScreenGui)
+    ExtGrabBtn.Name = "ExtGrabGun"
+    ExtGrabBtn.Size = UDim2.new(0, Settings.Size_G, 0, Settings.Size_G)
+    ExtGrabBtn.Position = UDim2.new(0, 20, 0.5, 85)
+    ExtGrabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtGrabBtn.Text = "G"
+    ExtGrabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtGrabBtn.Font = Enum.Font.GothamBold
+    ExtGrabBtn.TextSize = 18
+    ExtGrabBtn.Visible = false
+    Instance.new("UICorner", ExtGrabBtn).CornerRadius = UDim.new(1, 0)
+    local ExtGrabStroke = Instance.new("UIStroke", ExtGrabBtn)
+    ExtGrabStroke.Thickness = 1.5
+
+    ApplyExternalButtonStyle(ExtGrabBtn, ExtGrabStroke)
+    MakeDraggable(ExtGrabBtn)
+
+    -- [[ TOMBOL EXTERNAL DOUBLE JUMP ]]
+    local ExtDoubleJumpBtn = Instance.new("TextButton", ScreenGui)
+    ExtDoubleJumpBtn.Name = "ExtDoubleJump"
+    ExtDoubleJumpBtn.Size = UDim2.new(0, Settings.Size_DJ, 0, Settings.Size_DJ)
+    ExtDoubleJumpBtn.Position = UDim2.new(0, 20, 0.5, 135)
+    ExtDoubleJumpBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    ExtDoubleJumpBtn.Text = "DJ"
+    ExtDoubleJumpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ExtDoubleJumpBtn.Font = Enum.Font.GothamBold
+    ExtDoubleJumpBtn.TextSize = 18
+    ExtDoubleJumpBtn.Visible = false
+    Instance.new("UICorner", ExtDoubleJumpBtn).CornerRadius = UDim.new(1, 0)
+    local ExtDoubleJumpStroke = Instance.new("UIStroke", ExtDoubleJumpBtn)
+    ExtDoubleJumpStroke.Thickness = 1.5
+
+    ApplyExternalButtonStyle(ExtDoubleJumpBtn, ExtDoubleJumpStroke)
+    MakeDraggable(ExtDoubleJumpBtn)
 
     -- UPDATE UKURAN TOMBOL EKSTERNAL DARI SLIDER
     local function updateExternalButtonSizes()
@@ -1394,15 +1274,6 @@ return function()
         ExtAimbotBtn.Size = UDim2.new(0, Settings.Size_A, 0, Settings.Size_A)
         ExtGrabBtn.Size = UDim2.new(0, Settings.Size_G, 0, Settings.Size_G)
         ExtDoubleJumpBtn.Size = UDim2.new(0, Settings.Size_DJ, 0, Settings.Size_DJ)
-        
-        ExtSpinBtn.Size = UDim2.new(0, Settings.Size_Spin, 0, Settings.Size_Spin)
-        ExtTPSheriffBtn.Size = UDim2.new(0, Settings.Size_TPSheriff, 0, Settings.Size_TPSheriff)
-        ExtTPMurderBtn.Size = UDim2.new(0, Settings.Size_TPMurder, 0, Settings.Size_TPMurder)
-        ExtFlingMurderBtn.Size = UDim2.new(0, Settings.Size_FlingMurder, 0, Settings.Size_FlingMurder)
-        ExtFlingSheriffBtn.Size = UDim2.new(0, Settings.Size_FlingSheriff, 0, Settings.Size_FlingSheriff)
-        ExtTPLobbyBtn.Size = UDim2.new(0, Settings.Size_TPLobby, 0, Settings.Size_TPLobby)
-        ExtTPUndergroundBtn.Size = UDim2.new(0, Settings.Size_TPUnderground, 0, Settings.Size_TPUnderground)
-        ExtTPPreFlingBtn.Size = UDim2.new(0, Settings.Size_TPPreFling, 0, Settings.Size_TPPreFling)
     end
 
     -- [[ HUD ELEMENTS ]]
@@ -1468,6 +1339,7 @@ return function()
     
     local Stroke = Instance.new("UIStroke", MainFrame); Stroke.Color = _GAccentColor; Stroke.Thickness = 1.5
 
+    -- INTEGRASI WARNA UI PELANGI SEPERTI TOMBOL EKSTERNAL
     SafeConnect(RunService.RenderStepped, function()
         local hue = (tick() % 4) / 4
         local rainbowColor = Color3.fromHSV(hue, 0.8, 1)
@@ -1491,11 +1363,13 @@ return function()
     local HubLabel = createLabel("LOUIS HUB FREE V13.5.2", UDim2.new(0, 6, 0, 4), UDim2.new(0, 95, 0, 12))
     HubLabel.TextSize = 6.5
     
+    -- Sync Teks Judul Pelangi
     SafeConnect(RunService.RenderStepped, function()
         local hue = (tick() % 4) / 4
         HubLabel.TextColor3 = Color3.fromHSV(hue, 0.8, 1)
     end)
 
+    -- [[ PINDAHKAN LOCK / UNLOCK DI SAMPING TOMBOL INFO ]]
     local LockDragBtn = createBtn("🔓", UDim2.new(0, 105, 0, 4), UDim2.new(0, 20, 0, 14), Color3.fromRGB(45, 45, 55))
     LockDragBtn.Parent = MainFrame; LockDragBtn.TextSize = 10; LockDragBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
@@ -1563,6 +1437,7 @@ return function()
     local TabFrames = {}
     local CurrentTab = "Main"
 
+    -- DISINGKAT UTK MENIADAKAN EMTPY FARM TAB
     local TabNames = {"Main", "Combat", "ESP", "Utility"}
     local TabWidth = 1 / #TabNames
 
@@ -1625,6 +1500,7 @@ return function()
         obj.Parent = TabFrames[tab]
     end
 
+    -- Fungsi Pembuat Group Container Box
     local function createGroupContainer(tab, titleText, boxHeight)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(1, -4, 0, boxHeight)
@@ -1655,6 +1531,7 @@ return function()
         return container
     end
 
+    -- FUNGSI PEMBUAT SLIDER UNIVERSAL YANG EFISIEN & RAPI
     local function createSlider(parent, textFormat, minVal, maxVal, defaultVal, callback)
         local sliderFrame = Instance.new("Frame")
         sliderFrame.Size = UDim2.new(1, -10, 0, 12)
@@ -1774,99 +1651,16 @@ return function()
     end)
 
 
-    -- BOX 4: FLING SYSTEM & MANUAL/AUTOMATIC PRE-FLING RETURN TP
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 136)
+    -- BOX 4: FLING SYSTEM
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 46)
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
     
-    local FlingSheriffExtToggleBtn = createBtn("FLING SHERIFF (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    FlingSheriffExtToggleBtn.Parent = BoxFling; FlingSheriffExtToggleBtn.LayoutOrder = 2
-
-    createSlider(BoxFling, "BUTTON 'FS' SIZE: %d", 20, 100, Settings.Size_FlingSheriff, function(val)
-        Settings.Size_FlingSheriff = val
-        updateExternalButtonSizes()
-    end)
-    
     local FlingMurderBtn = createBtn("AUTO FLING MURDER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 4
-
-    local FlingMurderExtToggleBtn = createBtn("FLING MURDER (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    FlingMurderExtToggleBtn.Parent = BoxFling; FlingMurderExtToggleBtn.LayoutOrder = 5
-
-    createSlider(BoxFling, "BUTTON 'FM' SIZE: %d", 20, 100, Settings.Size_FlingMurder, function(val)
-        Settings.Size_FlingMurder = val
-        updateExternalButtonSizes()
-    end)
+    FlingMurderBtn.Parent = BoxFling; FlingMurderBtn.LayoutOrder = 2
 
 
-    -- BOX 5: PRE-FLING TELEPORT RETURN CONTROL
-    local BoxPreFling = createGroupContainer("Combat", "Pre-Fling Return TP", 82)
-    local AutoTPPreFlingToggleBtn = createBtn("AUTO RETURN PRE-FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    AutoTPPreFlingToggleBtn.Parent = BoxPreFling; AutoTPPreFlingToggleBtn.LayoutOrder = 1
-
-    local TPPreFlingExtToggleBtn = createBtn("PRE-FLING TP (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPPreFlingExtToggleBtn.Parent = BoxPreFling; TPPreFlingExtToggleBtn.LayoutOrder = 2
-
-    createSlider(BoxPreFling, "BUTTON 'PF' SIZE: %d", 20, 100, Settings.Size_TPPreFling, function(val)
-        Settings.Size_TPPreFling = val
-        updateExternalButtonSizes()
-    end)
-
-
-    -- BOX 6: SPINBOT (ANTI-AIM) SYSTEM (DENGAN SLIDER POWER SPIN & TOMBOL EKSTERNAL 'SP')
-    local BoxSpin = createGroupContainer("Combat", "Spinbot & Anti-Aim", 100)
-    local SpinToggleBtn = createBtn("SPINBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    SpinToggleBtn.Parent = BoxSpin; SpinToggleBtn.LayoutOrder = 1
-    
-    local SpinExtToggleBtn = createBtn("SPINBOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    SpinExtToggleBtn.Parent = BoxSpin; SpinExtToggleBtn.LayoutOrder = 2
-
-    createSlider(BoxSpin, "SPIN POWER (SPEED): %d", 1, 200, Settings.SpinSpeed, function(val)
-        Settings.SpinSpeed = val
-    end)
-
-    createSlider(BoxSpin, "BUTTON 'SP' SIZE: %d", 20, 100, Settings.Size_Spin, function(val)
-        Settings.Size_Spin = val
-        updateExternalButtonSizes()
-    end)
-
-
-    -- BOX 7: TOUCH FLING MECHANICS (DENGAN SLIDER POWER 1-200)
-    local BoxTouchFling = createGroupContainer("Combat", "Touch Fling Glitch", 46)
-    local TouchFlingToggleBtn = createBtn("TOUCH FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TouchFlingToggleBtn.Parent = BoxTouchFling; TouchFlingToggleBtn.LayoutOrder = 1
-
-    createSlider(BoxTouchFling, "TOUCH FLING POWER: %d", 1, 200, Settings.TouchFlingPower, function(val)
-        Settings.TouchFlingPower = val
-    end)
-
-
-    -- BOX 8: TELEPORT TO ROLES (SHERIFF & MURDER) (DENGAN TOMBOL EKSTERNAL 'TS' & 'TM')
-    local BoxRoleTP = createGroupContainer("Combat", "Teleport to Active Roles", 118)
-    local TPSheriffBtn = createBtn("TP TO SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPSheriffBtn.Parent = BoxRoleTP; TPSheriffBtn.LayoutOrder = 1
-    
-    local TPSheriffExtToggleBtn = createBtn("TP TO SHERIFF (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPSheriffExtToggleBtn.Parent = BoxRoleTP; TPSheriffExtToggleBtn.LayoutOrder = 2
-
-    createSlider(BoxRoleTP, "BUTTON 'TS' SIZE: %d", 20, 100, Settings.Size_TPSheriff, function(val)
-        Settings.Size_TPSheriff = val
-        updateExternalButtonSizes()
-    end)
-
-    local TPMurderBtn = createBtn("TP TO MURDERER", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPMurderBtn.Parent = BoxRoleTP; TPMurderBtn.LayoutOrder = 4
-    
-    local TPMurderExtToggleBtn = createBtn("TP TO MURDERER (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPMurderExtToggleBtn.Parent = BoxRoleTP; TPMurderExtToggleBtn.LayoutOrder = 5
-
-    createSlider(BoxRoleTP, "BUTTON 'TM' SIZE: %d", 20, 100, Settings.Size_TPMurder, function(val)
-        Settings.Size_TPMurder = val
-        updateExternalButtonSizes()
-    end)
-
-
-    -- BOX 9: GRAB GUN SYSTEM (DENGAN SLIDER UKURAN TOMBOL EKSTERNAL 'G')
+    -- BOX 5: GRAB GUN SYSTEM (DENGAN SLIDER UKURAN TOMBOL EKSTERNAL 'G')
     local BoxGrab = createGroupContainer("Combat", "Gun Grabber System", 64)
     local GrabBtn = createBtn("[H] AUTO GRAB GUN: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     GrabBtn.Parent = BoxGrab; GrabBtn.LayoutOrder = 1
@@ -1880,7 +1674,8 @@ return function()
     end)
 
 
-    -- BOX 10: DOUBLE JUMP SYSTEM (DENGAN SLIDER UKURAN TOMBOL EKSTERNAL 'DJ')
+    -- [[ PINDAHKAN GRUP DOUBLE JUMP KE COMBAT ]]
+    -- BOX 6: DOUBLE JUMP SYSTEM (DENGAN SLIDER UKURAN TOMBOL EKSTERNAL 'DJ')
     local BoxDoubleJump = createGroupContainer("Combat", "Double Jump System", 64)
     local DoubleJumpToggleBtn = createBtn("DOUBLE JUMP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     DoubleJumpToggleBtn.Parent = BoxDoubleJump; DoubleJumpToggleBtn.LayoutOrder = 1
@@ -1902,9 +1697,11 @@ return function()
     local TracersEspBtn = createBtn("TRACERS ESP LINE: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     TracersEspBtn.Parent = BoxESP; TracersEspBtn.LayoutOrder = 2
 
+    -- TAMBAH NAME ESP
     local NameEspBtn = createBtn("NAME ESP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     NameEspBtn.Parent = BoxESP; NameEspBtn.LayoutOrder = 3
 
+    -- TAMBAH FILTER ESP (MURDERER, SHERIFF, INNOCENT)
     local FilterMurderBtn = createBtn("FILTER: MURDERER (ON)", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), _GAccentColor)
     FilterMurderBtn.Parent = BoxESP; FilterMurderBtn.TextColor3 = Color3.new(0,0,0); FilterMurderBtn.LayoutOrder = 4
 
@@ -1962,49 +1759,8 @@ return function()
     local InvisibleToggleBtn = createBtn("INVISIBLE HACK: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     InvisibleToggleBtn.Parent = BoxInvisible; InvisibleToggleBtn.LayoutOrder = 1
 
-
-    -- BOX 5: LOBBY & UNDERGROUND TELEPORTS (DENGAN TOMBOL EKSTERNAL 'TL' & 'TU')
-    local BoxLobbyUnderground = createGroupContainer("Utility", "Lobby & Underground Teleports", 118)
-    local TPLobbyBtn = createBtn("TELEPORT TO LOBBY", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPLobbyBtn.Parent = BoxLobbyUnderground; TPLobbyBtn.LayoutOrder = 1
-    
-    local TPLobbyExtToggleBtn = createBtn("TP LOBBY (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPLobbyExtToggleBtn.Parent = BoxLobbyUnderground; TPLobbyExtToggleBtn.LayoutOrder = 2
-
-    createSlider(BoxLobbyUnderground, "BUTTON 'TL' SIZE: %d", 20, 100, Settings.Size_TPLobby, function(val)
-        Settings.Size_TPLobby = val
-        updateExternalButtonSizes()
-    end)
-
-    local TPUndergroundBtn = createBtn("TELEPORT TO UNDERGROUND", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPUndergroundBtn.Parent = BoxLobbyUnderground; TPUndergroundBtn.LayoutOrder = 4
-    
-    local TPUndergroundExtToggleBtn = createBtn("TP UNDERGROUND (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    TPUndergroundExtToggleBtn.Parent = BoxLobbyUnderground; TPUndergroundExtToggleBtn.LayoutOrder = 5
-
-    createSlider(BoxLobbyUnderground, "BUTTON 'TU' SIZE: %d", 20, 100, Settings.Size_TPUnderground, function(val)
-        Settings.Size_TPUnderground = val
-        updateExternalButtonSizes()
-    end)
-
-
-    -- BOX 6: PHYSICS SAFETY & UTILITIES (ANTI FLING, ANTI VOID, INFINITE JUMP)
-    local BoxSafety = createGroupContainer("Utility", "Physics Safety Options", 64)
-    local AntiFlingToggleBtn = createBtn("ANTI FLING: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    AntiFlingToggleBtn.Parent = BoxSafety; AntiFlingToggleBtn.LayoutOrder = 1
-    
-    local AntiVoidToggleBtn = createBtn("ANTI VOID: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    AntiVoidToggleBtn.Parent = BoxSafety; AntiVoidToggleBtn.LayoutOrder = 2
-
-    local InfiniteJumpToggleBtn = createBtn("INFINITE JUMP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    InfiniteJumpToggleBtn.Parent = BoxSafety; InfiniteJumpToggleBtn.LayoutOrder = 3
-
-
-    -- BOX 7: UI & TOMBOL EKSTERNAL CONTROLS (DENGAN MASTER ON/OFF SWITCH UNTUK SEMUA TOMBOL EKSTERNAL)
-    local BoxUIControls = createGroupContainer("Utility", "UI Button Settings", 46)
-    local MasterExtToggleBtn = createBtn("MASTER EXT BUTTONS: ON", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14), _GAccentColor)
-    MasterExtToggleBtn.Parent = BoxUIControls; MasterExtToggleBtn.TextColor3 = Color3.new(0,0,0); MasterExtToggleBtn.LayoutOrder = 1
-
+    -- BOX 5: FLOATING BUTTON 'L' SIZE SLIDER (FITUR BARU)
+    local BoxUIControls = createGroupContainer("Utility", "UI Button Settings", 28)
     createSlider(BoxUIControls, "BUTTON 'L' SIZE: %d", 20, 100, Settings.Size_L, function(val)
         Settings.Size_L = val
         updateExternalButtonSizes()
@@ -2029,12 +1785,18 @@ return function()
         if MainVisible then
             MainFrame.Visible = true; HUDMain.Visible = true
             TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = isMinimized and UDim2.new(0, 160, 0, 58) or UDim2.new(0, 160, 0, 205)}):Play()
+            if Settings.AimbotExtEnabled then ExtAimbotBtn.Visible = true end
+            if Settings.GrabGunExtEnabled then ExtGrabBtn.Visible = true end
+            if Settings.DoubleJumpExtEnabled then ExtDoubleJumpBtn.Visible = true end
         else
             local t = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 160, 0, 0)})
             t:Play(); t.Completed:Connect(function() if not MainVisible then MainFrame.Visible = false end end)
             HUDMain.Visible = false
+            
+            ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
+            ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
+            ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
         end
-        updateExternalButtonsVisibility()
     end)
 
     -- Dynamic Graph FPS Engine
@@ -2076,7 +1838,7 @@ return function()
         Settings.AimbotExtEnabled = not Settings.AimbotExtEnabled
         ExtAimbotToggleBtn.Text = Settings.AimbotExtEnabled and "AIMBOT (EXT): ON" or "AIMBOT (EXT): OFF"
         ExtAimbotToggleBtn.BackgroundColor3 = Settings.AimbotExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
+        ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
     end
 
     local function toggleEsp()
@@ -2093,6 +1855,7 @@ return function()
         if not Settings.TracersESP then ClearAllTracers() end
     end
 
+    -- TOGGLE & LOGIKA FILTER BARU
     local function toggleNameEsp()
         Settings.NameESP = not Settings.NameESP
         NameEspBtn.Text = Settings.NameESP and "NAME ESP: ON" or "NAME ESP: OFF"
@@ -2136,7 +1899,7 @@ return function()
         Settings.GrabGunExtEnabled = not Settings.GrabGunExtEnabled
         ManualGrabToggleBtn.Text = Settings.GrabGunExtEnabled and "GRAB GUN (EXT): ON" or "GRAB GUN (EXT): OFF"
         ManualGrabToggleBtn.BackgroundColor3 = Settings.GrabGunExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
+        ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
     end
 
     local function executeManualGrab()
@@ -2231,116 +1994,8 @@ return function()
         Settings.DoubleJumpExtEnabled = not Settings.DoubleJumpExtEnabled
         DoubleJumpExtToggleBtn.Text = Settings.DoubleJumpExtEnabled and "DOUBLE JUMP (EXT): ON" or "DOUBLE JUMP (EXT): OFF"
         DoubleJumpExtToggleBtn.BackgroundColor3 = Settings.DoubleJumpExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
+        ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
     end
-
-    -- TOGGLES BARU BEHAVIOR & INTEGRATION
-    _G.SyncSpinButtons = function()
-        SpinToggleBtn.Text = Settings.SpinbotEnabled and "SPINBOT: ON" or "SPINBOT: OFF"
-        SpinToggleBtn.BackgroundColor3 = Settings.SpinbotEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        ExtSpinBtn.BackgroundColor3 = Settings.SpinbotEnabled and _GAccentColor or Color3.fromRGB(20, 20, 25)
-        ExtSpinBtn.TextColor3 = Settings.SpinbotEnabled and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
-    end
-
-    local function toggleSpinbot()
-        Settings.SpinbotEnabled = not Settings.SpinbotEnabled
-        if _G.SyncSpinButtons then _G.SyncSpinButtons() end
-    end
-
-    local function toggleSpinExt()
-        Settings.SpinExtEnabled = not Settings.SpinExtEnabled
-        SpinExtToggleBtn.Text = Settings.SpinExtEnabled and "SPINBOT (EXT): ON" or "SPINBOT (EXT): OFF"
-        SpinExtToggleBtn.BackgroundColor3 = Settings.SpinExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
-    end
-
-    local function toggleTPSheriffExt()
-        Settings.TPSheriffExtEnabled = not Settings.TPSheriffExtEnabled
-        TPSheriffExtToggleBtn.Text = Settings.TPSheriffExtEnabled and "TP TO SHERIFF (EXT): ON" or "TP TO SHERIFF (EXT): OFF"
-        TPSheriffExtToggleBtn.BackgroundColor3 = Settings.TPSheriffExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
-    end
-
-    local function toggleTPMurderExt()
-        Settings.TPMurderExtEnabled = not Settings.TPMurderExtEnabled
-        TPMurderExtToggleBtn.Text = Settings.TPMurderExtEnabled and "TP TO MURDERER (EXT): ON" or "TP TO MURDERER (EXT): OFF"
-        TPMurderExtToggleBtn.BackgroundColor3 = Settings.TPMurderExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
-    end
-
-    local function toggleFlingSheriffExt()
-        Settings.FlingSheriffExtEnabled = not Settings.FlingSheriffExtEnabled
-        FlingSheriffExtToggleBtn.Text = Settings.FlingSheriffExtEnabled and "FLING SHERIFF (EXT): ON" or "FLING SHERIFF (EXT): OFF"
-        FlingSheriffExtToggleBtn.BackgroundColor3 = Settings.FlingSheriffExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
-    end
-
-    local function toggleFlingMurderExt()
-        Settings.FlingMurderExtEnabled = not Settings.FlingMurderExtEnabled
-        FlingMurderExtToggleBtn.Text = Settings.FlingMurderExtEnabled and "FLING MURDER (EXT): ON" or "FLING MURDER (EXT): OFF"
-        FlingMurderExtToggleBtn.BackgroundColor3 = Settings.FlingMurderExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
-    end
-
-    local function toggleAutoTPPreFling()
-        Settings.AutoTPBackPreFling = not Settings.AutoTPBackPreFling
-        AutoTPPreFlingToggleBtn.Text = Settings.AutoTPBackPreFling and "AUTO RETURN PRE-FLING: ON" or "AUTO RETURN PRE-FLING: OFF"
-        AutoTPPreFlingToggleBtn.BackgroundColor3 = Settings.AutoTPBackPreFling and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end
-
-    local function toggleTPPreFlingExt()
-        Settings.TPPreFlingExtEnabled = not Settings.TPPreFlingExtEnabled
-        TPPreFlingExtToggleBtn.Text = Settings.TPPreFlingExtEnabled and "PRE-FLING TP (EXT): ON" or "PRE-FLING TP (EXT): OFF"
-        TPPreFlingExtToggleBtn.BackgroundColor3 = Settings.TPPreFlingExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
-    end
-
-    local function toggleTouchFling()
-        Settings.TouchFlingEnabled = not Settings.TouchFlingEnabled
-        TouchFlingToggleBtn.Text = Settings.TouchFlingEnabled and "TOUCH FLING: ON" or "TOUCH FLING: OFF"
-        TouchFlingToggleBtn.BackgroundColor3 = Settings.TouchFlingEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end
-
-    local function toggleTPLobbyExt()
-        Settings.TPLobbyExtEnabled = not Settings.TPLobbyExtEnabled
-        TPLobbyExtToggleBtn.Text = Settings.TPLobbyExtEnabled and "TP LOBBY (EXT): ON" or "TP LOBBY (EXT): OFF"
-        TPLobbyExtToggleBtn.BackgroundColor3 = Settings.TPLobbyExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
-    end
-
-    local function toggleTPUndergroundExt()
-        Settings.TPUndergroundExtEnabled = not Settings.TPUndergroundExtEnabled
-        TPUndergroundExtToggleBtn.Text = Settings.TPUndergroundExtEnabled and "TP UNDERGROUND (EXT): ON" or "TP UNDERGROUND (EXT): OFF"
-        TPUndergroundExtToggleBtn.BackgroundColor3 = Settings.TPUndergroundExtEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        updateExternalButtonsVisibility()
-    end
-
-    local function toggleAntiFling()
-        Settings.AntiFlingEnabled = not Settings.AntiFlingEnabled
-        AntiFlingToggleBtn.Text = Settings.AntiFlingEnabled and "ANTI FLING: ON" or "ANTI FLING: OFF"
-        AntiFlingToggleBtn.BackgroundColor3 = Settings.AntiFlingEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end
-
-    local function toggleAntiVoid()
-        Settings.AntiVoidEnabled = not Settings.AntiVoidEnabled
-        AntiVoidToggleBtn.Text = Settings.AntiVoidEnabled and "ANTI VOID: ON" or "ANTI VOID: OFF"
-        AntiVoidToggleBtn.BackgroundColor3 = Settings.AntiVoidEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end
-
-    local function toggleInfiniteJump()
-        Settings.InfiniteJumpEnabled = not Settings.InfiniteJumpEnabled
-        InfiniteJumpToggleBtn.Text = Settings.InfiniteJumpEnabled and "INFINITE JUMP: ON" or "INFINITE JUMP: OFF"
-        InfiniteJumpToggleBtn.BackgroundColor3 = Settings.InfiniteJumpEnabled and _GAccentColor or Color3.fromRGB(30, 30, 35)
-    end
-
-    local function toggleMasterExt()
-        Settings.ExtButtonsMaster = not Settings.ExtButtonsMaster
-        MasterExtToggleBtn.Text = Settings.ExtButtonsMaster and "MASTER EXT BUTTONS: ON" or "MASTER EXT BUTTONS: OFF"
-        MasterExtToggleBtn.BackgroundColor3 = Settings.ExtButtonsMaster and _GAccentColor or Color3.fromRGB(30, 30, 35)
-        MasterExtToggleBtn.TextColor3 = Settings.ExtButtonsMaster and Color3.new(0,0,0) or Color3.new(1,1,1)
-        updateExternalButtonsVisibility()
-    end
-
 
     -- KONEKSI EVENT KE TOMBOL-TOMBOL FITUR
     KillAuraToggleBtn.MouseButton1Click:Connect(toggleKillAura)
@@ -2377,43 +2032,6 @@ return function()
     DoubleJumpToggleBtn.MouseButton1Click:Connect(toggleDoubleJump)
     DoubleJumpExtToggleBtn.MouseButton1Click:Connect(toggleDoubleJumpExt)
     ExtDoubleJumpBtn.MouseButton1Click:Connect(toggleDoubleJump)
-
-    -- KONEKSI EVENT BARU (SPIN, TELEPORT, SAFETY, TOUCH FLING, MASTER)
-    SpinToggleBtn.MouseButton1Click:Connect(toggleSpinbot)
-    SpinExtToggleBtn.MouseButton1Click:Connect(toggleSpinExt)
-    ExtSpinBtn.MouseButton1Click:Connect(toggleSpinbot)
-
-    TPSheriffBtn.MouseButton1Click:Connect(TeleportToSheriff)
-    TPSheriffExtToggleBtn.MouseButton1Click:Connect(toggleTPSheriffExt)
-    ExtTPSheriffBtn.MouseButton1Click:Connect(TeleportToSheriff)
-
-    TPMurderBtn.MouseButton1Click:Connect(TeleportToMurderer)
-    TPMurderExtToggleBtn.MouseButton1Click:Connect(toggleTPMurderExt)
-    ExtTPMurderBtn.MouseButton1Click:Connect(TeleportToMurderer)
-
-    FlingSheriffExtToggleBtn.MouseButton1Click:Connect(toggleFlingSheriffExt)
-    FlingMurderExtToggleBtn.MouseButton1Click:Connect(toggleFlingMurderExt)
-    ExtFlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
-    ExtFlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
-
-    AutoTPPreFlingToggleBtn.MouseButton1Click:Connect(toggleAutoTPPreFling)
-    TPPreFlingExtToggleBtn.MouseButton1Click:Connect(toggleTPPreFlingExt)
-    ExtTPPreFlingBtn.MouseButton1Click:Connect(TeleportToPreFling)
-
-    TouchFlingToggleBtn.MouseButton1Click:Connect(toggleTouchFling)
-
-    TPLobbyBtn.MouseButton1Click:Connect(TeleportToLobby)
-    TPLobbyExtToggleBtn.MouseButton1Click:Connect(toggleTPLobbyExt)
-    ExtTPLobbyBtn.MouseButton1Click:Connect(TeleportToLobby)
-
-    TPUndergroundBtn.MouseButton1Click:Connect(TeleportToUnderground)
-    TPUndergroundExtToggleBtn.MouseButton1Click:Connect(toggleTPUndergroundExt)
-    ExtTPUndergroundBtn.MouseButton1Click:Connect(TeleportToUnderground)
-
-    AntiFlingToggleBtn.MouseButton1Click:Connect(toggleAntiFling)
-    AntiVoidToggleBtn.MouseButton1Click:Connect(toggleAntiVoid)
-    InfiniteJumpToggleBtn.MouseButton1Click:Connect(toggleInfiniteJump)
-    MasterExtToggleBtn.MouseButton1Click:Connect(toggleMasterExt)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
@@ -2452,14 +2070,6 @@ return function()
     SafeConnect(UserInputService.InputChanged, function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     SafeConnect(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    -- INISIALISASI STRUKTUR UKURAN & INTEGRASI VISUAL UTAMA
-    updateExternalButtonSizes()
-    updateExternalButtonsVisibility()
-
-    if _G.SyncFlingButtons then _G.SyncFlingButtons() end
-    if _G.SyncSpinButtons then _G.SyncSpinButtons() end
-
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Memory Leak Patch Successfully Initialized.")
 end
-
