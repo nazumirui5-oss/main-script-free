@@ -190,7 +190,6 @@ return function(AccessKey)
     -- Konfigurasi Fitur Internal (MM2)
     local Settings = {
         CameraAimbot = false,
-        KnifeAimbotEnabled = false,
         HitboxExpander = false,
         HitboxVisual = true,
         ESP = false,
@@ -216,7 +215,6 @@ return function(AccessKey)
         FlySpeedValue = 50,
         JumpPowerEnabled = false,
         JumpPowerValue = 50,
-        InfiniteJumpEnabled = false,
         NoclipEnabled = false,
         InvisibleEnabled = false,
         KillAuraEnabled = false,
@@ -522,7 +520,7 @@ return function(AccessKey)
     end
 
     -- ========================================================================
-    -- [[ DETEKSI JUMP & LOGIKA DOUBLE & INFINITE JUMP ENGINE ]]
+    -- [[ DETEKSI JUMP & LOGIKA DOUBLE JUMP ENGINE ]]
     -- ========================================================================
     local HasDoubleJumped = false
     local CanDoubleJump = false
@@ -565,18 +563,6 @@ return function(AccessKey)
     end)
     table.insert(_G.LouisConnections, DoubleJumpReq)
 
-    -- LOGIKA LOGIS INFINITE JUMP
-    local InfJumpReq = UserInputService.JumpRequest:Connect(function()
-        if Settings.InfiniteJumpEnabled then
-            local character = LocalPlayer.Character
-            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end)
-    table.insert(_G.LouisConnections, InfJumpReq)
-
     -- ========================================================================
     -- [[ LOGIKA EMULASI TEKNIS AIMBOT & ROLE DETECTION (MM2) ]]
     -- ========================================================================
@@ -589,7 +575,7 @@ return function(AccessKey)
     FOVCircle.Visible = false
 
     SafeConnect(RunService.RenderStepped, function()
-        if (Settings.CameraAimbot or Settings.KnifeAimbotEnabled) and not Settings.HideFOVCircle then
+        if Settings.CameraAimbot and not Settings.HideFOVCircle then
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
             FOVCircle.Radius = Settings.FOVSize
             FOVCircle.Visible = true
@@ -696,21 +682,11 @@ return function(AccessKey)
         return predictedPos
     end
 
-    -- AIMBOT RENDER: Mendukung Gun dan Knife (Aktif di tangan atau berada di tas)
+    -- AIMBOT RENDER: Dipicu hanya saat memegang "Gun" (Aktif di tangan)
     SafeConnect(RunService.RenderStepped, function()
-        if LocalPlayer.Character then
-            local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun") and LocalPlayer.Character.Gun:IsA("Tool")
-            local HoldsKnife = LocalPlayer.Character:FindFirstChild("Knife") and LocalPlayer.Character.Knife:IsA("Tool")
-            local HasKnifeInBackpack = LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Knife")
-            
-            local shouldAim = false
-            if Settings.CameraAimbot and HoldsGun then
-                shouldAim = true
-            elseif Settings.KnifeAimbotEnabled and (HoldsKnife or HasKnifeInBackpack) then
-                shouldAim = true
-            end
-
-            if shouldAim then
+        if Settings.CameraAimbot and LocalPlayer.Character then
+            local HoldsGun = LocalPlayer.Character:FindFirstChild("Gun")
+            if HoldsGun and HoldsGun:IsA("Tool") then
                 local MyRole = GetMM2Role(LocalPlayer)
                 
                 if MyRole == "Murderer" then
@@ -1834,22 +1810,18 @@ return function(AccessKey)
     KillAllBtn.Parent = BoxKillPlayer; KillAllBtn.LayoutOrder = 3
 
 
-    -- BOX 2: AIM UTAMA DENGAN DUKUNGAN KNIFE AIMBOT
-    local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 82)
+    -- BOX 2: AIM UTAMA
+    local BoxAim = createGroupContainer("Combat", "Main Aim Mechanics", 64)
     local ToggleBtn = createBtn("[Q] AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     ToggleBtn.Parent = BoxAim; ToggleBtn.LayoutOrder = 1
-
-    local KnifeAimbotToggleBtn = createBtn("KNIFE AIMBOT: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    KnifeAimbotToggleBtn.Parent = BoxAim; KnifeAimbotToggleBtn.LayoutOrder = 2
     
     local ExtAimbotToggleBtn = createBtn("AIMBOT (EXT): OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    ExtAimbotToggleBtn.Parent = BoxAim; ExtAimbotToggleBtn.LayoutOrder = 3
+    ExtAimbotToggleBtn.Parent = BoxAim; ExtAimbotToggleBtn.LayoutOrder = 2
 
-    local sliderA = createSlider(BoxAim, "BUTTON 'A' SIZE: %d", 20, 100, Settings.Size_A, function(val)
+    createSlider(BoxAim, "BUTTON 'A' SIZE: %d", 20, 100, Settings.Size_A, function(val)
         Settings.Size_A = val
         updateExternalButtonSizes()
     end)
-    sliderA.LayoutOrder = 4
 
 
     -- BOX 3: FIELD OF VIEW (FOV)
@@ -1870,7 +1842,7 @@ return function(AccessKey)
 
 
     -- BOX 4: FLING SYSTEM
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 125)
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 170)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
@@ -1895,6 +1867,22 @@ return function(AccessKey)
         updateExternalButtonSizes()
     end)
     sliderFM.LayoutOrder = 6
+
+    -- Deskripsi Fling V2 Script Integration
+    local FlingV2Label = Instance.new("TextLabel")
+    FlingV2Label.Size = UDim2.new(1, -10, 0, 12)
+    FlingV2Label.BackgroundTransparency = 1
+    FlingV2Label.Text = "This is the fling v2 script, just click to execute the script."
+    FlingV2Label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    FlingV2Label.Font = Enum.Font.GothamSemibold
+    FlingV2Label.TextSize = 5.5
+    FlingV2Label.TextWrapped = true
+    FlingV2Label.LayoutOrder = 7
+    FlingV2Label.Parent = BoxFling
+
+    -- Tombol Fling V2 Script Integration
+    local FlingV2Btn = createBtn("LOAD FLING V2", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
+    FlingV2Btn.Parent = BoxFling; FlingV2Btn.LayoutOrder = 8
 
 
     -- BOX 5: GRAB GUN SYSTEM
@@ -1925,7 +1913,7 @@ return function(AccessKey)
     end)
 
 
-    -- BOX 7: PLAYER TELEPORTS
+    -- [[ BOX 7: PLAYER TELEPORTS ]]
     local BoxTeleport = createGroupContainer("Combat", "Player Teleports", 125)
     
     local TpSheriffBtn = createBtn("TELEPORT TO SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
@@ -1951,11 +1939,6 @@ return function(AccessKey)
         updateExternalButtonSizes()
     end)
     sliderTPM.LayoutOrder = 6
-
-    -- BOX 8: MASTER ON/OFF EXTERNAL BUTTONS (Combat Paling Bawah)
-    local BoxMasterExt = createGroupContainer("Combat", "Master External Buttons Control", 28)
-    local MasterExtBtn = createBtn("ALL EXTERNAL BUTTONS: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    MasterExtBtn.Parent = BoxMasterExt; MasterExtBtn.LayoutOrder = 1
 
 
     -- --- TAB 3: ESP ---
@@ -2004,18 +1987,14 @@ return function(AccessKey)
         Settings.SpeedWalkValue = val
     end)
 
-    -- BOX 2: JUMP MODIFIER (Dengan Infinite Jump)
-    local BoxPlayerJump = createGroupContainer("Utility", "Jump Power Modifier", 64)
+    -- BOX 2: JUMP MODIFIER
+    local BoxPlayerJump = createGroupContainer("Utility", "Jump Power Modifier", 46)
     local JumpToggleBtn = createBtn("JUMP HEIGHT MOD: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     JumpToggleBtn.Parent = BoxPlayerJump; JumpToggleBtn.LayoutOrder = 1
 
-    local InfJumpToggleBtn = createBtn("INFINITE JUMP: OFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    InfJumpToggleBtn.Parent = BoxPlayerJump; InfJumpToggleBtn.LayoutOrder = 2
-
-    local sliderJP = createSlider(BoxPlayerJump, "JUMP POWER: %d", 50, 200, Settings.JumpPowerValue, function(val)
+    createSlider(BoxPlayerJump, "JUMP POWER: %d", 50, 200, Settings.JumpPowerValue, function(val)
         Settings.JumpPowerValue = val
     end)
-    sliderJP.LayoutOrder = 3
 
     -- BOX 3: FLY & NOCLIP
     local BoxFlyNoclip = createGroupContainer("Utility", "No Clip & Fly Hack", 64)
@@ -2136,17 +2115,11 @@ return function(AccessKey)
         syncAimbotVisual()
     end
 
-    local function toggleKnifeAimbot()
-        Settings.KnifeAimbotEnabled = not Settings.KnifeAimbotEnabled
-        KnifeAimbotToggleBtn.Text = Settings.KnifeAimbotEnabled and "KNIFE AIMBOT: ON" or "KNIFE AIMBOT: OFF"
-        SetToggleState(KnifeAimbotToggleBtn, Settings.KnifeAimbotEnabled)
-    end
-
     local function toggleExtAimbotMaster()
         Settings.AimbotExtEnabled = not Settings.AimbotExtEnabled
         ExtAimbotToggleBtn.Text = Settings.AimbotExtEnabled and "AIMBOT (EXT): ON" or "AIMBOT (EXT): OFF"
         SetToggleState(ExtAimbotToggleBtn, Settings.AimbotExtEnabled)
-        ExtAimbotBtn.Visible = Settings.AimbotExtEnabled and MainVisible
+        ExtAimbotBtn.Visible = Settings.AimbotExtEnabled
     end
 
     local function toggleEsp()
@@ -2203,7 +2176,7 @@ return function(AccessKey)
         Settings.GrabGunExtEnabled = not Settings.GrabGunExtEnabled
         ManualGrabToggleBtn.Text = Settings.GrabGunExtEnabled and "GRAB GUN (EXT): ON" or "GRAB GUN (EXT): OFF"
         SetToggleState(ManualGrabToggleBtn, Settings.GrabGunExtEnabled)
-        ExtGrabBtn.Visible = Settings.GrabGunExtEnabled and MainVisible
+        ExtGrabBtn.Visible = Settings.GrabGunExtEnabled
     end
 
     local function executeManualGrab()
@@ -2235,12 +2208,6 @@ return function(AccessKey)
         Settings.JumpPowerEnabled = not Settings.JumpPowerEnabled
         JumpToggleBtn.Text = Settings.JumpPowerEnabled and "JUMP HEIGHT MOD: ON" or "JUMP HEIGHT MOD: OFF"
         SetToggleState(JumpToggleBtn, Settings.JumpPowerEnabled)
-    end
-
-    local function toggleInfJump()
-        Settings.InfiniteJumpEnabled = not Settings.InfiniteJumpEnabled
-        InfJumpToggleBtn.Text = Settings.InfiniteJumpEnabled and "INFINITE JUMP: ON" or "INFINITE JUMP: OFF"
-        SetToggleState(InfJumpToggleBtn, Settings.InfiniteJumpEnabled)
     end
 
     local function toggleNoclip()
@@ -2305,7 +2272,7 @@ return function(AccessKey)
         Settings.DoubleJumpExtEnabled = not Settings.DoubleJumpExtEnabled
         DoubleJumpExtToggleBtn.Text = Settings.DoubleJumpExtEnabled and "DOUBLE JUMP (EXT): ON" or "DOUBLE JUMP (EXT): OFF"
         SetToggleState(DoubleJumpExtToggleBtn, Settings.DoubleJumpExtEnabled)
-        ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled and MainVisible
+        ExtDoubleJumpBtn.Visible = Settings.DoubleJumpExtEnabled
     end
 
     local function toggleSpin()
@@ -2319,7 +2286,7 @@ return function(AccessKey)
         Settings.SpinExtEnabled = not Settings.SpinExtEnabled
         SpinExtToggleBtn.Text = Settings.SpinExtEnabled and "SPIN BOT (EXT): ON" or "SPIN BOT (EXT): OFF"
         SetToggleState(SpinExtToggleBtn, Settings.SpinExtEnabled)
-        ExtSpinBtn.Visible = Settings.SpinExtEnabled and MainVisible
+        ExtSpinBtn.Visible = Settings.SpinExtEnabled
     end
 
     -- TOGGLE TELEPORT BARU
@@ -2327,14 +2294,14 @@ return function(AccessKey)
         Settings.TpSheriffExtEnabled = not Settings.TpSheriffExtEnabled
         ExtTpSheriffToggleBtn.Text = Settings.TpSheriffExtEnabled and "TP SHERIFF (EXT): ON" or "TP SHERIFF (EXT): OFF"
         SetToggleState(ExtTpSheriffToggleBtn, Settings.TpSheriffExtEnabled)
-        ExtTpSheriffBtn.Visible = Settings.TpSheriffExtEnabled and MainVisible
+        ExtTpSheriffBtn.Visible = Settings.TpSheriffExtEnabled
     end
 
     local function toggleTpMurderExt()
         Settings.TpMurderExtEnabled = not Settings.TpMurderExtEnabled
         ExtTpMurderToggleBtn.Text = Settings.TpMurderExtEnabled and "TP MURDER (EXT): ON" or "TP MURDER (EXT): OFF"
         SetToggleState(ExtTpMurderToggleBtn, Settings.TpMurderExtEnabled)
-        ExtTpMurderBtn.Visible = Settings.TpMurderExtEnabled and MainVisible
+        ExtTpMurderBtn.Visible = Settings.TpMurderExtEnabled
     end
 
     -- TOGGLE FLING EKSTERNAL BARU
@@ -2342,66 +2309,14 @@ return function(AccessKey)
         Settings.FlingMurderExtEnabled = not Settings.FlingMurderExtEnabled
         ExtFlingMurderToggleBtn.Text = Settings.FlingMurderExtEnabled and "FLING MURDER (EXT): ON" or "FLING MURDER (EXT): OFF"
         SetToggleState(ExtFlingMurderToggleBtn, Settings.FlingMurderExtEnabled)
-        ExtFlingMurderBtn.Visible = Settings.FlingMurderExtEnabled and MainVisible
+        ExtFlingMurderBtn.Visible = Settings.FlingMurderExtEnabled
     end
 
     local function toggleFlingSheriffExt()
         Settings.FlingSheriffExtEnabled = not Settings.FlingSheriffExtEnabled
         ExtFlingSheriffToggleBtn.Text = Settings.FlingSheriffExtEnabled and "FLING SHERIFF (EXT): ON" or "FLING SHERIFF (EXT): OFF"
         SetToggleState(ExtFlingSheriffToggleBtn, Settings.FlingSheriffExtEnabled)
-        ExtFlingSheriffBtn.Visible = Settings.FlingSheriffExtEnabled and MainVisible
-    end
-
-    -- LOGIKA MASTER ON/OFF SEMUA TOMBOL EKSTERNAL
-    local MasterExtState = false
-    local function setAllExtButtons(state)
-        Settings.AimbotExtEnabled = state
-        Settings.GrabGunExtEnabled = state
-        Settings.DoubleJumpExtEnabled = state
-        Settings.SpinExtEnabled = state
-        Settings.TpSheriffExtEnabled = state
-        Settings.TpMurderExtEnabled = state
-        Settings.FlingMurderExtEnabled = state
-        Settings.FlingSheriffExtEnabled = state
-        
-        ExtAimbotToggleBtn.Text = state and "AIMBOT (EXT): ON" or "AIMBOT (EXT): OFF"
-        SetToggleState(ExtAimbotToggleBtn, state)
-        ExtAimbotBtn.Visible = state and MainVisible
-        
-        ManualGrabToggleBtn.Text = state and "GRAB GUN (EXT): ON" or "GRAB GUN (EXT): OFF"
-        SetToggleState(ManualGrabToggleBtn, state)
-        ExtGrabBtn.Visible = state and MainVisible
-        
-        DoubleJumpExtToggleBtn.Text = state and "DOUBLE JUMP (EXT): ON" or "DOUBLE JUMP (EXT): OFF"
-        SetToggleState(DoubleJumpExtToggleBtn, state)
-        ExtDoubleJumpBtn.Visible = state and MainVisible
-        
-        SpinExtToggleBtn.Text = state and "SPIN BOT (EXT): ON" or "SPIN BOT (EXT): OFF"
-        SetToggleState(SpinExtToggleBtn, state)
-        ExtSpinBtn.Visible = state and MainVisible
-        
-        ExtTpSheriffToggleBtn.Text = state and "TP SHERIFF (EXT): ON" or "TP SHERIFF (EXT): OFF"
-        SetToggleState(ExtTpSheriffToggleBtn, state)
-        ExtTpSheriffBtn.Visible = state and MainVisible
-        
-        ExtTpMurderToggleBtn.Text = state and "TP MURDER (EXT): ON" or "TP MURDER (EXT): OFF"
-        SetToggleState(ExtTpMurderToggleBtn, state)
-        ExtTpMurderBtn.Visible = state and MainVisible
-        
-        ExtFlingMurderToggleBtn.Text = state and "FLING MURDER (EXT): ON" or "FLING MURDER (EXT): OFF"
-        SetToggleState(ExtFlingMurderToggleBtn, state)
-        ExtFlingMurderBtn.Visible = state and MainVisible
-        
-        ExtFlingSheriffToggleBtn.Text = state and "FLING SHERIFF (EXT): ON" or "FLING SHERIFF (EXT): OFF"
-        SetToggleState(ExtFlingSheriffToggleBtn, state)
-        ExtFlingSheriffBtn.Visible = state and MainVisible
-    end
-
-    local function toggleAllExtButtons()
-        MasterExtState = not MasterExtState
-        MasterExtBtn.Text = MasterExtState and "ALL EXTERNAL BUTTONS: ON" or "ALL EXTERNAL BUTTONS: OFF"
-        SetToggleState(MasterExtBtn, MasterExtState)
-        setAllExtButtons(MasterExtState)
+        ExtFlingSheriffBtn.Visible = Settings.FlingSheriffExtEnabled
     end
 
     -- KONEKSI EVENT KE TOMBOL-TOMBOL FITUR
@@ -2409,7 +2324,6 @@ return function(AccessKey)
     KillAllBtn.MouseButton1Click:Connect(TeleportAllPlayersToMe)
 
     ToggleBtn.MouseButton1Click:Connect(toggleAimbot)
-    KnifeAimbotToggleBtn.MouseButton1Click:Connect(toggleKnifeAimbot)
     ExtAimbotToggleBtn.MouseButton1Click:Connect(toggleExtAimbotMaster)
     ExtAimbotBtn.MouseButton1Click:Connect(toggleAimbot)
     
@@ -2434,7 +2348,6 @@ return function(AccessKey)
 
     FlyToggleBtn.MouseButton1Click:Connect(toggleFly)
     JumpToggleBtn.MouseButton1Click:Connect(toggleJumpHeight)
-    InfJumpToggleBtn.MouseButton1Click:Connect(toggleInfJump)
     NoclipToggleBtn.MouseButton1Click:Connect(toggleNoclip)
     InvisibleToggleBtn.MouseButton1Click:Connect(toggleInvisible)
 
@@ -2460,8 +2373,22 @@ return function(AccessKey)
     ExtFlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     ExtFlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
 
-    -- KONEKSI MASTER EXTERNAL BUTTONS
-    MasterExtBtn.MouseButton1Click:Connect(toggleAllExtButtons)
+    -- AKSI INTEGRASI FLING V2 BUTTON
+    FlingV2Btn.MouseButton1Click:Connect(function()
+        local oldText = FlingV2Btn.Text
+        FlingV2Btn.Text = "LOADING..."
+        local success, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murder%20mystery%20HUD"))()
+        end)
+        if success then
+            FlingV2Btn.Text = "EXECUTED!"
+        else
+            FlingV2Btn.Text = "FAILED!"
+            warn("Fling V2 Execution Error: " .. tostring(err))
+        end
+        task.wait(1.5)
+        FlingV2Btn.Text = oldText
+    end)
 
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
