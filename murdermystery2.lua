@@ -1842,7 +1842,7 @@ return function(AccessKey)
 
 
     -- BOX 4: FLING SYSTEM
-    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 170)
+    local BoxFling = createGroupContainer("Combat", "Fling Glitch System", 125)
     
     local FlingSheriffBtn = createBtn("AUTO FLING SHERIFF", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
     FlingSheriffBtn.Parent = BoxFling; FlingSheriffBtn.LayoutOrder = 1
@@ -1867,22 +1867,6 @@ return function(AccessKey)
         updateExternalButtonSizes()
     end)
     sliderFM.LayoutOrder = 6
-
-    -- Deskripsi Fling V2 Script Integration
-    local FlingV2Label = Instance.new("TextLabel")
-    FlingV2Label.Size = UDim2.new(1, -10, 0, 12)
-    FlingV2Label.BackgroundTransparency = 1
-    FlingV2Label.Text = "This is the fling v2 script, just click to execute the script."
-    FlingV2Label.TextColor3 = Color3.fromRGB(200, 200, 200)
-    FlingV2Label.Font = Enum.Font.GothamSemibold
-    FlingV2Label.TextSize = 5.5
-    FlingV2Label.TextWrapped = true
-    FlingV2Label.LayoutOrder = 7
-    FlingV2Label.Parent = BoxFling
-
-    -- Tombol Fling V2 Script Integration
-    local FlingV2Btn = createBtn("LOAD FLING V2", UDim2.new(0,0,0,0), UDim2.new(1, -10, 0, 14))
-    FlingV2Btn.Parent = BoxFling; FlingV2Btn.LayoutOrder = 8
 
 
     -- BOX 5: GRAB GUN SYSTEM
@@ -2373,23 +2357,6 @@ return function(AccessKey)
     ExtFlingMurderBtn.MouseButton1Click:Connect(toggleFlingMurder)
     ExtFlingSheriffBtn.MouseButton1Click:Connect(toggleFlingSheriff)
 
-    -- AKSI INTEGRASI FLING V2 BUTTON
-    FlingV2Btn.MouseButton1Click:Connect(function()
-        local oldText = FlingV2Btn.Text
-        FlingV2Btn.Text = "LOADING..."
-        local success, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/nazumirui5-oss/main-script-free/refs/heads/main/murder%20mystery%20HUD"))()
-        end)
-        if success then
-            FlingV2Btn.Text = "EXECUTED!"
-        else
-            FlingV2Btn.Text = "FAILED!"
-            warn("Fling V2 Execution Error: " .. tostring(err))
-        end
-        task.wait(1.5)
-        FlingV2Btn.Text = oldText
-    end)
-
     VisualBtn.MouseButton1Click:Connect(function()
         Settings.HitboxVisual = not Settings.HitboxVisual
         VisualBtn.Text = Settings.HitboxVisual and "[V] HITBOX VISUAL: ON" or "[V] HITBOX VISUAL: OFF"
@@ -2429,3 +2396,4 @@ return function(AccessKey)
     startLoading()
     print("Louis Hub FREE V13.5.2: Rebuilt Box Systems & Unified Theme Successfully Initialized.")
 end
+
