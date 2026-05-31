@@ -361,6 +361,7 @@ return function(AccessKey)
     _G.NormalSpeedEnabled = false
     _G.NormalSpeedValue = 16
     _G.SpeedBoostValue = 30
+    _G.SpeedBoostDuration = 1.0 -- Nilai durasi speed boost default (detik)
     _G.NormalJumpEnabled = false
     _G.NormalJumpValue = 7.2
     _G.LegitJumpValue = 15
@@ -382,6 +383,7 @@ return function(AccessKey)
     local hudMinimized = false
     local canWallJump = true
     local isSpeedBoosting = false
+    local tempLegitJumping = false -- Penanda bypass ketika melakukan Legit Jump
 
     -- Performance Throttling
     local lastRaycastCheck = 0
@@ -604,7 +606,7 @@ return function(AccessKey)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.Visible = false
     ContentFrame.ScrollBarThickness = 0
-    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 480)
+    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 500) -- Ditingkatkan dari 480 agar muat slider tambahan
 
     -- HELPER UNTUK SLIDER YANG DINAMIS & DAPAT DI-REUSE
     local function buildSlider(parent, textFormat, minVal, maxVal, defaultVal, pos, callback)
@@ -675,23 +677,28 @@ return function(AccessKey)
         _G.SpeedBoostValue = v
     end)
 
-    local NormalJumpBtn = createBtn("[J] JUMP HIGH: OFF", UDim2.new(0, 6, 0, 134), UDim2.new(0, 128, 0, 20)); NormalJumpBtn.Parent = ContentFrame
+    -- FITUR BARU: SLIDER UNTUK MENGATUR DURASI SPEED BOOST (0.5 - 5.0 detik)
+    buildSlider(ContentFrame, "BOOST DUR: %.1f s", 0.5, 5.0, _G.SpeedBoostDuration, UDim2.new(0, 6, 0, 134), function(v)
+        _G.SpeedBoostDuration = v
+    end)
 
-    buildSlider(ContentFrame, "JUMP HIGH: %.1f", 1, 50, _G.NormalJumpValue, UDim2.new(0, 6, 0, 159), function(v)
+    local NormalJumpBtn = createBtn("[J] JUMP HIGH: OFF", UDim2.new(0, 6, 0, 151), UDim2.new(0, 128, 0, 20)); NormalJumpBtn.Parent = ContentFrame
+
+    buildSlider(ContentFrame, "JUMP HIGH: %.1f", 1, 50, _G.NormalJumpValue, UDim2.new(0, 6, 0, 176), function(v)
         _G.NormalJumpValue = v
     end)
 
-    buildSlider(ContentFrame, "LEGIT JUMP: %.1f", 1, 50, _G.LegitJumpValue, UDim2.new(0, 6, 0, 176), function(v)
+    buildSlider(ContentFrame, "LEGIT JUMP: %.1f", 1, 50, _G.LegitJumpValue, UDim2.new(0, 6, 0, 193), function(v)
         _G.LegitJumpValue = v
     end)
 
     -- FITUR BARU: SLIDER SKALA UI & TOMBOL EKSTERNAL
-    buildSlider(ContentFrame, "UI SIZE: %.0f%%", 1, 200, _G.UIScaleValue, UDim2.new(0, 6, 0, 193), function(v)
+    buildSlider(ContentFrame, "UI SIZE: %.0f%%", 1, 200, _G.UIScaleValue, UDim2.new(0, 6, 0, 210), function(v)
         _G.UIScaleValue = v
         MainUIScale.Scale = v / 100
     end)
 
-    buildSlider(ContentFrame, "EXT SIZE: %.0f%%", 1, 200, _G.ExternalScaleValue, UDim2.new(0, 6, 0, 210), function(v)
+    buildSlider(ContentFrame, "EXT SIZE: %.0f%%", 1, 200, _G.ExternalScaleValue, UDim2.new(0, 6, 0, 227), function(v)
         _G.ExternalScaleValue = v
         if ScreenGui:FindFirstChild("ExternalContainer") then
             ScreenGui.ExternalContainer.ExternalUIScale.Scale = v / 100
@@ -699,36 +706,36 @@ return function(AccessKey)
     end)
 
     -- OFF-SET LAYOUT PREMIUM SEBELUMNYA
-    createLine(UDim2.new(0, 6, 0, 227)).Parent = ContentFrame 
-    createLabel("FACES MODE", UDim2.new(0, 6, 0, 233)).Parent = ContentFrame
-    local ClassicBtn = createBtn("[G] CLASSIC: OFF (PREMIUM)", UDim2.new(0, 6, 0, 245), UDim2.new(0, 62, 0, 20)); ClassicBtn.Parent = ContentFrame
-    local ProBtn = createBtn("[H] PRO: OFF (PREMIUM)", UDim2.new(0, 72, 0, 245), UDim2.new(0, 62, 0, 20)); ProBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 244)).Parent = ContentFrame 
+    createLabel("FACES MODE", UDim2.new(0, 6, 0, 250)).Parent = ContentFrame
+    local ClassicBtn = createBtn("[G] CLASSIC: OFF (PREMIUM)", UDim2.new(0, 6, 0, 262), UDim2.new(0, 62, 0, 20)); ClassicBtn.Parent = ContentFrame
+    local ProBtn = createBtn("[H] PRO: OFF (PREMIUM)", UDim2.new(0, 72, 0, 262), UDim2.new(0, 62, 0, 20)); ProBtn.Parent = ContentFrame
 
-    createLine(UDim2.new(0, 6, 0, 270)).Parent = ContentFrame
-    createLabel("WALLHOP MODE", UDim2.new(0, 6, 0, 276)).Parent = ContentFrame
-    local WHNormalBtn = createBtn("NORMAL (PREMIUM)", UDim2.new(0, 6, 0, 288), UDim2.new(0, 62, 0, 20), _G.WHNormal and _G.AccentColor or nil); WHNormalBtn.Parent = ContentFrame
-    local WHInstantBtn = createBtn("INSTANT (PREMIUM)", UDim2.new(0, 72, 0, 288), UDim2.new(0, 62, 0, 20)); WHInstantBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 287)).Parent = ContentFrame
+    createLabel("WALLHOP MODE", UDim2.new(0, 6, 0, 293)).Parent = ContentFrame
+    local WHNormalBtn = createBtn("NORMAL (PREMIUM)", UDim2.new(0, 6, 0, 305), UDim2.new(0, 62, 0, 20), _G.WHNormal and _G.AccentColor or nil); WHNormalBtn.Parent = ContentFrame
+    local WHInstantBtn = createBtn("INSTANT (PREMIUM)", UDim2.new(0, 72, 0, 305), UDim2.new(0, 62, 0, 20)); WHInstantBtn.Parent = ContentFrame
 
-    createLabel("WALLHOP DISTANCE (PREMIUM)", UDim2.new(0, 6, 0, 313)).Parent = ContentFrame
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 325); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    createLabel("WALLHOP DISTANCE (PREMIUM)", UDim2.new(0, 6, 0, 330)).Parent = ContentFrame
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 342); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _G.AccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
 
     -- CAMERA SETTINGS
-    createLine(UDim2.new(0, 6, 0, 342)).Parent = ContentFrame
-    createLabel("CAMERA SETTINGS", UDim2.new(0, 6, 0, 348)).Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 359)).Parent = ContentFrame
+    createLabel("CAMERA SETTINGS", UDim2.new(0, 6, 0, 365)).Parent = ContentFrame
     
-    local FOVBtn = createBtn("[I] FOV: OFF", UDim2.new(0, 6, 0, 360), UDim2.new(0, 128, 0, 20)); FOVBtn.Parent = ContentFrame
+    local FOVBtn = createBtn("[I] FOV: OFF", UDim2.new(0, 6, 0, 377), UDim2.new(0, 128, 0, 20)); FOVBtn.Parent = ContentFrame
 
     -- SLIDER FOV (1-200)
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 385); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 402); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _G.AccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
 
     -- FREEZE / LAG SYSTEM
-    createLine(UDim2.new(0, 6, 0, 402)).Parent = ContentFrame
-    createLabel("FREEZE / LAG SIMULATOR", UDim2.new(0, 6, 0, 408)).Parent = ContentFrame
-    local FreezeBtn = createBtn("[O] FREEZE BUTTON: OFF", UDim2.new(0, 6, 0, 420), UDim2.new(0, 128, 0, 20)); FreezeBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 419)).Parent = ContentFrame
+    createLabel("FREEZE / LAG SIMULATOR", UDim2.new(0, 6, 0, 425)).Parent = ContentFrame
+    local FreezeBtn = createBtn("[O] FREEZE BUTTON: OFF", UDim2.new(0, 6, 0, 437), UDim2.new(0, 128, 0, 20)); FreezeBtn.Parent = ContentFrame
 
     local CloseBar = createBtn("▼ OPEN MENU ▼", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 16), Color3.new(0,0,0))
     CloseBar.BackgroundTransparency = 1; CloseBar.TextSize = 6
@@ -823,10 +830,13 @@ return function(AccessKey)
         -- LOGIKA TINGGI LOMPATAN (NORMAL JUMP)
         if hum then
             hum.UseJumpPower = false
-            if _G.NormalJumpEnabled then
-                hum.JumpHeight = _G.NormalJumpValue
-            else
-                hum.JumpHeight = 7.2
+            -- Lewati penguncian paksa jika sedang melakukan "Legit Jump" instan
+            if not tempLegitJumping then
+                if _G.NormalJumpEnabled then
+                    hum.JumpHeight = _G.NormalJumpValue
+                else
+                    hum.JumpHeight = 7.2
+                end
             end
         end
 
@@ -1117,39 +1127,42 @@ return function(AccessKey)
 
     StopFreezeExternalBtn.MouseButton1Click:Connect(stopFreeze)
 
-    -- Logika Speed Boost 1 Detik
+    -- Logika Speed Boost (Menggunakan durasi dinamis dari slider)
     SpeedBoostExternalBtn.MouseButton1Click:Connect(function()
         if isSpeedBoosting then return end
         isSpeedBoosting = true
         SpeedBoostExternalBtn.BackgroundColor3 = _G.AccentColor
         SpeedBoostExternalBtn.Text = "BOOSTING"
         
-        task.wait(1.0)
+        task.wait(_G.SpeedBoostDuration) -- Durasi yang dapat diatur dari slider
         
         isSpeedBoosting = false
         SpeedBoostExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
         SpeedBoostExternalBtn.Text = "SPD BOOST"
     end)
 
-    -- Logika Legit Jump High (Satu Kali Lompat)
+    -- Logika Legit Jump High (Menggunakan Bypass Loop Frame agar tidak mati-mati terus)
     LegitJumpExternalBtn.MouseButton1Click:Connect(function()
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
+        if hum and not tempLegitJumping then
+            tempLegitJumping = true -- Menghentikan intervensi loop penguncian
             hum.UseJumpPower = false
-            local defaultHeight = hum.JumpHeight
             
             -- Set ke nilai legit tinggi lompatan
             hum.JumpHeight = _G.LegitJumpValue
             hum.Jump = true
             
-            -- Kembalikan setelah animasi lompat tereksekusi
-            task.wait(0.15)
+            -- Menunggu aksi lompatan selesai terproses oleh fisika game
+            task.wait(0.25)
+            
+            -- Mengembalikan penguncian tinggi lompatan secara normal
             if _G.NormalJumpEnabled then
                 hum.JumpHeight = _G.NormalJumpValue
             else
                 hum.JumpHeight = 7.2
             end
+            tempLegitJumping = false -- Membuka kembali intervensi loop
         end
     end)
 
