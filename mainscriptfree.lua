@@ -10,4 +10,3 @@ local obf_stringchar=string.char;local obf_stringbyte=string.byte;local obf_stri
           \_Welcome to LuaObfuscator.com   (Alpha 0.10.9) ~  Much Love, Ferib 
 
 ]]--
-
