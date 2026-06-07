@@ -181,6 +181,10 @@ return function(AccessKey)
     _G.AutoWalkEnabled = false
     _G.AutoWalkRetreatSpeed = 22
 
+    -- FITUR BARU AUTO & MANUAL PASS BOMB
+    _G.AutoPassEnabled = false
+    _G.PassTargetMode = "Without Bomb" -- Pilihan: "Without Bomb" atau "With Bomb"
+
     local faceSpeed = 0.18
     local lockedTarget = nil 
     local lastHadBomb = false
@@ -193,6 +197,7 @@ return function(AccessKey)
     local hudMinimized = false
     local canWallJump = true
     local jumpDebounce = false
+    local isTweening = false
 
     -- Performance Throttling
     local lastRaycastCheck = 0
@@ -631,7 +636,7 @@ return function(AccessKey)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.Visible = false
     ContentFrame.ScrollBarThickness = 0
-    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 710) -- Disinkronkan ke 710 agar pas dengan sistem crosshair & resolution baru
+    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 790) -- Canvas diperluas untuk menampung fitur baru
 
     -- [[ BUTTONS WITH PREMIUM TAGS ]]
     local ModeBtn = createBtn("[E] MODE: CLASSIC (PREMIUM)", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); ModeBtn.Parent = ContentFrame
@@ -681,7 +686,7 @@ return function(AccessKey)
         end
     end)
 
-    -- TOMBOL AUTO JUMP (PREMIUM) & TOMBOL AUTO WALK (FREE - FITUR BARU)
+    -- TOMBOL AUTO JUMP (PREMIUM) & TOMBOL AUTO WALK (FREE)
     local AutoJumpBtn = createBtn("[C] JUMP: PREMIUM", UDim2.new(0, 6, 0, 80), UDim2.new(0, 62, 0, 20)); AutoJumpBtn.Parent = ContentFrame
     local AutoWalkBtn = createBtn("[T] AUTO WALK: OFF", UDim2.new(0, 72, 0, 80), UDim2.new(0, 62, 0, 20)); AutoWalkBtn.Parent = ContentFrame
 
@@ -1296,14 +1301,22 @@ return function(AccessKey)
         end
     end)
 
-    -- SYSTEM SCALE SETTINGS
+    -- ========================================================
+    -- [[ INTEGRATED AUTO & MANUAL PASS BOMB (FREE) ]]
+    -- ========================================================
     createLine(UDim2.new(0, 6, 0, 635)).Parent = ContentFrame
-    createLabel("SCALE SETTINGS", UDim2.new(0, 6, 0, 641)).Parent = ContentFrame
+    createLabel("AUTO & MANUAL PASS BOMB SYSTEM", UDim2.new(0, 6, 0, 641)).Parent = ContentFrame
+    local AutoPassBtn = createBtn("[P] AUTO PASS: OFF", UDim2.new(0, 6, 0, 653), UDim2.new(0, 128, 0, 20)); AutoPassBtn.Parent = ContentFrame
+    local PassModeBtn = createBtn("TARGET: WITHOUT BOMB", UDim2.new(0, 6, 0, 678), UDim2.new(0, 128, 0, 20)); PassModeBtn.Parent = ContentFrame
+
+    -- SYSTEM SCALE SETTINGS (Posisi digeser ke bawah)
+    createLine(UDim2.new(0, 6, 0, 708)).Parent = ContentFrame
+    createLabel("SCALE SETTINGS", UDim2.new(0, 6, 0, 714)).Parent = ContentFrame
 
     -- SLIDER UKURAN UI (1-200%)
     local UIScaleSliderFrame = Instance.new("Frame", ContentFrame)
     UIScaleSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    UIScaleSliderFrame.Position = UDim2.new(0, 6, 0, 653)
+    UIScaleSliderFrame.Position = UDim2.new(0, 6, 0, 726)
     UIScaleSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", UIScaleSliderFrame)
 
@@ -1352,7 +1365,7 @@ return function(AccessKey)
     -- SLIDER UKURAN TOMBOL EKSTERNAL (1-200%)
     local ExtScaleSliderFrame = Instance.new("Frame", ContentFrame)
     ExtScaleSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    ExtScaleSliderFrame.Position = UDim2.new(0, 6, 0, 670)
+    ExtScaleSliderFrame.Position = UDim2.new(0, 6, 0, 750)
     ExtScaleSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", ExtScaleSliderFrame)
 
@@ -1371,6 +1384,7 @@ return function(AccessKey)
     local ExternalUIScale
     local AutoHoldUIScale
     local FlickExternalUIScale
+    local PassExternalUIScale
 
     local function syncExtScaleSlider(val)
         ExtScaleSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0)
@@ -1383,6 +1397,9 @@ return function(AccessKey)
         end
         if FlickExternalUIScale then
             FlickExternalUIScale.Scale = val / 100
+        end
+        if PassExternalUIScale then
+            PassExternalUIScale.Scale = val / 100
         end
     end
 
@@ -1537,6 +1554,63 @@ return function(AccessKey)
         end)
     end
 
+    -- LOGIKA TWEEN UNTUK PASS BOMB (CEPAT & AMAN DARI DETEKSI ANTI-TELEPORT)
+    local function teleportTween(targetPart)
+        if isTweening or not targetPart then return end
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        isTweening = true
+        
+        local startPos = hrp.Position
+        local endPos = targetPart.Position
+        local dist = (startPos - endPos).Magnitude
+        
+        -- Kecepatan ultra tinggi (230 studs per detik) yang aman tapi mendekati instan
+        local speed = 230 
+        local duration = math.clamp(dist / speed, 0.05, 0.75)
+        
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        -- Berikan sedikit offset offset z: 1.2 stud agar tidak tersangkut di dalam tubuh musuh
+        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetPart.CFrame * CFrame.new(0, 0, 1.2)})
+        tween:Play()
+        tween.Completed:Connect(function()
+            isTweening = false
+        end)
+    end
+
+    local function triggerManualPass()
+        if isTweening then return end
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        local rootPos = char.HumanoidRootPart.Position
+        
+        local bestTarget = nil
+        local minDist = math.huge
+        
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and isAlive(p) and not isTeammate(p) then
+                local isMatch = false
+                if _G.PassTargetMode == "Without Bomb" then
+                    isMatch = not hasBomb(p)
+                else
+                    isMatch = hasBomb(p)
+                end
+                
+                if isMatch then
+                    local d = (rootPos - p.Character.HumanoidRootPart.Position).Magnitude
+                    if d < minDist then
+                        minDist = d
+                        bestTarget = p
+                    end
+                end
+            end
+        end
+        
+        if bestTarget then
+            teleportTween(bestTarget.Character.HumanoidRootPart)
+        end
+    end
+
     RunService.Heartbeat:Connect(function(dt)
         if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
         local root = LocalPlayer.Character.HumanoidRootPart; local hum = LocalPlayer.Character.Humanoid
@@ -1616,6 +1690,25 @@ return function(AccessKey)
             if _G.HJEnabled then task.spawn(function() hum:ChangeState(3); task.wait(0.4); hum:ChangeState(3) end) end
             if _G.AutoWalkEnabled then
                 autoWalkRetreatTimer = 2.5 -- Trigger gerak mundur selama 2.5 detik
+            end
+        end
+
+        -- LOGIKA OTOMATIS OPER BOM (AUTO PASS BOMB)
+        if _G.AutoPassEnabled and amIHolder and not isTweening then
+            local rootPos = root.Position
+            local bestTarget = nil
+            local minDist = math.huge
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and isAlive(p) and not isTeammate(p) and not hasBomb(p) then
+                    local d = (rootPos - p.Character.HumanoidRootPart.Position).Magnitude
+                    if d < minDist then
+                        minDist = d
+                        bestTarget = p
+                    end
+                end
+            end
+            if bestTarget then
+                teleportTween(bestTarget.Character.HumanoidRootPart)
             end
         end
 
@@ -1861,14 +1954,14 @@ return function(AccessKey)
     end)
 
     -- ========================================================
-    -- [[ 5. TOMBOL EKSTERNAL FREEZE (LAG), FLICK, & AUTO HOLD BOMB ]]
+    -- [[ 5. TOMBOL EKSTERNAL FREEZE, FLICK, AUTO HOLD, & PASS ]]
     -- ========================================================
     
     -- TOMBOL FREEZE
     local FreezeExternalBtn = Instance.new("TextButton", ScreenGui)
     FreezeExternalBtn.Name = "FreezeExternalButton"
     FreezeExternalBtn.Size = UDim2.new(0, 70, 0, 30)
-    FreezeExternalBtn.Position = UDim2.new(0.5, -115, 0.8, 0)
+    FreezeExternalBtn.Position = UDim2.new(0.5, -155, 0.8, 0)
     FreezeExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     FreezeExternalBtn.Text = "FREEZE"
     FreezeExternalBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1905,7 +1998,7 @@ return function(AccessKey)
     local FlickExternalBtn = Instance.new("TextButton", ScreenGui)
     FlickExternalBtn.Name = "FlickExternalButton"
     FlickExternalBtn.Size = UDim2.new(0, 70, 0, 30)
-    FlickExternalBtn.Position = UDim2.new(0.5, -35, 0.8, 0)
+    FlickExternalBtn.Position = UDim2.new(0.5, -75, 0.8, 0)
     FlickExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     FlickExternalBtn.Text = "FLICK"
     FlickExternalBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1925,7 +2018,7 @@ return function(AccessKey)
     local AutoHoldExternalBtn = Instance.new("TextButton", ScreenGui)
     AutoHoldExternalBtn.Name = "AutoHoldExternalButton"
     AutoHoldExternalBtn.Size = UDim2.new(0, 70, 0, 30)
-    AutoHoldExternalBtn.Position = UDim2.new(0.5, 45, 0.8, 0)
+    AutoHoldExternalBtn.Position = UDim2.new(0.5, 5, 0.8, 0)
     AutoHoldExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     AutoHoldExternalBtn.Text = "HOLD BOMB"
     AutoHoldExternalBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1940,6 +2033,26 @@ return function(AccessKey)
 
     AutoHoldUIScale = Instance.new("UIScale", AutoHoldExternalBtn)
     AutoHoldUIScale.Scale = 1.0
+
+    -- FITUR BARU: TOMBOL MANUAL PASS BOMB EKSTERNAL
+    local PassExternalBtn = Instance.new("TextButton", ScreenGui)
+    PassExternalBtn.Name = "PassExternalButton"
+    PassExternalBtn.Size = UDim2.new(0, 70, 0, 30)
+    PassExternalBtn.Position = UDim2.new(0.5, 85, 0.8, 0)
+    PassExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    PassExternalBtn.Text = "PASS BOMB"
+    PassExternalBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    PassExternalBtn.Font = Enum.Font.GothamBold
+    PassExternalBtn.TextSize = 10
+    PassExternalBtn.ZIndex = 100
+    PassExternalBtn.Visible = true -- Selalu tampil agar mempermudah manual trigger
+    Instance.new("UICorner", PassExternalBtn).CornerRadius = UDim.new(0, 5)
+    local PassExternalStroke = Instance.new("UIStroke", PassExternalBtn)
+    PassExternalStroke.Color = _G.AccentColor
+    PassExternalStroke.Thickness = 1.5
+
+    PassExternalUIScale = Instance.new("UIScale", PassExternalBtn)
+    PassExternalUIScale.Scale = 1.0
 
     -- Hubungkan slider inisialisasi awal dengan nilai global saat ini
     syncExtScaleSlider(_G.ExtScaleValue)
@@ -2004,6 +2117,27 @@ return function(AccessKey)
     UserInputService.InputEnded:Connect(function(i) 
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
             ah_dragging = false 
+        end 
+    end)
+
+    -- Tombol Pass Bomb Draggable
+    local pe_dragging, pe_dragStart, pe_startPos
+    PassExternalBtn.InputBegan:Connect(function(i) 
+        if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) and not isLocked then 
+            pe_dragging = true
+            pe_dragStart = i.Position
+            pe_startPos = PassExternalBtn.Position 
+        end 
+    end)
+    UserInputService.InputChanged:Connect(function(i) 
+        if pe_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then 
+            local d = i.Position - pe_dragStart
+            PassExternalBtn.Position = UDim2.new(pe_startPos.X.Scale, pe_startPos.X.Offset + d.X, pe_startPos.Y.Scale, pe_startPos.Y.Offset + d.Y) 
+        end 
+    end)
+    UserInputService.InputEnded:Connect(function(i) 
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+            pe_dragging = false 
         end 
     end)
 
@@ -2077,6 +2211,9 @@ return function(AccessKey)
             AutoHoldExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
         end
     end)
+
+    -- Interaksi Tombol Eksternal Manual Pass
+    PassExternalBtn.MouseButton1Click:Connect(triggerManualPass)
 
     -- ==========================================
     -- [[ FUNCTION TRIGGERS FOR BUTTONS ]]
@@ -2175,6 +2312,22 @@ return function(AccessKey)
         AutoWalkBtn.BackgroundColor3 = _G.AutoWalkEnabled and _G.AccentColor or Color3.fromRGB(30, 30, 35)
     end
 
+    -- FITUR BARU: TOGGLE AUTO & MANUAL PASS BOMB
+    local function toggleAutoPass()
+        _G.AutoPassEnabled = not _G.AutoPassEnabled
+        AutoPassBtn.Text = _G.AutoPassEnabled and "[P] AUTO PASS: ON" or "[P] AUTO PASS: OFF"
+        AutoPassBtn.BackgroundColor3 = _G.AutoPassEnabled and _G.AccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    local function togglePassMode()
+        if _G.PassTargetMode == "Without Bomb" then
+            _G.PassTargetMode = "With Bomb"
+        else
+            _G.PassTargetMode = "Without Bomb"
+        end
+        PassModeBtn.Text = "TARGET: " .. _G.PassTargetMode:upper()
+    end
+
     -- [[ BUTTON FUNCTIONALITIES ]]
     ToggleBtn.MouseButton1Click:Connect(toggleFollow)
     FlickBtn.MouseButton1Click:Connect(toggleFlick)
@@ -2185,6 +2338,8 @@ return function(AccessKey)
     CrosshairBtn.MouseButton1Click:Connect(toggleCrosshair)
     ResBtn.MouseButton1Click:Connect(toggleResolution)
     AutoWalkBtn.MouseButton1Click:Connect(toggleAutoWalk)
+    AutoPassBtn.MouseButton1Click:Connect(toggleAutoPass)
+    PassModeBtn.MouseButton1Click:Connect(togglePassMode)
 
     -- LOCKED PREMIUM FEATURES (Trigger NotifyPremium)
     ModeBtn.MouseButton1Click:Connect(NotifyPremium)
@@ -2219,7 +2374,8 @@ return function(AccessKey)
         elseif key == Enum.KeyCode.U then toggleCrosshair()
         elseif key == Enum.KeyCode.Y then toggleResolution()
         elseif key == Enum.KeyCode.T then toggleAutoWalk()
-        elseif key == Enum.KeyCode.E or key == Enum.KeyCode.X or key == Enum.KeyCode.C or key == Enum.KeyCode.G or key == Enum.KeyCode.H or key == Enum.KeyCode.P then
+        elseif key == Enum.KeyCode.P then triggerManualPass() -- Keybind P untuk Manual Pass Bomb
+        elseif key == Enum.KeyCode.E or key == Enum.KeyCode.X or key == Enum.KeyCode.C or key == Enum.KeyCode.G or key == Enum.KeyCode.H then
             NotifyPremium()
         end
     end)
@@ -2230,5 +2386,5 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    print("Louis Hub FREE V13.5.2: Initialized Successfully with Auto Walk (Gliding & Wall Check).")
+    print("Louis Hub FREE V13.5.2: Initialized Successfully with Auto Walk & Auto/Manual Pass Bomb.")
 end
