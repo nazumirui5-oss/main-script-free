@@ -187,6 +187,10 @@ return function(AccessKey)
     _G.PassMaxDistance = 100 -- Default maksimum jarak dalam stud (1-200)
     _G.PassExternalVisible = false -- Visibility eksternal tombol oper bom
 
+    -- FITUR SPEED BARU (1-100)
+    _G.CustomSpeedEnabled = false
+    _G.CustomSpeedValue = 16
+
     local faceSpeed = 0.18
     local lockedTarget = nil 
     local lastHadBomb = false
@@ -200,6 +204,8 @@ return function(AccessKey)
     local canWallJump = true
     local jumpDebounce = false
     local isTweening = false
+    local lastPassedTarget = nil
+    local justPassedBomb = false
 
     -- Performance Throttling
     local lastRaycastCheck = 0
@@ -631,14 +637,14 @@ return function(AccessKey)
         InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
     end)
 
-    -- MEMBUAT CONTENT FRAME MENJASI SCROLLING FRAME AGAR MUAT DI DALAM GUI LAMA
+    -- MEMBUAT CONTENT FRAME MENJADI SCROLLING FRAME AGAR MUAT DI DALAM GUI LAMA
     local ContentFrame = Instance.new("ScrollingFrame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -61)
     ContentFrame.Position = UDim2.new(0, 0, 0, 45)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.Visible = false
     ContentFrame.ScrollBarThickness = 0
-    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 850) -- Canvas diperluas untuk menampung fitur baru
+    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 950) -- Canvas diperluas untuk menampung fitur baru
 
     -- [[ BUTTONS WITH PREMIUM TAGS ]]
     local ModeBtn = createBtn("[E] MODE: CLASSIC (PREMIUM)", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); ModeBtn.Parent = ContentFrame
@@ -692,15 +698,68 @@ return function(AccessKey)
     local AutoJumpBtn = createBtn("[C] JUMP: PREMIUM", UDim2.new(0, 6, 0, 80), UDim2.new(0, 62, 0, 20)); AutoJumpBtn.Parent = ContentFrame
     local AutoWalkBtn = createBtn("[T] AUTO WALK: OFF", UDim2.new(0, 72, 0, 80), UDim2.new(0, 62, 0, 20)); AutoWalkBtn.Parent = ContentFrame
 
-    -- TOMBOL MULTI JUMP & AUTO HOLD BOMB (FREE / UNLOCKED)
-    local InfJumpBtn = createBtn("[K] INF JUMP: OFF", UDim2.new(0, 6, 0, 105), UDim2.new(0, 62, 0, 20)); InfJumpBtn.Parent = ContentFrame
-    local AutoHoldBtn = createBtn("[J] AUTO HOLD: OFF", UDim2.new(0, 72, 0, 105), UDim2.new(0, 62, 0, 20)); AutoHoldBtn.Parent = ContentFrame
+    -- ========================================================
+    -- [[ INTEGRASI FITUR SPEED SLIDER BARU (1-100) ]]
+    -- ========================================================
+    local SpeedBtn = createBtn("[V] SPEED: OFF", UDim2.new(0, 6, 0, 105), UDim2.new(0, 128, 0, 20)); SpeedBtn.Parent = ContentFrame
+
+    createLabel("WALK SPEED (1-100)", UDim2.new(0, 6, 0, 130)).Parent = ContentFrame
+    local SpeedSliderFrame = Instance.new("Frame", ContentFrame)
+    SpeedSliderFrame.Size = UDim2.new(0, 128, 0, 12)
+    SpeedSliderFrame.Position = UDim2.new(0, 6, 0, 142)
+    SpeedSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    Instance.new("UICorner", SpeedSliderFrame)
     
-    -- SLIDER JUMP LIMIT (2-10) (FREE / UNLOCKED)
-    createLabel("MAX JUMPS (2-10)", UDim2.new(0, 6, 0, 130)).Parent = ContentFrame
+    local SpeedSliderFill = Instance.new("Frame", SpeedSliderFrame)
+    SpeedSliderFill.BackgroundColor3 = _G.AccentColor
+    Instance.new("UICorner", SpeedSliderFill)
+    
+    local SpeedSliderText = Instance.new("TextLabel", SpeedSliderFrame)
+    SpeedSliderText.Size = UDim2.new(1, 0, 1, 0)
+    SpeedSliderText.BackgroundTransparency = 1
+    SpeedSliderText.TextColor3 = Color3.new(1, 1, 1)
+    SpeedSliderText.TextSize = 7
+    SpeedSliderText.Font = Enum.Font.GothamBold
+
+    local function syncSpeedSlider(val)
+        SpeedSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0)
+        SpeedSliderText.Text = string.format("SPEED: %d", val)
+    end
+    syncSpeedSlider(_G.CustomSpeedValue)
+
+    local speedDragging = false
+    SpeedSliderFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            speedDragging = true
+            local percentage = math.clamp((input.Position.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
+            _G.CustomSpeedValue = math.floor(1 + (percentage * 99))
+            syncSpeedSlider(_G.CustomSpeedValue)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if speedDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local percentage = math.clamp((input.Position.X - SpeedSliderFrame.AbsolutePosition.X) / SpeedSliderFrame.AbsoluteSize.X, 0, 1)
+            _G.CustomSpeedValue = math.floor(1 + (percentage * 99))
+            syncSpeedSlider(_G.CustomSpeedValue)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            speedDragging = false
+        end
+    end)
+
+    -- TOMBOL MULTI JUMP & AUTO HOLD BOMB (FREE / UNLOCKED) (Posisi bergeser karena Speed Slider)
+    local InfJumpBtn = createBtn("[K] INF JUMP: OFF", UDim2.new(0, 6, 0, 160), UDim2.new(0, 62, 0, 20)); InfJumpBtn.Parent = ContentFrame
+    local AutoHoldBtn = createBtn("[J] AUTO HOLD: OFF", UDim2.new(0, 72, 0, 160), UDim2.new(0, 62, 0, 20)); AutoHoldBtn.Parent = ContentFrame
+    
+    -- SLIDER JUMP LIMIT (2-10) (FREE / UNLOCKED) (Saling bergeser ke bawah)
+    createLabel("MAX JUMPS (2-10)", UDim2.new(0, 6, 0, 185)).Parent = ContentFrame
     local JumpSliderFrame = Instance.new("Frame", ContentFrame)
     JumpSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    JumpSliderFrame.Position = UDim2.new(0, 6, 0, 142)
+    JumpSliderFrame.Position = UDim2.new(0, 6, 0, 197)
     JumpSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", JumpSliderFrame)
     
@@ -738,54 +797,54 @@ return function(AccessKey)
         end
     end)
 
-    local InfJumpWarning = createLabel("WARNING: This feature has a risk of getting banned if you use this feature too often", UDim2.new(0, 6, 0, 157), UDim2.new(0, 128, 0, 20))
+    local InfJumpWarning = createLabel("WARNING: This feature has a risk of getting banned if you use this feature too often", UDim2.new(0, 6, 0, 212), UDim2.new(0, 128, 0, 20))
     InfJumpWarning.TextColor3 = Color3.fromRGB(255, 75, 75)
     InfJumpWarning.TextWrapped = true
     InfJumpWarning.TextSize = 5.5
     InfJumpWarning.Parent = ContentFrame
 
     -- Shift 45px ke bawah untuk seluruh elemen di scrolling frame
-    createLine(UDim2.new(0, 6, 0, 182)).Parent = ContentFrame 
-    createLabel("FACES MODE", UDim2.new(0, 6, 0, 188)).Parent = ContentFrame
-    local ClassicBtn = createBtn("[G] CLASSIC: OFF (PREMIUM)", UDim2.new(0, 6, 0, 200), UDim2.new(0, 62, 0, 20)); ClassicBtn.Parent = ContentFrame
-    local ProBtn = createBtn("[H] PRO: OFF (PREMIUM)", UDim2.new(0, 72, 0, 200), UDim2.new(0, 62, 0, 20)); ProBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 237)).Parent = ContentFrame 
+    createLabel("FACES MODE", UDim2.new(0, 6, 0, 243)).Parent = ContentFrame
+    local ClassicBtn = createBtn("[G] CLASSIC: OFF (PREMIUM)", UDim2.new(0, 6, 0, 255), UDim2.new(0, 62, 0, 20)); ClassicBtn.Parent = ContentFrame
+    local ProBtn = createBtn("[H] PRO: OFF (PREMIUM)", UDim2.new(0, 72, 0, 255), UDim2.new(0, 62, 0, 20)); ProBtn.Parent = ContentFrame
 
-    createLine(UDim2.new(0, 6, 0, 226)).Parent = ContentFrame
-    createLabel("WALLHOP MODE", UDim2.new(0, 6, 0, 232)).Parent = ContentFrame
-    local WHNormalBtn = createBtn("NORMAL (PREMIUM)", UDim2.new(0, 6, 0, 244), UDim2.new(0, 62, 0, 20), _G.WHNormal and _G.AccentColor or nil); WHNormalBtn.Parent = ContentFrame
-    local WHInstantBtn = createBtn("INSTANT (PREMIUM)", UDim2.new(0, 72, 0, 244), UDim2.new(0, 62, 0, 20)); WHInstantBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 281)).Parent = ContentFrame
+    createLabel("WALLHOP MODE", UDim2.new(0, 6, 0, 287)).Parent = ContentFrame
+    local WHNormalBtn = createBtn("NORMAL (PREMIUM)", UDim2.new(0, 6, 0, 299), UDim2.new(0, 62, 0, 20), _G.WHNormal and _G.AccentColor or nil); WHNormalBtn.Parent = ContentFrame
+    local WHInstantBtn = createBtn("INSTANT (PREMIUM)", UDim2.new(0, 72, 0, 299), UDim2.new(0, 62, 0, 20)); WHInstantBtn.Parent = ContentFrame
 
-    createLabel("WALLHOP DISTANCE (PREMIUM)", UDim2.new(0, 6, 0, 269)).Parent = ContentFrame
-    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 281); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
+    createLabel("WALLHOP DISTANCE (PREMIUM)", UDim2.new(0, 6, 0, 324)).Parent = ContentFrame
+    local SliderFrame = Instance.new("Frame", ContentFrame); SliderFrame.Size = UDim2.new(0, 128, 0, 12); SliderFrame.Position = UDim2.new(0, 6, 0, 336); SliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", SliderFrame)
     local SliderFill = Instance.new("Frame", SliderFrame); SliderFill.BackgroundColor3 = _G.AccentColor; Instance.new("UICorner", SliderFill)
     local SliderText = Instance.new("TextLabel", SliderFrame); SliderText.Size = UDim2.new(1, 0, 1, 0); SliderText.BackgroundTransparency = 1; SliderText.TextColor3 = Color3.new(1, 1, 1); SliderText.TextSize = 7; SliderText.Font = Enum.Font.GothamBold
 
     -- CAMERA SETTINGS (FREE / NON-PREMIUM)
-    createLine(UDim2.new(0, 6, 0, 300)).Parent = ContentFrame
-    createLabel("CAMERA SETTINGS", UDim2.new(0, 6, 0, 306)).Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 355)).Parent = ContentFrame
+    createLabel("CAMERA SETTINGS", UDim2.new(0, 6, 0, 361)).Parent = ContentFrame
     
-    local FOVBtn = createBtn("[I] FOV: OFF", UDim2.new(0, 6, 0, 318), UDim2.new(0, 128, 0, 20)); FOVBtn.Parent = ContentFrame
+    local FOVBtn = createBtn("[I] FOV: OFF", UDim2.new(0, 6, 0, 373), UDim2.new(0, 128, 0, 20)); FOVBtn.Parent = ContentFrame
 
     -- SLIDER FOV (1-200)
-    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 343); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
+    local FOVSliderFrame = Instance.new("Frame", ContentFrame); FOVSliderFrame.Size = UDim2.new(0, 128, 0, 12); FOVSliderFrame.Position = UDim2.new(0, 6, 0, 398); FOVSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UICorner", FOVSliderFrame)
     local FOVSliderFill = Instance.new("Frame", FOVSliderFrame); FOVSliderFill.BackgroundColor3 = _G.AccentColor; Instance.new("UICorner", FOVSliderFill)
     local FOVSliderText = Instance.new("TextLabel", FOVSliderFrame); FOVSliderText.Size = UDim2.new(1, 0, 1, 0); FOVSliderText.BackgroundTransparency = 1; FOVSliderText.TextColor3 = Color3.new(1, 1, 1); FOVSliderText.TextSize = 7; FOVSliderText.Font = Enum.Font.GothamBold
 
     -- FREEZE / LAG SYSTEM (FREE / NON-PREMIUM)
-    createLine(UDim2.new(0, 6, 0, 360)).Parent = ContentFrame
-    createLabel("FREEZE / LAG SIMULATOR", UDim2.new(0, 6, 0, 366)).Parent = ContentFrame
-    local FreezeBtn = createBtn("[O] FREEZE BUTTON: OFF", UDim2.new(0, 6, 0, 378), UDim2.new(0, 128, 0, 20)); FreezeBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 415)).Parent = ContentFrame
+    createLabel("FREEZE / LAG SIMULATOR", UDim2.new(0, 6, 0, 421)).Parent = ContentFrame
+    local FreezeBtn = createBtn("[O] FREEZE BUTTON: OFF", UDim2.new(0, 6, 0, 433), UDim2.new(0, 128, 0, 20)); FreezeBtn.Parent = ContentFrame
 
     -- ========================================================
     -- [[ INTEGRATED ROTATING CROSSHAIR SETTINGS (FREE 1-5 ONLY) ]]
     -- ========================================================
-    createLine(UDim2.new(0, 6, 0, 403)).Parent = ContentFrame
-    createLabel("ROTATING CROSSHAIR SETTINGS", UDim2.new(0, 6, 0, 409)).Parent = ContentFrame
-    local CrosshairBtn = createBtn("[U] CROSSHAIR: OFF", UDim2.new(0, 6, 0, 421), UDim2.new(0, 128, 0, 20)); CrosshairBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 458)).Parent = ContentFrame
+    createLabel("ROTATING CROSSHAIR SETTINGS", UDim2.new(0, 6, 0, 464)).Parent = ContentFrame
+    local CrosshairBtn = createBtn("[U] CROSSHAIR: OFF", UDim2.new(0, 6, 0, 476), UDim2.new(0, 128, 0, 20)); CrosshairBtn.Parent = ContentFrame
 
     local CrosshairScroll = Instance.new("ScrollingFrame", ContentFrame)
     CrosshairScroll.Size = UDim2.new(0, 128, 0, 120)
-    CrosshairScroll.Position = UDim2.new(0, 6, 0, 446)
+    CrosshairScroll.Position = UDim2.new(0, 6, 0, 501)
     CrosshairScroll.BackgroundTransparency = 0.92
     CrosshairScroll.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     CrosshairScroll.BorderSizePixel = 0
@@ -1252,13 +1311,13 @@ return function(AccessKey)
     -- ========================================================
     -- [[ INTEGRATED SCREEN RESOLUTION SYSTEM (FREE / UNLOCKED) ]]
     -- ========================================================
-    createLine(UDim2.new(0, 6, 0, 575)).Parent = ContentFrame
-    createLabel("SCREEN RESOLUTION SYSTEM", UDim2.new(0, 6, 0, 581)).Parent = ContentFrame
-    local ResBtn = createBtn("[Y] RESOLUTION: OFF", UDim2.new(0, 6, 0, 593), UDim2.new(0, 128, 0, 20)); ResBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 630)).Parent = ContentFrame
+    createLabel("SCREEN RESOLUTION SYSTEM", UDim2.new(0, 6, 0, 636)).Parent = ContentFrame
+    local ResBtn = createBtn("[Y] RESOLUTION: OFF", UDim2.new(0, 6, 0, 648), UDim2.new(0, 128, 0, 20)); ResBtn.Parent = ContentFrame
 
     local ResSliderFrame = Instance.new("Frame", ContentFrame)
     ResSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    ResSliderFrame.Position = UDim2.new(0, 6, 0, 618)
+    ResSliderFrame.Position = UDim2.new(0, 6, 0, 673)
     ResSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", ResSliderFrame)
     
@@ -1306,19 +1365,19 @@ return function(AccessKey)
     -- ========================================================
     -- [[ INTEGRATED AUTO & MANUAL PASS BOMB (FREE) ]]
     -- ========================================================
-    createLine(UDim2.new(0, 6, 0, 635)).Parent = ContentFrame
-    createLabel("AUTO & MANUAL PASS BOMB SYSTEM", UDim2.new(0, 6, 0, 641)).Parent = ContentFrame
-    local AutoPassBtn = createBtn("[P] AUTO PASS: OFF", UDim2.new(0, 6, 0, 653), UDim2.new(0, 128, 0, 20)); AutoPassBtn.Parent = ContentFrame
-    local PassModeBtn = createBtn("TARGET: WITHOUT BOMB", UDim2.new(0, 6, 0, 678), UDim2.new(0, 128, 0, 20)); PassModeBtn.Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 690)).Parent = ContentFrame
+    createLabel("AUTO & MANUAL PASS BOMB SYSTEM", UDim2.new(0, 6, 0, 696)).Parent = ContentFrame
+    local AutoPassBtn = createBtn("[P] AUTO PASS: OFF", UDim2.new(0, 6, 0, 708), UDim2.new(0, 128, 0, 20)); AutoPassBtn.Parent = ContentFrame
+    local PassModeBtn = createBtn("TARGET: WITHOUT BOMB", UDim2.new(0, 6, 0, 733), UDim2.new(0, 128, 0, 20)); PassModeBtn.Parent = ContentFrame
     
     -- ON/OFF BUTTON UNTUK MEMUNCULKAN TOMBOL EKSTERNAL PASS BOMB
-    local PassShowBtn = createBtn("SHOW PASS BTN: OFF", UDim2.new(0, 6, 0, 703), UDim2.new(0, 128, 0, 20)); PassShowBtn.Parent = ContentFrame
+    local PassShowBtn = createBtn("SHOW PASS BTN: OFF", UDim2.new(0, 6, 0, 758), UDim2.new(0, 128, 0, 20)); PassShowBtn.Parent = ContentFrame
 
     -- SLIDER AREA STUD UNTUK PASS BOMB (1-200 STUD)
-    createLabel("PASS AREA RANGE (1-200 STUD)", UDim2.new(0, 6, 0, 728)).Parent = ContentFrame
+    createLabel("PASS AREA RANGE (1-200 STUD)", UDim2.new(0, 6, 0, 783)).Parent = ContentFrame
     local PassSliderFrame = Instance.new("Frame", ContentFrame)
     PassSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    PassSliderFrame.Position = UDim2.new(0, 6, 0, 740)
+    PassSliderFrame.Position = UDim2.new(0, 6, 0, 795)
     PassSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", PassSliderFrame)
     
@@ -1364,13 +1423,13 @@ return function(AccessKey)
     end)
 
     -- SYSTEM SCALE SETTINGS (Posisi digeser ke bawah)
-    createLine(UDim2.new(0, 6, 0, 765)).Parent = ContentFrame
-    createLabel("SCALE SETTINGS", UDim2.new(0, 6, 0, 771)).Parent = ContentFrame
+    createLine(UDim2.new(0, 6, 0, 820)).Parent = ContentFrame
+    createLabel("SCALE SETTINGS", UDim2.new(0, 6, 0, 826)).Parent = ContentFrame
 
     -- SLIDER UKURAN UI (1-200%)
     local UIScaleSliderFrame = Instance.new("Frame", ContentFrame)
     UIScaleSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    UIScaleSliderFrame.Position = UDim2.new(0, 6, 0, 783)
+    UIScaleSliderFrame.Position = UDim2.new(0, 6, 0, 838)
     UIScaleSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", UIScaleSliderFrame)
 
@@ -1419,7 +1478,7 @@ return function(AccessKey)
     -- SLIDER UKURAN TOMBOL EKSTERNAL (1-200%)
     local ExtScaleSliderFrame = Instance.new("Frame", ContentFrame)
     ExtScaleSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    ExtScaleSliderFrame.Position = UDim2.new(0, 6, 0, 807)
+    ExtScaleSliderFrame.Position = UDim2.new(0, 6, 0, 862)
     ExtScaleSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", ExtScaleSliderFrame)
 
@@ -1439,22 +1498,18 @@ return function(AccessKey)
     local AutoHoldUIScale
     local FlickExternalUIScale
     local PassExternalUIScale
+    local SpeedExternalUIScale
+    local AutoWalkExternalUIScale
 
     local function syncExtScaleSlider(val)
         ExtScaleSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0)
         ExtScaleSliderText.Text = string.format("EXT SIZE: %.0f%%", val)
-        if ExternalUIScale then
-            ExternalUIScale.Scale = val / 100
-        end
-        if AutoHoldUIScale then
-            AutoHoldUIScale.Scale = val / 100
-        end
-        if FlickExternalUIScale then
-            FlickExternalUIScale.Scale = val / 100
-        end
-        if PassExternalUIScale then
-            PassExternalUIScale.Scale = val / 100
-        end
+        if ExternalUIScale then ExternalUIScale.Scale = val / 100 end
+        if AutoHoldUIScale then AutoHoldUIScale.Scale = val / 100 end
+        if FlickExternalUIScale then FlickExternalUIScale.Scale = val / 100 end
+        if PassExternalUIScale then PassExternalUIScale.Scale = val / 100 end
+        if SpeedExternalUIScale then SpeedExternalUIScale.Scale = val / 100 end
+        if AutoWalkExternalUIScale then AutoWalkExternalUIScale.Scale = val / 100 end
     end
 
     local extScaleDragging = false
@@ -1615,6 +1670,13 @@ return function(AccessKey)
         if not hrp then return end
         isTweening = true
         
+        -- Deteksi dan simpan target pass bomb secara spesifik untuk fungsionalitas Auto Walk retreat
+        local targetPlayer = Players:GetPlayerFromCharacter(targetPart.Parent)
+        if targetPlayer then
+            lastPassedTarget = targetPlayer
+            justPassedBomb = true
+        end
+
         -- SIMPAN POSISI AWAL SEBELUM MELAKUKAN TELEPORT OPER BOM
         local startCFrame = hrp.CFrame
         local startPos = hrp.Position
@@ -1773,16 +1835,24 @@ return function(AccessKey)
             end
         end
 
-        -- KENDALI PERGERAKAN (AUTO CHASE / AUTO WALK)
+        -- KENDALI PERGERAKAN (AUTO CHASE / AUTO WALK DENGAN INTEGRASI SLIDER SPEED BARU & PENGECUALIAN TARGET)
         if _G.AutoWalkEnabled then
             if amIHolder then
+                justPassedBomb = false -- Reset status pass saat kita kembali memegang bom
                 -- AUTO WALK SAAT MEMBAWA BOMB (MENGEJAR MUSUH)
                 if lockedTarget and isAlive(lockedTarget) then
                     local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
-                    if dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
+                    
+                    -- Fungsionalitas slider kecepatan kustom baru
+                    local speed = 25
+                    if _G.CustomSpeedEnabled then
+                        speed = _G.CustomSpeedValue
+                    else
+                        if dist <= 12 then speed = 25 else speed = 16 end
+                    end
+                    hum.WalkSpeed = speed
                     
                     local targetPos = tRoot.Position
-                    local speed = 25
                     local moveDir = (targetPos - root.Position).Unit
                     
                     local params = RaycastParams.new()
@@ -1813,22 +1883,27 @@ return function(AccessKey)
                     root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetY, nextPos.Z), Vector3.new(targetPos.X, targetY, targetPos.Z))
                     hum:Move(Vector3.new(0, 0, 0))
                 else
-                    hum.WalkSpeed = 16
+                    hum.WalkSpeed = _G.CustomSpeedEnabled and _G.CustomSpeedValue or 16
                 end
             else
-                -- AUTO WALK SAAT TIDAK MEMBAWA BOMB: "MENJAUHIN YANG PEGANG BOMB" (TIDAK MENGGUNAKAN MUNDUR)
+                -- AUTO WALK SAAT TIDAK MEMBAWA BOMB: "MENJAUHI TARGET YANG BARU SAJA DI-PASS BOMB"
                 local bombHolder = nil
-                for _, p in pairs(Players:GetPlayers()) do
-                    if p ~= LocalPlayer and isAlive(p) and hasBomb(p) then
-                        bombHolder = p
-                        break
-                    end
+                if justPassedBomb and lastPassedTarget and isAlive(lastPassedTarget) and hasBomb(lastPassedTarget) then
+                    bombHolder = lastPassedTarget
                 end
                 
                 if bombHolder then
                     local targetPos = bombHolder.Character.HumanoidRootPart.Position
-                    local speed = _G.AutoWalkRetreatSpeed or 22
-                    local moveDir = (root.Position - targetPos).Unit -- Arah menjauhi pemegang bom
+                    
+                    local speed = 22
+                    if _G.CustomSpeedEnabled then
+                        speed = _G.CustomSpeedValue
+                    else
+                        speed = _G.AutoWalkRetreatSpeed or 22
+                    end
+                    hum.WalkSpeed = speed
+                    
+                    local moveDir = (root.Position - targetPos).Unit -- Arah menjauhi target pass
                     
                     local params = RaycastParams.new()
                     params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
@@ -1858,10 +1933,13 @@ return function(AccessKey)
                     root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetY, nextPos.Z), Vector3.new(targetPos.X, targetY, targetPos.Z))
                     hum:Move(Vector3.new(0, 0, 0))
                 else
-                    -- Fallback standar jika tidak ada pemegang bom terdeteksi
+                    -- Fallback standar jika tidak ada target valid yang sedang membawa bom
                     if lockedTarget and isAlive(lockedTarget) then
-                        local tRoot = lockedTarget.Character.HumanoidRootPart
-                        hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * 22)
+                        local speed = _G.CustomSpeedEnabled and _G.CustomSpeedValue or 22
+                        hum.WalkSpeed = speed
+                        hum:MoveTo(root.Position + (root.Position - lockedTarget.Character.HumanoidRootPart.Position).Unit * speed)
+                    else
+                        hum.WalkSpeed = _G.CustomSpeedEnabled and _G.CustomSpeedValue or 16
                     end
                 end
             end
@@ -1869,16 +1947,26 @@ return function(AccessKey)
             -- SISTEM CHASE / FOLLOW ORIGINAL (MENGGUNAKAN HUMANOID:MOVETO DENGAN FUNGSI MUNDUR SEPERTI BIASA)
             if lockedTarget and isAlive(lockedTarget) then
                 local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
-                if amIHolder and dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
+                
+                local speed = 16
+                if _G.CustomSpeedEnabled then
+                    speed = _G.CustomSpeedValue
+                else
+                    if amIHolder and dist <= 12 then speed = 25 else speed = 16 end
+                end
+                hum.WalkSpeed = speed
                 
                 if _G.FollowEnabled and retreatTimer <= 0 then 
                     local targetPos = _G.PredictEnabled and (tRoot.Position + (tRoot.Velocity * 0.13)) or tRoot.Position
                     hum:MoveTo(targetPos) 
                 elseif _G.FollowEnabled then
-                    retreatTimer -= dt; hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * 22)
+                    retreatTimer -= dt
+                    local escapeSpeed = _G.CustomSpeedEnabled and _G.CustomSpeedValue or 22
+                    hum.WalkSpeed = escapeSpeed
+                    hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * escapeSpeed)
                 end
             else 
-                hum.WalkSpeed = 16 
+                hum.WalkSpeed = _G.CustomSpeedEnabled and _G.CustomSpeedValue or 16 
             end
         end
 
@@ -2137,6 +2225,47 @@ return function(AccessKey)
     PassExternalUIScale = Instance.new("UIScale", PassExternalBtn)
     PassExternalUIScale.Scale = 1.0
 
+    -- ========================================================
+    -- [[ TOMBOL EKSTERNAL BARU: SPEED & AUTO WALK ]]
+    -- ========================================================
+    local SpeedExternalBtn = Instance.new("TextButton", ScreenGui)
+    SpeedExternalBtn.Name = "SpeedExternalButton"
+    SpeedExternalBtn.Size = UDim2.new(0, 70, 0, 30)
+    SpeedExternalBtn.Position = UDim2.new(0.5, -75, 0.8, -40) -- Baris baru di atas baris utama
+    SpeedExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    SpeedExternalBtn.Text = "SPEED"
+    SpeedExternalBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SpeedExternalBtn.Font = Enum.Font.GothamBold
+    SpeedExternalBtn.TextSize = 11
+    SpeedExternalBtn.ZIndex = 100
+    SpeedExternalBtn.Visible = false
+    Instance.new("UICorner", SpeedExternalBtn).CornerRadius = UDim.new(0, 5)
+    local SpeedExternalStroke = Instance.new("UIStroke", SpeedExternalBtn)
+    SpeedExternalStroke.Color = _G.AccentColor
+    SpeedExternalStroke.Thickness = 1.5
+
+    SpeedExternalUIScale = Instance.new("UIScale", SpeedExternalBtn)
+    SpeedExternalUIScale.Scale = 1.0
+
+    local AutoWalkExternalBtn = Instance.new("TextButton", ScreenGui)
+    AutoWalkExternalBtn.Name = "AutoWalkExternalButton"
+    AutoWalkExternalBtn.Size = UDim2.new(0, 70, 0, 30)
+    AutoWalkExternalBtn.Position = UDim2.new(0.5, 5, 0.8, -40) -- Di samping tombol speed
+    AutoWalkExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    AutoWalkExternalBtn.Text = "AUTO WALK"
+    AutoWalkExternalBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    AutoWalkExternalBtn.Font = Enum.Font.GothamBold
+    AutoWalkExternalBtn.TextSize = 9
+    AutoWalkExternalBtn.ZIndex = 100
+    AutoWalkExternalBtn.Visible = false
+    Instance.new("UICorner", AutoWalkExternalBtn).CornerRadius = UDim.new(0, 5)
+    local AutoWalkExternalStroke = Instance.new("UIStroke", AutoWalkExternalBtn)
+    AutoWalkExternalStroke.Color = _G.AccentColor
+    AutoWalkExternalStroke.Thickness = 1.5
+
+    AutoWalkExternalUIScale = Instance.new("UIScale", AutoWalkExternalBtn)
+    AutoWalkExternalUIScale.Scale = 1.0
+
     -- Hubungkan slider inisialisasi awal dengan nilai global saat ini
     syncExtScaleSlider(_G.ExtScaleValue)
 
@@ -2221,6 +2350,48 @@ return function(AccessKey)
     UserInputService.InputEnded:Connect(function(i) 
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
             pe_dragging = false 
+        end 
+    end)
+
+    -- Tombol Speed Draggable
+    local sp_dragging, sp_dragStart, sp_startPos
+    SpeedExternalBtn.InputBegan:Connect(function(i) 
+        if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) and not isLocked then 
+            sp_dragging = true
+            sp_dragStart = i.Position
+            sp_startPos = SpeedExternalBtn.Position 
+        end 
+    end)
+    UserInputService.InputChanged:Connect(function(i) 
+        if sp_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then 
+            local d = i.Position - sp_dragStart
+            SpeedExternalBtn.Position = UDim2.new(sp_startPos.X.Scale, sp_startPos.X.Offset + d.X, sp_startPos.Y.Scale, sp_startPos.Y.Offset + d.Y) 
+        end 
+    end)
+    UserInputService.InputEnded:Connect(function(i) 
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+            sp_dragging = false 
+        end 
+    end)
+
+    -- Tombol Auto Walk Draggable
+    local aw_dragging, aw_dragStart, aw_startPos
+    AutoWalkExternalBtn.InputBegan:Connect(function(i) 
+        if (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) and not isLocked then 
+            aw_dragging = true
+            aw_dragStart = i.Position
+            aw_startPos = AutoWalkExternalBtn.Position 
+        end 
+    end)
+    UserInputService.InputChanged:Connect(function(i) 
+        if aw_dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then 
+            local d = i.Position - aw_dragStart
+            AutoWalkExternalBtn.Position = UDim2.new(aw_startPos.X.Scale, aw_startPos.X.Offset + d.X, aw_startPos.Y.Scale, aw_startPos.Y.Offset + d.Y) 
+        end 
+    end)
+    UserInputService.InputEnded:Connect(function(i) 
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+            aw_dragging = false 
         end 
     end)
 
@@ -2393,6 +2564,31 @@ return function(AccessKey)
         _G.AutoWalkEnabled = not _G.AutoWalkEnabled
         AutoWalkBtn.Text = _G.AutoWalkEnabled and "[T] AUTO WALK: ON" or "[T] AUTO WALK: OFF"
         AutoWalkBtn.BackgroundColor3 = _G.AutoWalkEnabled and _G.AccentColor or Color3.fromRGB(30, 30, 35)
+        AutoWalkExternalBtn.Visible = _G.AutoWalkEnabled
+
+        if _G.AutoWalkEnabled then
+            AutoWalkExternalBtn.Text = "WALK: ON"
+            AutoWalkExternalBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        else
+            AutoWalkExternalBtn.Text = "AUTO WALK"
+            AutoWalkExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        end
+    end
+
+    -- FITUR BARU: TOGGLE SPEED
+    local function toggleSpeed()
+        _G.CustomSpeedEnabled = not _G.CustomSpeedEnabled
+        SpeedBtn.Text = _G.CustomSpeedEnabled and "[V] SPEED: ON" or "[V] SPEED: OFF"
+        SpeedBtn.BackgroundColor3 = _G.CustomSpeedEnabled and _G.AccentColor or Color3.fromRGB(30, 30, 35)
+        SpeedExternalBtn.Visible = _G.CustomSpeedEnabled
+
+        if _G.CustomSpeedEnabled then
+            SpeedExternalBtn.Text = "SPEED: ON"
+            SpeedExternalBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        else
+            SpeedExternalBtn.Text = "SPEED"
+            SpeedExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        end
     end
 
     -- FITUR BARU: TOGGLE AUTO & MANUAL PASS BOMB
@@ -2429,9 +2625,13 @@ return function(AccessKey)
     CrosshairBtn.MouseButton1Click:Connect(toggleCrosshair)
     ResBtn.MouseButton1Click:Connect(toggleResolution)
     AutoWalkBtn.MouseButton1Click:Connect(toggleAutoWalk)
+    SpeedBtn.MouseButton1Click:Connect(toggleSpeed)
     AutoPassBtn.MouseButton1Click:Connect(toggleAutoPass)
     PassModeBtn.MouseButton1Click:Connect(togglePassMode)
     PassShowBtn.MouseButton1Click:Connect(togglePassShow)
+
+    SpeedExternalBtn.MouseButton1Click:Connect(toggleSpeed)
+    AutoWalkExternalBtn.MouseButton1Click:Connect(toggleAutoWalk)
 
     -- LOCKED PREMIUM FEATURES (Trigger NotifyPremium)
     ModeBtn.MouseButton1Click:Connect(NotifyPremium)
@@ -2466,6 +2666,7 @@ return function(AccessKey)
         elseif key == Enum.KeyCode.U then toggleCrosshair()
         elseif key == Enum.KeyCode.Y then toggleResolution()
         elseif key == Enum.KeyCode.T then toggleAutoWalk()
+        elseif key == Enum.KeyCode.V then toggleSpeed()
         elseif key == Enum.KeyCode.P then triggerManualPass() -- Keybind P untuk Manual Pass Bomb
         elseif key == Enum.KeyCode.E or key == Enum.KeyCode.X or key == Enum.KeyCode.C or key == Enum.KeyCode.G or key == Enum.KeyCode.H then
             NotifyPremium()
