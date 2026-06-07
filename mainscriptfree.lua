@@ -184,11 +184,8 @@ return function(AccessKey)
     -- FITUR BARU AUTO & MANUAL PASS BOMB
     _G.AutoPassEnabled = false
     _G.PassTargetMode = "Without Bomb" -- Pilihan: "Without Bomb" atau "With Bomb"
-
-    -- FITUR BARU HITBOX EXPANDER (FREE INTEGRATION)
-    _G.HitboxEnabled = false
-    _G.HitboxSize = 10
-    _G.HitboxVisual = false
+    _G.PassMaxDistance = 100 -- Default maksimum jarak dalam stud (1-200)
+    _G.PassExternalVisible = false -- Visibility eksternal tombol oper bom
 
     local faceSpeed = 0.18
     local lockedTarget = nil 
@@ -634,14 +631,14 @@ return function(AccessKey)
         InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
     end)
 
-    -- MEMBUAT CONTENT FRAME MENJADI SCROLLING FRAME AGAR MUAT DI DALAM GUI LAMA
+    -- MEMBUAT CONTENT FRAME MENJASI SCROLLING FRAME AGAR MUAT DI DALAM GUI LAMA
     local ContentFrame = Instance.new("ScrollingFrame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -61)
     ContentFrame.Position = UDim2.new(0, 0, 0, 45)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.Visible = false
     ContentFrame.ScrollBarThickness = 0
-    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 870) -- Canvas diperluas untuk menampung fitur hitbox dan scaling baru
+    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 850) -- Canvas diperluas untuk menampung fitur baru
 
     -- [[ BUTTONS WITH PREMIUM TAGS ]]
     local ModeBtn = createBtn("[E] MODE: CLASSIC (PREMIUM)", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); ModeBtn.Parent = ContentFrame
@@ -1313,71 +1310,67 @@ return function(AccessKey)
     createLabel("AUTO & MANUAL PASS BOMB SYSTEM", UDim2.new(0, 6, 0, 641)).Parent = ContentFrame
     local AutoPassBtn = createBtn("[P] AUTO PASS: OFF", UDim2.new(0, 6, 0, 653), UDim2.new(0, 128, 0, 20)); AutoPassBtn.Parent = ContentFrame
     local PassModeBtn = createBtn("TARGET: WITHOUT BOMB", UDim2.new(0, 6, 0, 678), UDim2.new(0, 128, 0, 20)); PassModeBtn.Parent = ContentFrame
-
-    -- ========================================================
-    -- [[ INTEGRATED HITBOX EXPANDER SYSTEM (FREE / UNLOCKED) ]]
-    -- ========================================================
-    createLine(UDim2.new(0, 6, 0, 708)).Parent = ContentFrame
-    createLabel("HITBOX EXPANDER SYSTEM", UDim2.new(0, 6, 0, 714)).Parent = ContentFrame
-    local HitboxBtn = createBtn("[N] HITBOX: OFF", UDim2.new(0, 6, 0, 726), UDim2.new(0, 62, 0, 20)); HitboxBtn.Parent = ContentFrame
-    local HitboxVisualBtn = createBtn("VISUAL: OFF", UDim2.new(0, 72, 0, 726), UDim2.new(0, 62, 0, 20)); HitboxVisualBtn.Parent = ContentFrame
-
-    createLabel("HITBOX SIZE (1-100)", UDim2.new(0, 6, 0, 751)).Parent = ContentFrame
-    local HitboxSliderFrame = Instance.new("Frame", ContentFrame)
-    HitboxSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    HitboxSliderFrame.Position = UDim2.new(0, 6, 0, 763)
-    HitboxSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    Instance.new("UICorner", HitboxSliderFrame)
     
-    local HitboxSliderFill = Instance.new("Frame", HitboxSliderFrame)
-    HitboxSliderFill.BackgroundColor3 = _G.AccentColor
-    Instance.new("UICorner", HitboxSliderFill)
-    
-    local HitboxSliderText = Instance.new("TextLabel", HitboxSliderFrame)
-    HitboxSliderText.Size = UDim2.new(1, 0, 1, 0)
-    HitboxSliderText.BackgroundTransparency = 1
-    HitboxSliderText.TextColor3 = Color3.new(1, 1, 1)
-    HitboxSliderText.TextSize = 7
-    HitboxSliderText.Font = Enum.Font.GothamBold
+    -- ON/OFF BUTTON UNTUK MEMUNCULKAN TOMBOL EKSTERNAL PASS BOMB
+    local PassShowBtn = createBtn("SHOW PASS BTN: OFF", UDim2.new(0, 6, 0, 703), UDim2.new(0, 128, 0, 20)); PassShowBtn.Parent = ContentFrame
 
-    local function syncHitboxSlider(val)
-        HitboxSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0)
-        HitboxSliderText.Text = string.format("SIZE: %.0f STUDS", val)
+    -- SLIDER AREA STUD UNTUK PASS BOMB (1-200 STUD)
+    createLabel("PASS AREA RANGE (1-200 STUD)", UDim2.new(0, 6, 0, 728)).Parent = ContentFrame
+    local PassSliderFrame = Instance.new("Frame", ContentFrame)
+    PassSliderFrame.Size = UDim2.new(0, 128, 0, 12)
+    PassSliderFrame.Position = UDim2.new(0, 6, 0, 740)
+    PassSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    Instance.new("UICorner", PassSliderFrame)
+    
+    local PassSliderFill = Instance.new("Frame", PassSliderFrame)
+    PassSliderFill.BackgroundColor3 = _G.AccentColor
+    Instance.new("UICorner", PassSliderFill)
+    
+    local PassSliderText = Instance.new("TextLabel", PassSliderFrame)
+    PassSliderText.Size = UDim2.new(1, 0, 1, 0)
+    PassSliderText.BackgroundTransparency = 1
+    PassSliderText.TextColor3 = Color3.new(1, 1, 1)
+    PassSliderText.TextSize = 7
+    PassSliderText.Font = Enum.Font.GothamBold
+
+    local function syncPassSlider(val)
+        PassSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0)
+        PassSliderText.Text = string.format("MAX RANGE: %.0f STUD", val)
     end
-    syncHitboxSlider(_G.HitboxSize)
+    syncPassSlider(_G.PassMaxDistance)
 
-    local hitboxDragging = false
-    HitboxSliderFrame.InputBegan:Connect(function(input)
+    local passDistDragging = false
+    PassSliderFrame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            hitboxDragging = true
-            local percentage = math.clamp((input.Position.X - HitboxSliderFrame.AbsolutePosition.X) / HitboxSliderFrame.AbsoluteSize.X, 0, 1)
-            _G.HitboxSize = math.floor(1 + (percentage * 99))
-            syncHitboxSlider(_G.HitboxSize)
+            passDistDragging = true
+            local percentage = math.clamp((input.Position.X - PassSliderFrame.AbsolutePosition.X) / PassSliderFrame.AbsoluteSize.X, 0, 1)
+            _G.PassMaxDistance = math.floor(1 + (percentage * 199))
+            syncPassSlider(_G.PassMaxDistance)
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if hitboxDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local percentage = math.clamp((input.Position.X - HitboxSliderFrame.AbsolutePosition.X) / HitboxSliderFrame.AbsoluteSize.X, 0, 1)
-            _G.HitboxSize = math.floor(1 + (percentage * 99))
-            syncHitboxSlider(_G.HitboxSize)
+        if passDistDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local percentage = math.clamp((input.Position.X - PassSliderFrame.AbsolutePosition.X) / PassSliderFrame.AbsoluteSize.X, 0, 1)
+            _G.PassMaxDistance = math.floor(1 + (percentage * 199))
+            syncPassSlider(_G.PassMaxDistance)
         end
     end)
 
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            hitboxDragging = false
+            passDistDragging = false
         end
     end)
 
-    -- SYSTEM SCALE SETTINGS (Posisi digeser ke bawah agar tata letak rapi)
-    createLine(UDim2.new(0, 6, 0, 790)).Parent = ContentFrame
-    createLabel("SCALE SETTINGS", UDim2.new(0, 6, 0, 796)).Parent = ContentFrame
+    -- SYSTEM SCALE SETTINGS (Posisi digeser ke bawah)
+    createLine(UDim2.new(0, 6, 0, 765)).Parent = ContentFrame
+    createLabel("SCALE SETTINGS", UDim2.new(0, 6, 0, 771)).Parent = ContentFrame
 
     -- SLIDER UKURAN UI (1-200%)
     local UIScaleSliderFrame = Instance.new("Frame", ContentFrame)
     UIScaleSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    UIScaleSliderFrame.Position = UDim2.new(0, 6, 0, 808)
+    UIScaleSliderFrame.Position = UDim2.new(0, 6, 0, 783)
     UIScaleSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", UIScaleSliderFrame)
 
@@ -1426,7 +1419,7 @@ return function(AccessKey)
     -- SLIDER UKURAN TOMBOL EKSTERNAL (1-200%)
     local ExtScaleSliderFrame = Instance.new("Frame", ContentFrame)
     ExtScaleSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    ExtScaleSliderFrame.Position = UDim2.new(0, 6, 0, 832)
+    ExtScaleSliderFrame.Position = UDim2.new(0, 6, 0, 807)
     ExtScaleSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", ExtScaleSliderFrame)
 
@@ -1615,13 +1608,15 @@ return function(AccessKey)
         end)
     end
 
-    -- LOGIKA TWEEN UNTUK PASS BOMB (CEPAT & AMAN DARI DETEKSI ANTI-TELEPORT)
+    -- LOGIKA TWEEN UNTUK PASS BOMB (TELEPORT CEPAT & KEMBALI INSTAN KE TEMPAT AWAL)
     local function teleportTween(targetPart)
         if isTweening or not targetPart then return end
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
         isTweening = true
         
+        -- SIMPAN POSISI AWAL SEBELUM MELAKUKAN TELEPORT OPER BOM
+        local startCFrame = hrp.CFrame
         local startPos = hrp.Position
         local endPos = targetPart.Position
         local dist = (startPos - endPos).Magnitude
@@ -1631,10 +1626,13 @@ return function(AccessKey)
         local duration = math.clamp(dist / speed, 0.05, 0.75)
         
         local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        -- Berikan sedikit offset offset z: 1.2 stud agar tidak tersangkut di dalam tubuh musuh
+        -- Berikan sedikit offset z: 1.2 stud agar tidak tersangkut di dalam tubuh musuh
         local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetPart.CFrame * CFrame.new(0, 0, 1.2)})
         tween:Play()
         tween.Completed:Connect(function()
+            -- Delay singkat agar server mendeteksi sentuhan bomb, lalu paksa teleport kembali ke posisi awal
+            task.wait(0.05)
+            hrp.CFrame = startCFrame
             isTweening = false
         end)
     end
@@ -1659,7 +1657,8 @@ return function(AccessKey)
                 
                 if isMatch then
                     local d = (rootPos - p.Character.HumanoidRootPart.Position).Magnitude
-                    if d < minDist then
+                    -- TAMBAHAN JARAK AREA STUD (1-200 STUD) KHUSUS PASS BOMB
+                    if d <= _G.PassMaxDistance and d < minDist then
                         minDist = d
                         bestTarget = p
                     end
@@ -1671,71 +1670,6 @@ return function(AccessKey)
             teleportTween(bestTarget.Character.HumanoidRootPart)
         end
     end
-
-    -- ========================================================
-    -- [[ 4.5 HITBOX EXPANDER CORE LOGIC (FREE INTEGRATION) ]]
-    -- ========================================================
-    local originalParts = {}
-    Players.PlayerRemoving:Connect(function(player)
-        originalParts[player] = nil
-    end)
-
-    local function updateHitboxes()
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                local char = p.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    if _G.HitboxEnabled and isAlive(p) and not isTeammate(p) then
-                        -- Simpan data asli jika belum ada di database backup
-                        if not originalParts[p] then
-                            originalParts[p] = {
-                                Size = hrp.Size,
-                                Transparency = hrp.Transparency,
-                                CanCollide = hrp.CanCollide,
-                                Color = hrp.Color,
-                                Material = hrp.Material
-                            }
-                        end
-                        -- Perlebar Hitbox (Size yang dikonfigurasi)
-                        local targetSize = Vector3.new(_G.HitboxSize, _G.HitboxSize, _G.HitboxSize)
-                        if hrp.Size ~= targetSize then
-                            hrp.Size = targetSize
-                        end
-                        hrp.CanCollide = false -- Mencegah bug tabrakan fisika di game
-                        
-                        -- Kelola Visual Tampilan Hitbox Transparan
-                        if _G.HitboxVisual then
-                            hrp.Transparency = 0.8
-                            hrp.Color = _G.AccentColor
-                            hrp.Material = Enum.Material.ForceField
-                        else
-                            hrp.Transparency = 1
-                        end
-                    else
-                        -- Kembalikan hitbox ke default jika dimatikan
-                        if originalParts[p] then
-                            pcall(function()
-                                hrp.Size = originalParts[p].Size
-                                hrp.Transparency = originalParts[p].Transparency
-                                hrp.CanCollide = originalParts[p].CanCollide
-                                hrp.Color = originalParts[p].Color
-                                hrp.Material = originalParts[p].Material
-                            end)
-                            originalParts[p] = nil
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    task.spawn(function()
-        while true do
-            task.wait(0.1)
-            pcall(updateHitboxes)
-        end
-    end)
 
     RunService.Heartbeat:Connect(function(dt)
         if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
@@ -1815,11 +1749,11 @@ return function(AccessKey)
             retreatTimer = _G.HJEnabled and 3.8 or 2.5
             if _G.HJEnabled then task.spawn(function() hum:ChangeState(3); task.wait(0.4); hum:ChangeState(3) end) end
             if _G.AutoWalkEnabled then
-                autoWalkRetreatTimer = 2.5 -- Trigger gerak mundur selama 2.5 detik
+                autoWalkRetreatTimer = 2.5 -- Trigger mundur
             end
         end
 
-        -- LOGIKA OTOMATIS OPER BOM (AUTO PASS BOMB)
+        -- LOGIKA OTOMATIS OPER BOM (AUTO PASS BOMB) DENGAN BATASAN JARAK STUD
         if _G.AutoPassEnabled and amIHolder and not isTweening then
             local rootPos = root.Position
             local bestTarget = nil
@@ -1827,7 +1761,8 @@ return function(AccessKey)
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and isAlive(p) and not isTeammate(p) and not hasBomb(p) then
                     local d = (rootPos - p.Character.HumanoidRootPart.Position).Magnitude
-                    if d < minDist then
+                    -- FILTERING BERDASARKAN MAKSIMUM STUD PASS BOMB
+                    if d <= _G.PassMaxDistance and d < minDist then
                         minDist = d
                         bestTarget = p
                     end
@@ -1839,12 +1774,13 @@ return function(AccessKey)
         end
 
         -- KENDALI PERGERAKAN (AUTO CHASE / AUTO WALK)
-        if lockedTarget and isAlive(lockedTarget) then
-            local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
-            if amIHolder and dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
-            
-            if _G.AutoWalkEnabled then
-                if amIHolder then
+        if _G.AutoWalkEnabled then
+            if amIHolder then
+                -- AUTO WALK SAAT MEMBAWA BOMB (MENGEJAR MUSUH)
+                if lockedTarget and isAlive(lockedTarget) then
+                    local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
+                    if dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
+                    
                     local targetPos = tRoot.Position
                     local speed = 25
                     local moveDir = (targetPos - root.Position).Unit
@@ -1853,43 +1789,51 @@ return function(AccessKey)
                     params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
                     params.FilterType = Enum.RaycastFilterType.Exclude
                     
-                    -- WALL CHECK: Scan setinggi kaki / lutut (yOffset -1.2) di depan karakter
                     local rayOrigin = root.Position + Vector3.new(0, -1.2, 0)
                     local raycastResult = Workspace:Raycast(rayOrigin, moveDir * 6, params)
                     if raycastResult and raycastResult.Instance.CanCollide then
-                        -- Tembok terdeteksi! Cari rute alternatif yang kosong (memutar sudut gerak)
                         local angles = {30, -30, 60, -60, 90, -90, 120, -120}
                         for _, angle in ipairs(angles) do
                             local worldAltDir = (CFrame.lookAt(root.Position, targetPos) * CFrame.Angles(0, math.rad(angle), 0)).LookVector
                             local altRay = Workspace:Raycast(rayOrigin, worldAltDir * 6, params)
                             if not altRay or not altRay.Instance.CanCollide then
-                                moveDir = worldAltDir -- Gunakan arah jalan alternatif yang kosong
+                                moveDir = worldAltDir
                                 break
                             end
                         end
                     end
                     
-                    -- Glide Pergerakan via CFrame (Diam tapi Bergerak)
                     local nextPos = root.Position + (moveDir * speed * dt)
                     local groundRay = Workspace:Raycast(nextPos + Vector3.new(0, 5, 0), Vector3.new(0, -12, 0), params)
                     local targetY = root.Position.Y
                     if groundRay then
-                        targetY = groundRay.Position.Y + 3.0 -- Ground level offset ke HRP
+                        targetY = groundRay.Position.Y + 3.0
                     end
                     
                     root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetY, nextPos.Z), Vector3.new(targetPos.X, targetY, targetPos.Z))
-                    hum:Move(Vector3.new(0, 0, 0)) -- Reset input agar animasi berjalan tidak menyala
-                elseif autoWalkRetreatTimer > 0 then
-                    autoWalkRetreatTimer = autoWalkRetreatTimer - dt
-                    local targetPos = tRoot.Position
-                    local speed = _G.AutoWalkRetreatSpeed
-                    local moveDir = (root.Position - targetPos).Unit -- Arah mundur menjauh
+                    hum:Move(Vector3.new(0, 0, 0))
+                else
+                    hum.WalkSpeed = 16
+                end
+            else
+                -- AUTO WALK SAAT TIDAK MEMBAWA BOMB: "MENJAUHIN YANG PEGANG BOMB" (TIDAK MENGGUNAKAN MUNDUR)
+                local bombHolder = nil
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer and isAlive(p) and hasBomb(p) then
+                        bombHolder = p
+                        break
+                    end
+                end
+                
+                if bombHolder then
+                    local targetPos = bombHolder.Character.HumanoidRootPart.Position
+                    local speed = _G.AutoWalkRetreatSpeed or 22
+                    local moveDir = (root.Position - targetPos).Unit -- Arah menjauhi pemegang bom
                     
                     local params = RaycastParams.new()
                     params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
                     params.FilterType = Enum.RaycastFilterType.Exclude
                     
-                    -- WALL CHECK untuk gerak mundur
                     local rayOrigin = root.Position + Vector3.new(0, -1.2, 0)
                     local raycastResult = Workspace:Raycast(rayOrigin, moveDir * 6, params)
                     if raycastResult and raycastResult.Instance.CanCollide then
@@ -1912,18 +1856,31 @@ return function(AccessKey)
                     end
                     
                     root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetY, nextPos.Z), Vector3.new(targetPos.X, targetY, targetPos.Z))
-                    hum:Move(Vector3.new(0, 0, 0)) -- Diam tapi bergerak mundur menjauh
+                    hum:Move(Vector3.new(0, 0, 0))
+                else
+                    -- Fallback standar jika tidak ada pemegang bom terdeteksi
+                    if lockedTarget and isAlive(lockedTarget) then
+                        local tRoot = lockedTarget.Character.HumanoidRootPart
+                        hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * 22)
+                    end
                 end
-            else
-                -- SISTEM CHASE / FOLLOW ORIGINAL (MENGGUNAKAN HUMANOID:MOVETO)
+            end
+        else
+            -- SISTEM CHASE / FOLLOW ORIGINAL (MENGGUNAKAN HUMANOID:MOVETO DENGAN FUNGSI MUNDUR SEPERTI BIASA)
+            if lockedTarget and isAlive(lockedTarget) then
+                local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
+                if amIHolder and dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
+                
                 if _G.FollowEnabled and retreatTimer <= 0 then 
                     local targetPos = _G.PredictEnabled and (tRoot.Position + (tRoot.Velocity * 0.13)) or tRoot.Position
                     hum:MoveTo(targetPos) 
                 elseif _G.FollowEnabled then
                     retreatTimer -= dt; hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * 22)
                 end
+            else 
+                hum.WalkSpeed = 16 
             end
-        else hum.WalkSpeed = 16 end
+        end
 
         -- LOGIKA FLICK (Menggunakan slider kekuatan Flick)
         if _G.FlickActive and amIHolder and isAlive(lockedTarget) and (root.Position - lockedTarget.Character.HumanoidRootPart.Position).Magnitude <= 4 then
@@ -2160,7 +2117,7 @@ return function(AccessKey)
     AutoHoldUIScale = Instance.new("UIScale", AutoHoldExternalBtn)
     AutoHoldUIScale.Scale = 1.0
 
-    -- FITUR BARU: TOMBOL MANUAL PASS BOMB EKSTERNAL
+    -- TOMBOL MANUAL PASS BOMB EKSTERNAL
     local PassExternalBtn = Instance.new("TextButton", ScreenGui)
     PassExternalBtn.Name = "PassExternalButton"
     PassExternalBtn.Size = UDim2.new(0, 70, 0, 30)
@@ -2171,7 +2128,7 @@ return function(AccessKey)
     PassExternalBtn.Font = Enum.Font.GothamBold
     PassExternalBtn.TextSize = 10
     PassExternalBtn.ZIndex = 100
-    PassExternalBtn.Visible = true -- Selalu tampil agar mempermudah manual trigger
+    PassExternalBtn.Visible = _G.PassExternalVisible -- Visibility diatur secara default sesuai state on/off di UI
     Instance.new("UICorner", PassExternalBtn).CornerRadius = UDim.new(0, 5)
     local PassExternalStroke = Instance.new("UIStroke", PassExternalBtn)
     PassExternalStroke.Color = _G.AccentColor
@@ -2454,17 +2411,12 @@ return function(AccessKey)
         PassModeBtn.Text = "TARGET: " .. _G.PassTargetMode:upper()
     end
 
-    -- FITUR BARU: TOGGLE HITBOX EXPANDER
-    local function toggleHitbox()
-        _G.HitboxEnabled = not _G.HitboxEnabled
-        HitboxBtn.Text = _G.HitboxEnabled and "[N] HITBOX: ON" or "[N] HITBOX: OFF"
-        HitboxBtn.BackgroundColor3 = _G.HitboxEnabled and _G.AccentColor or Color3.fromRGB(30, 30, 35)
-    end
-
-    local function toggleHitboxVisual()
-        _G.HitboxVisual = not _G.HitboxVisual
-        HitboxVisualBtn.Text = _G.HitboxVisual and "VISUAL: ON" or "VISUAL: OFF"
-        HitboxVisualBtn.BackgroundColor3 = _G.HitboxVisual and _G.AccentColor or Color3.fromRGB(30, 30, 35)
+    -- FUNGSI TOGGLE SHOW EXTERNAL PASS BUTTON
+    local function togglePassShow()
+        _G.PassExternalVisible = not _G.PassExternalVisible
+        PassShowBtn.Text = _G.PassExternalVisible and "SHOW PASS BTN: ON" or "SHOW PASS BTN: OFF"
+        PassShowBtn.BackgroundColor3 = _G.PassExternalVisible and _G.AccentColor or Color3.fromRGB(30, 30, 35)
+        PassExternalBtn.Visible = _G.PassExternalVisible
     end
 
     -- [[ BUTTON FUNCTIONALITIES ]]
@@ -2479,8 +2431,7 @@ return function(AccessKey)
     AutoWalkBtn.MouseButton1Click:Connect(toggleAutoWalk)
     AutoPassBtn.MouseButton1Click:Connect(toggleAutoPass)
     PassModeBtn.MouseButton1Click:Connect(togglePassMode)
-    HitboxBtn.MouseButton1Click:Connect(toggleHitbox)
-    HitboxVisualBtn.MouseButton1Click:Connect(toggleHitboxVisual)
+    PassShowBtn.MouseButton1Click:Connect(togglePassShow)
 
     -- LOCKED PREMIUM FEATURES (Trigger NotifyPremium)
     ModeBtn.MouseButton1Click:Connect(NotifyPremium)
@@ -2515,7 +2466,6 @@ return function(AccessKey)
         elseif key == Enum.KeyCode.U then toggleCrosshair()
         elseif key == Enum.KeyCode.Y then toggleResolution()
         elseif key == Enum.KeyCode.T then toggleAutoWalk()
-        elseif key == Enum.KeyCode.N then toggleHitbox() -- Keybind N untuk Hitbox Expander On/Off
         elseif key == Enum.KeyCode.P then triggerManualPass() -- Keybind P untuk Manual Pass Bomb
         elseif key == Enum.KeyCode.E or key == Enum.KeyCode.X or key == Enum.KeyCode.C or key == Enum.KeyCode.G or key == Enum.KeyCode.H then
             NotifyPremium()
@@ -2528,5 +2478,5 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    print("Louis Hub FREE V13.5.2: Initialized Successfully with Auto Walk, Hitbox Expander & Auto/Manual Pass Bomb.")
+    print("Louis Hub FREE V13.5.2: Initialized Successfully with Auto Walk & Auto/Manual Pass Bomb.")
 end
