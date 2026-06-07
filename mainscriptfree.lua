@@ -185,6 +185,11 @@ return function(AccessKey)
     _G.AutoPassEnabled = false
     _G.PassTargetMode = "Without Bomb" -- Pilihan: "Without Bomb" atau "With Bomb"
 
+    -- FITUR BARU HITBOX EXPANDER (FREE INTEGRATION)
+    _G.HitboxEnabled = false
+    _G.HitboxSize = 10
+    _G.HitboxVisual = false
+
     local faceSpeed = 0.18
     local lockedTarget = nil 
     local lastHadBomb = false
@@ -636,7 +641,7 @@ return function(AccessKey)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.Visible = false
     ContentFrame.ScrollBarThickness = 0
-    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 790) -- Canvas diperluas untuk menampung fitur baru
+    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 870) -- Canvas diperluas untuk menampung fitur hitbox dan scaling baru
 
     -- [[ BUTTONS WITH PREMIUM TAGS ]]
     local ModeBtn = createBtn("[E] MODE: CLASSIC (PREMIUM)", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); ModeBtn.Parent = ContentFrame
@@ -1309,14 +1314,70 @@ return function(AccessKey)
     local AutoPassBtn = createBtn("[P] AUTO PASS: OFF", UDim2.new(0, 6, 0, 653), UDim2.new(0, 128, 0, 20)); AutoPassBtn.Parent = ContentFrame
     local PassModeBtn = createBtn("TARGET: WITHOUT BOMB", UDim2.new(0, 6, 0, 678), UDim2.new(0, 128, 0, 20)); PassModeBtn.Parent = ContentFrame
 
-    -- SYSTEM SCALE SETTINGS (Posisi digeser ke bawah)
+    -- ========================================================
+    -- [[ INTEGRATED HITBOX EXPANDER SYSTEM (FREE / UNLOCKED) ]]
+    -- ========================================================
     createLine(UDim2.new(0, 6, 0, 708)).Parent = ContentFrame
-    createLabel("SCALE SETTINGS", UDim2.new(0, 6, 0, 714)).Parent = ContentFrame
+    createLabel("HITBOX EXPANDER SYSTEM", UDim2.new(0, 6, 0, 714)).Parent = ContentFrame
+    local HitboxBtn = createBtn("[N] HITBOX: OFF", UDim2.new(0, 6, 0, 726), UDim2.new(0, 62, 0, 20)); HitboxBtn.Parent = ContentFrame
+    local HitboxVisualBtn = createBtn("VISUAL: OFF", UDim2.new(0, 72, 0, 726), UDim2.new(0, 62, 0, 20)); HitboxVisualBtn.Parent = ContentFrame
+
+    createLabel("HITBOX SIZE (1-100)", UDim2.new(0, 6, 0, 751)).Parent = ContentFrame
+    local HitboxSliderFrame = Instance.new("Frame", ContentFrame)
+    HitboxSliderFrame.Size = UDim2.new(0, 128, 0, 12)
+    HitboxSliderFrame.Position = UDim2.new(0, 6, 0, 763)
+    HitboxSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    Instance.new("UICorner", HitboxSliderFrame)
+    
+    local HitboxSliderFill = Instance.new("Frame", HitboxSliderFrame)
+    HitboxSliderFill.BackgroundColor3 = _G.AccentColor
+    Instance.new("UICorner", HitboxSliderFill)
+    
+    local HitboxSliderText = Instance.new("TextLabel", HitboxSliderFrame)
+    HitboxSliderText.Size = UDim2.new(1, 0, 1, 0)
+    HitboxSliderText.BackgroundTransparency = 1
+    HitboxSliderText.TextColor3 = Color3.new(1, 1, 1)
+    HitboxSliderText.TextSize = 7
+    HitboxSliderText.Font = Enum.Font.GothamBold
+
+    local function syncHitboxSlider(val)
+        HitboxSliderFill.Size = UDim2.new(math.clamp((val - 1) / 99, 0, 1), 0, 1, 0)
+        HitboxSliderText.Text = string.format("SIZE: %.0f STUDS", val)
+    end
+    syncHitboxSlider(_G.HitboxSize)
+
+    local hitboxDragging = false
+    HitboxSliderFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            hitboxDragging = true
+            local percentage = math.clamp((input.Position.X - HitboxSliderFrame.AbsolutePosition.X) / HitboxSliderFrame.AbsoluteSize.X, 0, 1)
+            _G.HitboxSize = math.floor(1 + (percentage * 99))
+            syncHitboxSlider(_G.HitboxSize)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if hitboxDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local percentage = math.clamp((input.Position.X - HitboxSliderFrame.AbsolutePosition.X) / HitboxSliderFrame.AbsoluteSize.X, 0, 1)
+            _G.HitboxSize = math.floor(1 + (percentage * 99))
+            syncHitboxSlider(_G.HitboxSize)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            hitboxDragging = false
+        end
+    end)
+
+    -- SYSTEM SCALE SETTINGS (Posisi digeser ke bawah agar tata letak rapi)
+    createLine(UDim2.new(0, 6, 0, 790)).Parent = ContentFrame
+    createLabel("SCALE SETTINGS", UDim2.new(0, 6, 0, 796)).Parent = ContentFrame
 
     -- SLIDER UKURAN UI (1-200%)
     local UIScaleSliderFrame = Instance.new("Frame", ContentFrame)
     UIScaleSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    UIScaleSliderFrame.Position = UDim2.new(0, 6, 0, 726)
+    UIScaleSliderFrame.Position = UDim2.new(0, 6, 0, 808)
     UIScaleSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", UIScaleSliderFrame)
 
@@ -1365,7 +1426,7 @@ return function(AccessKey)
     -- SLIDER UKURAN TOMBOL EKSTERNAL (1-200%)
     local ExtScaleSliderFrame = Instance.new("Frame", ContentFrame)
     ExtScaleSliderFrame.Size = UDim2.new(0, 128, 0, 12)
-    ExtScaleSliderFrame.Position = UDim2.new(0, 6, 0, 750)
+    ExtScaleSliderFrame.Position = UDim2.new(0, 6, 0, 832)
     ExtScaleSliderFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     Instance.new("UICorner", ExtScaleSliderFrame)
 
@@ -1610,6 +1671,71 @@ return function(AccessKey)
             teleportTween(bestTarget.Character.HumanoidRootPart)
         end
     end
+
+    -- ========================================================
+    -- [[ 4.5 HITBOX EXPANDER CORE LOGIC (FREE INTEGRATION) ]]
+    -- ========================================================
+    local originalParts = {}
+    Players.PlayerRemoving:Connect(function(player)
+        originalParts[player] = nil
+    end)
+
+    local function updateHitboxes()
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                local char = p.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    if _G.HitboxEnabled and isAlive(p) and not isTeammate(p) then
+                        -- Simpan data asli jika belum ada di database backup
+                        if not originalParts[p] then
+                            originalParts[p] = {
+                                Size = hrp.Size,
+                                Transparency = hrp.Transparency,
+                                CanCollide = hrp.CanCollide,
+                                Color = hrp.Color,
+                                Material = hrp.Material
+                            }
+                        end
+                        -- Perlebar Hitbox (Size yang dikonfigurasi)
+                        local targetSize = Vector3.new(_G.HitboxSize, _G.HitboxSize, _G.HitboxSize)
+                        if hrp.Size ~= targetSize then
+                            hrp.Size = targetSize
+                        end
+                        hrp.CanCollide = false -- Mencegah bug tabrakan fisika di game
+                        
+                        -- Kelola Visual Tampilan Hitbox Transparan
+                        if _G.HitboxVisual then
+                            hrp.Transparency = 0.8
+                            hrp.Color = _G.AccentColor
+                            hrp.Material = Enum.Material.ForceField
+                        else
+                            hrp.Transparency = 1
+                        end
+                    else
+                        -- Kembalikan hitbox ke default jika dimatikan
+                        if originalParts[p] then
+                            pcall(function()
+                                hrp.Size = originalParts[p].Size
+                                hrp.Transparency = originalParts[p].Transparency
+                                hrp.CanCollide = originalParts[p].CanCollide
+                                hrp.Color = originalParts[p].Color
+                                hrp.Material = originalParts[p].Material
+                            end)
+                            originalParts[p] = nil
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    task.spawn(function()
+        while true do
+            task.wait(0.1)
+            pcall(updateHitboxes)
+        end
+    end)
 
     RunService.Heartbeat:Connect(function(dt)
         if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
@@ -2328,6 +2454,19 @@ return function(AccessKey)
         PassModeBtn.Text = "TARGET: " .. _G.PassTargetMode:upper()
     end
 
+    -- FITUR BARU: TOGGLE HITBOX EXPANDER
+    local function toggleHitbox()
+        _G.HitboxEnabled = not _G.HitboxEnabled
+        HitboxBtn.Text = _G.HitboxEnabled and "[N] HITBOX: ON" or "[N] HITBOX: OFF"
+        HitboxBtn.BackgroundColor3 = _G.HitboxEnabled and _G.AccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
+    local function toggleHitboxVisual()
+        _G.HitboxVisual = not _G.HitboxVisual
+        HitboxVisualBtn.Text = _G.HitboxVisual and "VISUAL: ON" or "VISUAL: OFF"
+        HitboxVisualBtn.BackgroundColor3 = _G.HitboxVisual and _G.AccentColor or Color3.fromRGB(30, 30, 35)
+    end
+
     -- [[ BUTTON FUNCTIONALITIES ]]
     ToggleBtn.MouseButton1Click:Connect(toggleFollow)
     FlickBtn.MouseButton1Click:Connect(toggleFlick)
@@ -2340,6 +2479,8 @@ return function(AccessKey)
     AutoWalkBtn.MouseButton1Click:Connect(toggleAutoWalk)
     AutoPassBtn.MouseButton1Click:Connect(toggleAutoPass)
     PassModeBtn.MouseButton1Click:Connect(togglePassMode)
+    HitboxBtn.MouseButton1Click:Connect(toggleHitbox)
+    HitboxVisualBtn.MouseButton1Click:Connect(toggleHitboxVisual)
 
     -- LOCKED PREMIUM FEATURES (Trigger NotifyPremium)
     ModeBtn.MouseButton1Click:Connect(NotifyPremium)
@@ -2374,6 +2515,7 @@ return function(AccessKey)
         elseif key == Enum.KeyCode.U then toggleCrosshair()
         elseif key == Enum.KeyCode.Y then toggleResolution()
         elseif key == Enum.KeyCode.T then toggleAutoWalk()
+        elseif key == Enum.KeyCode.N then toggleHitbox() -- Keybind N untuk Hitbox Expander On/Off
         elseif key == Enum.KeyCode.P then triggerManualPass() -- Keybind P untuk Manual Pass Bomb
         elseif key == Enum.KeyCode.E or key == Enum.KeyCode.X or key == Enum.KeyCode.C or key == Enum.KeyCode.G or key == Enum.KeyCode.H then
             NotifyPremium()
@@ -2386,5 +2528,5 @@ return function(AccessKey)
     UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then local d = i.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 
-    print("Louis Hub FREE V13.5.2: Initialized Successfully with Auto Walk & Auto/Manual Pass Bomb.")
+    print("Louis Hub FREE V13.5.2: Initialized Successfully with Auto Walk, Hitbox Expander & Auto/Manual Pass Bomb.")
 end
