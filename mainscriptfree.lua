@@ -179,6 +179,7 @@ return function(AccessKey)
 
     -- FITUR BARU AUTO WALK
     _G.AutoWalkEnabled = false
+    _G.AutoWalkActive = false
     _G.AutoWalkRetreatSpeed = 22
 
     -- FITUR BARU AUTO & MANUAL PASS BOMB
@@ -200,8 +201,6 @@ return function(AccessKey)
     local canWallJump = true
     local jumpDebounce = false
     local isTweening = false
-    local lastPassedTarget = nil
-    local justPassedBomb = false
 
     -- Performance Throttling
     local lastRaycastCheck = 0
@@ -633,14 +632,14 @@ return function(AccessKey)
         InfoFrame:TweenSize(UDim2.new(1, -12, 0, 0), "In", "Quad", 0.3, true, function() InfoFrame.Visible = false end)
     end)
 
-    -- MEMBUAT CONTENT FRAME MENJADI SCROLLING FRAME AGAR MUAT DI DALAM GUI LAMA
+    -- MEMBUAT CONTENT FRAME MENJASI SCROLLING FRAME AGAR MUAT DI DALAM GUI LAMA
     local ContentFrame = Instance.new("ScrollingFrame", MainFrame)
     ContentFrame.Size = UDim2.new(1, 0, 1, -61)
     ContentFrame.Position = UDim2.new(0, 0, 0, 45)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.Visible = false
     ContentFrame.ScrollBarThickness = 0
-    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 895) -- Diperpendek -55px setelah fitur speed dihapus
+    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 850) -- Canvas diperluas untuk menampung fitur baru
 
     -- [[ BUTTONS WITH PREMIUM TAGS ]]
     local ModeBtn = createBtn("[E] MODE: CLASSIC (PREMIUM)", UDim2.new(0, 6, 0, 0), UDim2.new(0, 128, 0, 20)); ModeBtn.Parent = ContentFrame
@@ -694,11 +693,11 @@ return function(AccessKey)
     local AutoJumpBtn = createBtn("[C] JUMP: PREMIUM", UDim2.new(0, 6, 0, 80), UDim2.new(0, 62, 0, 20)); AutoJumpBtn.Parent = ContentFrame
     local AutoWalkBtn = createBtn("[T] AUTO WALK: OFF", UDim2.new(0, 72, 0, 80), UDim2.new(0, 62, 0, 20)); AutoWalkBtn.Parent = ContentFrame
 
-    -- TOMBOL MULTI JUMP & AUTO HOLD BOMB (FREE / UNLOCKED) (Posisi digeser ke atas menggantikan fitur speed)
+    -- TOMBOL MULTI JUMP & AUTO HOLD BOMB (FREE / UNLOCKED)
     local InfJumpBtn = createBtn("[K] INF JUMP: OFF", UDim2.new(0, 6, 0, 105), UDim2.new(0, 62, 0, 20)); InfJumpBtn.Parent = ContentFrame
     local AutoHoldBtn = createBtn("[J] AUTO HOLD: OFF", UDim2.new(0, 72, 0, 105), UDim2.new(0, 62, 0, 20)); AutoHoldBtn.Parent = ContentFrame
     
-    -- SLIDER JUMP LIMIT (2-10) (FREE / UNLOCKED) (Digeser ke atas)
+    -- SLIDER JUMP LIMIT (2-10) (FREE / UNLOCKED)
     createLabel("MAX JUMPS (2-10)", UDim2.new(0, 6, 0, 130)).Parent = ContentFrame
     local JumpSliderFrame = Instance.new("Frame", ContentFrame)
     JumpSliderFrame.Size = UDim2.new(0, 128, 0, 12)
@@ -746,7 +745,7 @@ return function(AccessKey)
     InfJumpWarning.TextSize = 5.5
     InfJumpWarning.Parent = ContentFrame
 
-    -- Shift 55px ke atas untuk seluruh elemen di bawah
+    -- Shift 45px ke bawah untuk seluruh elemen di scrolling frame
     createLine(UDim2.new(0, 6, 0, 182)).Parent = ContentFrame 
     createLabel("FACES MODE", UDim2.new(0, 6, 0, 188)).Parent = ContentFrame
     local ClassicBtn = createBtn("[G] CLASSIC: OFF (PREMIUM)", UDim2.new(0, 6, 0, 200), UDim2.new(0, 62, 0, 20)); ClassicBtn.Parent = ContentFrame
@@ -1446,11 +1445,21 @@ return function(AccessKey)
     local function syncExtScaleSlider(val)
         ExtScaleSliderFill.Size = UDim2.new(math.clamp((val - 1) / 199, 0, 1), 0, 1, 0)
         ExtScaleSliderText.Text = string.format("EXT SIZE: %.0f%%", val)
-        if ExternalUIScale then ExternalUIScale.Scale = val / 100 end
-        if AutoHoldUIScale then AutoHoldUIScale.Scale = val / 100 end
-        if FlickExternalUIScale then FlickExternalUIScale.Scale = val / 100 end
-        if PassExternalUIScale then PassExternalUIScale.Scale = val / 100 end
-        if AutoWalkExternalUIScale then AutoWalkExternalUIScale.Scale = val / 100 end
+        if ExternalUIScale then
+            ExternalUIScale.Scale = val / 100
+        end
+        if AutoHoldUIScale then
+            AutoHoldUIScale.Scale = val / 100
+        end
+        if FlickExternalUIScale then
+            FlickExternalUIScale.Scale = val / 100
+        end
+        if PassExternalUIScale then
+            PassExternalUIScale.Scale = val / 100
+        end
+        if AutoWalkExternalUIScale then
+            AutoWalkExternalUIScale.Scale = val / 100
+        end
     end
 
     local extScaleDragging = false
@@ -1611,13 +1620,6 @@ return function(AccessKey)
         if not hrp then return end
         isTweening = true
         
-        -- Deteksi dan simpan target pass bomb secara spesifik untuk fungsionalitas Auto Walk retreat
-        local targetPlayer = Players:GetPlayerFromCharacter(targetPart.Parent)
-        if targetPlayer then
-            lastPassedTarget = targetPlayer
-            justPassedBomb = true
-        end
-
         -- SIMPAN POSISI AWAL SEBELUM MELAKUKAN TELEPORT OPER BOM
         local startCFrame = hrp.CFrame
         local startPos = hrp.Position
@@ -1751,7 +1753,7 @@ return function(AccessKey)
             hum.WalkSpeed = 16
             retreatTimer = _G.HJEnabled and 3.8 or 2.5
             if _G.HJEnabled then task.spawn(function() hum:ChangeState(3); task.wait(0.4); hum:ChangeState(3) end) end
-            if _G.AutoWalkEnabled then
+            if _G.AutoWalkActive then
                 autoWalkRetreatTimer = 2.5 -- Trigger mundur
             end
         end
@@ -1776,19 +1778,16 @@ return function(AccessKey)
             end
         end
 
-        -- KENDALI PERGERAKAN (AUTO CHASE / AUTO WALK DENGAN PENGECUALIAN TARGET)
-        if _G.AutoWalkEnabled then
+        -- KENDALI PERGERAKAN (AUTO CHASE / AUTO WALK)
+        if _G.AutoWalkActive then
             if amIHolder then
-                justPassedBomb = false -- Reset status pass saat kita kembali memegang bom
                 -- AUTO WALK SAAT MEMBAWA BOMB (MENGEJAR MUSUH)
                 if lockedTarget and isAlive(lockedTarget) then
                     local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
-                    
-                    local speed = 25
-                    if dist <= 12 then speed = 25 else speed = 16 end
-                    hum.WalkSpeed = speed
+                    if dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
                     
                     local targetPos = tRoot.Position
+                    local speed = 25
                     local moveDir = (targetPos - root.Position).Unit
                     
                     local params = RaycastParams.new()
@@ -1822,19 +1821,19 @@ return function(AccessKey)
                     hum.WalkSpeed = 16
                 end
             else
-                -- AUTO WALK SAAT TIDAK MEMBAWA BOMB: "MENJAUHI TARGET YANG BARU SAJA DI-PASS BOMB"
+                -- AUTO WALK SAAT TIDAK MEMBAWA BOMB: "MENJAUHIN YANG PEGANG BOMB" (TIDAK MENGGUNAKAN MUNDUR)
                 local bombHolder = nil
-                if justPassedBomb and lastPassedTarget and isAlive(lastPassedTarget) and hasBomb(lastPassedTarget) then
-                    bombHolder = lastPassedTarget
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer and isAlive(p) and hasBomb(p) then
+                        bombHolder = p
+                        break
+                    end
                 end
                 
                 if bombHolder then
                     local targetPos = bombHolder.Character.HumanoidRootPart.Position
-                    
                     local speed = _G.AutoWalkRetreatSpeed or 22
-                    hum.WalkSpeed = speed
-                    
-                    local moveDir = (root.Position - targetPos).Unit -- Arah menjauhi target pass
+                    local moveDir = (root.Position - targetPos).Unit -- Arah menjauhi pemegang bom
                     
                     local params = RaycastParams.new()
                     params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
@@ -1864,13 +1863,10 @@ return function(AccessKey)
                     root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetY, nextPos.Z), Vector3.new(targetPos.X, targetY, targetPos.Z))
                     hum:Move(Vector3.new(0, 0, 0))
                 else
-                    -- Fallback standar jika tidak ada target valid yang sedang membawa bom
+                    -- Fallback standar jika tidak ada pemegang bom terdeteksi
                     if lockedTarget and isAlive(lockedTarget) then
-                        local speed = 22
-                        hum.WalkSpeed = speed
-                        hum:MoveTo(root.Position + (root.Position - lockedTarget.Character.HumanoidRootPart.Position).Unit * speed)
-                    else
-                        hum.WalkSpeed = 16
+                        local tRoot = lockedTarget.Character.HumanoidRootPart
+                        hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * 22)
                     end
                 end
             end
@@ -1878,19 +1874,13 @@ return function(AccessKey)
             -- SISTEM CHASE / FOLLOW ORIGINAL (MENGGUNAKAN HUMANOID:MOVETO DENGAN FUNGSI MUNDUR SEPERTI BIASA)
             if lockedTarget and isAlive(lockedTarget) then
                 local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
-                
-                local speed = 16
-                if amIHolder and dist <= 12 then speed = 25 else speed = 16 end
-                hum.WalkSpeed = speed
+                if amIHolder and dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
                 
                 if _G.FollowEnabled and retreatTimer <= 0 then 
                     local targetPos = _G.PredictEnabled and (tRoot.Position + (tRoot.Velocity * 0.13)) or tRoot.Position
                     hum:MoveTo(targetPos) 
                 elseif _G.FollowEnabled then
-                    retreatTimer -= dt
-                    local escapeSpeed = 22
-                    hum.WalkSpeed = escapeSpeed
-                    hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * escapeSpeed)
+                    retreatTimer -= dt; hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * 22)
                 end
             else 
                 hum.WalkSpeed = 16 
@@ -2052,7 +2042,7 @@ return function(AccessKey)
     end)
 
     -- ========================================================
-    -- [[ 5. TOMBOL EKSTERNAL FREEZE, FLICK, AUTO HOLD, & PASS ]]
+    -- [[ 5. TOMBOL EKSTERNAL FREEZE, FLICK, AUTO HOLD, PASS, & AUTO WALK ]]
     -- ========================================================
     
     -- TOMBOL FREEZE
@@ -2152,18 +2142,16 @@ return function(AccessKey)
     PassExternalUIScale = Instance.new("UIScale", PassExternalBtn)
     PassExternalUIScale.Scale = 1.0
 
-    -- ========================================================
-    -- [[ TOMBOL EKSTERNAL BARU: AUTO WALK ]]
-    -- ========================================================
+    -- TOMBOL AUTO WALK EKSTERNAL
     local AutoWalkExternalBtn = Instance.new("TextButton", ScreenGui)
     AutoWalkExternalBtn.Name = "AutoWalkExternalButton"
     AutoWalkExternalBtn.Size = UDim2.new(0, 70, 0, 30)
-    AutoWalkExternalBtn.Position = UDim2.new(0.5, -35, 0.8, -40) -- Tengah atas baris utama
+    AutoWalkExternalBtn.Position = UDim2.new(0.5, 165, 0.8, 0)
     AutoWalkExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     AutoWalkExternalBtn.Text = "AUTO WALK"
     AutoWalkExternalBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     AutoWalkExternalBtn.Font = Enum.Font.GothamBold
-    AutoWalkExternalBtn.TextSize = 9
+    AutoWalkExternalBtn.TextSize = 10
     AutoWalkExternalBtn.ZIndex = 100
     AutoWalkExternalBtn.Visible = false
     Instance.new("UICorner", AutoWalkExternalBtn).CornerRadius = UDim.new(0, 5)
@@ -2356,6 +2344,18 @@ return function(AccessKey)
     -- Interaksi Tombol Eksternal Manual Pass
     PassExternalBtn.MouseButton1Click:Connect(triggerManualPass)
 
+    -- Interaksi Tombol Eksternal Auto Walk
+    AutoWalkExternalBtn.MouseButton1Click:Connect(function()
+        _G.AutoWalkActive = not _G.AutoWalkActive
+        if _G.AutoWalkActive then
+            AutoWalkExternalBtn.Text = "WALKING..."
+            AutoWalkExternalBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        else
+            AutoWalkExternalBtn.Text = "AUTO WALK"
+            AutoWalkExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        end
+    end)
+
     -- ==========================================
     -- [[ FUNCTION TRIGGERS FOR BUTTONS ]]
     -- ==========================================
@@ -2446,17 +2446,15 @@ return function(AccessKey)
         ResBtn.BackgroundColor3 = _G.ResolutionEnabled and _G.AccentColor or Color3.fromRGB(30, 30, 35)
     end
 
-    -- FITUR BARU: TOGGLE AUTO WALK
+    -- FITUR BARU: TOGGLE AUTO WALK (Mengaktifkan sistem eksternal button)
     local function toggleAutoWalk()
         _G.AutoWalkEnabled = not _G.AutoWalkEnabled
         AutoWalkBtn.Text = _G.AutoWalkEnabled and "[T] AUTO WALK: ON" or "[T] AUTO WALK: OFF"
         AutoWalkBtn.BackgroundColor3 = _G.AutoWalkEnabled and _G.AccentColor or Color3.fromRGB(30, 30, 35)
         AutoWalkExternalBtn.Visible = _G.AutoWalkEnabled
 
-        if _G.AutoWalkEnabled then
-            AutoWalkExternalBtn.Text = "WALK: ON"
-            AutoWalkExternalBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-        else
+        if not _G.AutoWalkEnabled then
+            _G.AutoWalkActive = false
             AutoWalkExternalBtn.Text = "AUTO WALK"
             AutoWalkExternalBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
         end
@@ -2499,8 +2497,6 @@ return function(AccessKey)
     AutoPassBtn.MouseButton1Click:Connect(toggleAutoPass)
     PassModeBtn.MouseButton1Click:Connect(togglePassMode)
     PassShowBtn.MouseButton1Click:Connect(togglePassShow)
-
-    AutoWalkExternalBtn.MouseButton1Click:Connect(toggleAutoWalk)
 
     -- LOCKED PREMIUM FEATURES (Trigger NotifyPremium)
     ModeBtn.MouseButton1Click:Connect(NotifyPremium)
