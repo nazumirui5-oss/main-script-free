@@ -86,7 +86,6 @@ _G.WallAvoidMethod = "Jump" -- "Jump" atau "Avoid"
 local isHeadlessActive = false
 local isKorbloxActive = false
 local RangeVisualPart = nil
-local ragdollJoints = {}
 
 -- State Internal TBD
 local faceSpeed = 0.18
@@ -100,6 +99,10 @@ local isLocked = false
 local canWallJump = true
 local jumpDebounce = false
 local isTweening = false
+
+-- Variables for Ragdoll Joint Rotation
+local originalRootC0 = nil
+local rootJointInstance = nil
 
 -- Performance Throttling
 local lastRaycastCheck = 0
@@ -203,6 +206,13 @@ end)
 pcall(function()
     local oldVisual = workspace:FindFirstChild("LouisHub_RangeVisual")
     if oldVisual then oldVisual:Destroy() end
+end)
+
+-- Reset visual joint modification on reload
+pcall(function()
+    if rootJointInstance and originalRootC0 then
+        rootJointInstance.C0 = originalRootC0
+    end
 end)
 
 -- ========================================================
@@ -321,67 +331,36 @@ end
 
 local function ApplyRagdollFall(state)
     local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not hum or not char then return end
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
     
-    if state then
-        -- Mengaktifkan Ragdoll Fisika Realistis (Client-side Constraint)
-        hum.PlatformStand = true
-        
-        for _, v in ipairs(char:GetDescendants()) do
-            -- Menonaktifkan Motor6D kecuali RootJoint agar HRP & Kamera tetap menyatu dengan stabil
-            if v:IsA("Motor6D") and v.Name ~= "RootJoint" and v.Name ~= "Root" then
-                v.Enabled = false
-                
-                local part0 = v.Part0
-                local part1 = v.Part1
-                if part0 and part1 then
-                    local a0 = part0:FindFirstChild(v.Name .. "RigAttachment") or part0:FindFirstChild(v.Name .. "Attachment")
-                    local a1 = part1:FindFirstChild(v.Name .. "RigAttachment") or part1:FindFirstChild(v.Name .. "Attachment")
-                    
-                    local tempA0, tempA1
-                    if not a0 then
-                        a0 = Instance.new("Attachment", part0)
-                        a0.Name = "Local_A0"
-                        a0.CFrame = v.C0
-                        tempA0 = a0
-                    end
-                    if not a1 then
-                        a1 = Instance.new("Attachment", part1)
-                        a1.Name = "Local_A1"
-                        a1.CFrame = v.C1
-                        tempA1 = a1
-                    end
-                    
-                    local socket = Instance.new("BallSocketConstraint")
-                    socket.Name = "LocalRagdollSocket"
-                    socket.Attachment0 = a0
-                    socket.Attachment1 = a1
-                    socket.LimitsEnabled = true
-                    socket.TwistLimitsEnabled = true
-                    socket.Parent = part0
-                    
-                    table.insert(ragdollJoints, {
-                        motor = v, 
-                        socket = socket, 
-                        tempA0 = tempA0, 
-                        tempA1 = tempA1
-                    })
-                end
+    local rootJoint = nil
+    if char:FindFirstChild("LowerTorso") and char.LowerTorso:FindFirstChild("Root") then
+        rootJoint = char.LowerTorso.Root -- R15
+    elseif char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart:FindFirstChild("RootJoint") then
+        rootJoint = char.HumanoidRootPart.RootJoint -- R6
+    end
+    
+    if rootJoint then
+        if state then
+            if not originalRootC0 then
+                originalRootC0 = rootJoint.C0
+                rootJointInstance = rootJoint
             end
+            -- Memutar visual torso 90 derajat secara lokal & menggeser tinggi visual 1.2 stud ke bawah 
+            -- agar pas berbaring rata menyentuh lantai tanpa menembus peta.
+            rootJoint.C0 = originalRootC0 * CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(90), 0, 0)
+            hum.PlatformStand = true
+        else
+            if originalRootC0 and rootJointInstance and rootJointInstance.Parent then
+                rootJointInstance.C0 = originalRootC0
+            end
+            originalRootC0 = nil
+            rootJointInstance = nil
+            hum.PlatformStand = false
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
         end
-    else
-        -- Menonaktifkan Ragdoll / Memulihkan Karakter ke Semula
-        hum.PlatformStand = false
-        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        
-        for _, data in ipairs(ragdollJoints) do
-            if data.motor then data.motor.Enabled = true end
-            if data.socket then pcall(function() data.socket:Destroy() end) end
-            if data.tempA0 then pcall(function() data.tempA0:Destroy() end) end
-            if data.tempA1 then pcall(function() data.tempA1:Destroy() end) end
-        end
-        table.clear(ragdollJoints)
     end
 end
 
@@ -535,19 +514,21 @@ local function ApplyRandomAvatar()
     end)
 end
 
-local function CheckWallInFront()
+-- Deteksi dinding dengan menggunakan arah pergerakan yang dinamis
+local function CheckWallInFront(moveDirection)
     local char = LocalPlayer.Character
     if not char then return false, nil end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return false, nil end
     
-    local dir = hrp.CFrame.LookVector
+    local dir = moveDirection or hrp.CFrame.LookVector
     local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {char}
+    params.FilterDescendantsInstances = {char, Camera}
     params.FilterType = Enum.RaycastFilterType.Exclude
     
-    local origin = hrp.Position + Vector3.new(0, 0.5, 0)
-    local result = workspace:Raycast(origin, dir * 6, params)
+    -- Cast sensor setinggi pinggang untuk mendeteksi rintangan sedang/tinggi
+    local origin = hrp.Position + Vector3.new(0, -0.5, 0)
+    local result = workspace:Raycast(origin, dir * 8, params)
     
     if result and result.Instance and result.Instance.CanCollide then
         return true, result
@@ -1097,7 +1078,7 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
     if tick() - lastTargetSearch >= searchInterval then
         local minDist = math.huge; local best = nil; local closestDist = math.huge; local closestPlayer = nil
         
-        -- SISTEM RANGE CHASE: Hanya set target jika ada di dalam lingkaran jangkauan visual
+        -- SISTEM RANGE CHASE: Hanya set target jika ada di dalam lingkaran visual
         if _G.RangeChaseEnabled then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and isAlive(p) and not isTeammate(p) then
@@ -1162,10 +1143,11 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
         if lockedTarget and isAlive(lockedTarget) then
             local tRoot = lockedTarget.Character.HumanoidRootPart
             local targetPos = tRoot.Position
+            local moveDirection = (targetPos - root.Position).Unit
             
-            -- Integrasi Wall Avoidance System pada pergerakan Range Chase
+            -- Integrasi Wall Avoidance System pada pergerakan
             if _G.WallAvoidEnabled then
-                local hasObstacle, hitInfo = CheckWallInFront()
+                local hasObstacle, hitInfo = CheckWallInFront(moveDirection)
                 if hasObstacle then
                     if _G.WallAvoidMethod == "Jump" then
                         if hum.FloorMaterial ~= Enum.Material.Air then
@@ -1179,10 +1161,12 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
             end
             
             hum:MoveTo(targetPos)
-        else
-            -- Jika tidak ada player di visual area, biarkan player bergerak bebas normal (bukan diam)
         end
     elseif _G.AutoWalkActive then
+        local params = RaycastParams.new()
+        params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
+        params.FilterType = Enum.RaycastFilterType.Exclude
+
         if amIHolder then
             if lockedTarget and isAlive(lockedTarget) then
                 local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
@@ -1191,10 +1175,6 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
                 local targetPos = tRoot.Position
                 local speed = 25
                 local moveDir = (targetPos - root.Position).Unit
-                
-                local params = RaycastParams.new()
-                params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
-                params.FilterType = Enum.RaycastFilterType.Exclude
                 
                 local rayOrigin = root.Position + Vector3.new(0, -1.2, 0)
                 local raycastResult = Workspace:Raycast(rayOrigin, moveDir * 6, params)
@@ -1210,25 +1190,31 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
                     end
                 end
                 
-                -- Integrasi Wall Avoidance pada AutoWalk Active
+                -- Integrasi Wall Avoidance pada AutoWalk Active (Mengejar Target)
                 if _G.WallAvoidEnabled then
-                    local hasObstacle, hitInfo = CheckWallInFront()
+                    local hasObstacle, hitInfo = CheckWallInFront(moveDir)
                     if hasObstacle then
                         if _G.WallAvoidMethod == "Jump" then
                             if hum.FloorMaterial ~= Enum.Material.Air then
                                 hum.Jump = true
                             end
                         elseif _G.WallAvoidMethod == "Avoid" then
-                            moveDir = (moveDir + root.CFrame.RightVector).Unit
+                            moveDir = (moveDir + root.CFrame.RightVector * 1.5).Unit
                         end
                     end
                 end
                 
                 local nextPos = root.Position + (moveDir * speed * dt)
-                local groundRay = Workspace:Raycast(nextPos + Vector3.new(0, 5, 0), Vector3.new(0, -12, 0), params)
                 local targetY = root.Position.Y
-                if groundRay then
-                    targetY = groundRay.Position.Y + 3.0
+                
+                -- Hanya kunci sumbu Y ke tanah jika sedang tidak berada di udara (melompat)
+                if hum.FloorMaterial ~= Enum.Material.Air then
+                    local groundRay = Workspace:Raycast(nextPos + Vector3.new(0, 5, 0), Vector3.new(0, -12, 0), params)
+                    if groundRay then
+                        targetY = groundRay.Position.Y + 3.0
+                    end
+                else
+                    targetY = root.Position.Y + (root.AssemblyLinearVelocity.Y * dt)
                 end
                 
                 root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetY, nextPos.Z), Vector3.new(targetPos.X, targetY, targetPos.Z))
@@ -1250,10 +1236,6 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
                 local speed = _G.AutoWalkRetreatSpeed or 22
                 local moveDir = (root.Position - targetPos).Unit
                 
-                local params = RaycastParams.new()
-                params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
-                params.FilterType = Enum.RaycastFilterType.Exclude
-                
                 local rayOrigin = root.Position + Vector3.new(0, -1.2, 0)
                 local raycastResult = Workspace:Raycast(rayOrigin, moveDir * 6, params)
                 if raycastResult and raycastResult.Instance.CanCollide then
@@ -1268,11 +1250,31 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
                     end
                 end
                 
+                -- Integrasi Wall Avoidance pada AutoWalk Active (Mundur Menjauh)
+                if _G.WallAvoidEnabled then
+                    local hasObstacle, hitInfo = CheckWallInFront(moveDir)
+                    if hasObstacle then
+                        if _G.WallAvoidMethod == "Jump" then
+                            if hum.FloorMaterial ~= Enum.Material.Air then
+                                hum.Jump = true
+                            end
+                        elseif _G.WallAvoidMethod == "Avoid" then
+                            moveDir = (moveDir + root.CFrame.RightVector * 1.5).Unit
+                        end
+                    end
+                end
+                
                 local nextPos = root.Position + (moveDir * speed * dt)
-                local groundRay = Workspace:Raycast(nextPos + Vector3.new(0, 5, 0), Vector3.new(0, -12, 0), params)
                 local targetY = root.Position.Y
-                if groundRay then
-                    targetY = groundRay.Position.Y + 3.0
+                
+                -- Hanya kunci sumbu Y ke tanah jika sedang tidak berada di udara (melompat)
+                if hum.FloorMaterial ~= Enum.Material.Air then
+                    local groundRay = Workspace:Raycast(nextPos + Vector3.new(0, 5, 0), Vector3.new(0, -12, 0), params)
+                    if groundRay then
+                        targetY = groundRay.Position.Y + 3.0
+                    end
+                else
+                    targetY = root.Position.Y + (root.AssemblyLinearVelocity.Y * dt)
                 end
                 
                 root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetY, nextPos.Z), Vector3.new(targetPos.X, targetY, targetPos.Z))
@@ -1292,10 +1294,11 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
             
             local shouldFollow = _G.FollowEnabled or _G.AutoHoldActive
             local targetPos = _G.PredictEnabled and (tRoot.Position + (tRoot.Velocity * 0.13)) or tRoot.Position
+            local moveDirection = (targetPos - root.Position).Unit
             
             -- Integrasi Wall Avoidance pada pergerakan Follow Biasa
             if _G.WallAvoidEnabled then
-                local hasObstacle, hitInfo = CheckWallInFront()
+                local hasObstacle, hitInfo = CheckWallInFront(moveDirection)
                 if hasObstacle then
                     if _G.WallAvoidMethod == "Jump" then
                         if hum.FloorMaterial ~= Enum.Material.Air then
@@ -1553,7 +1556,7 @@ end)
 local TabMovement = Window:CreateTab("Movement Hacks", "rbxassetid://4483362458")
 
 -- INTEGRASI FITUR RAGDOLL FALL DI TAB MOVEMENT
-TabMovement:CreateParagraph("Ragdoll Fall Physics", "Membuat karakter Anda jatuh lemas pingsan seketika ke lantai.")
+TabMovement:CreateParagraph("Ragdoll Fall Physics", "Membuat karakter Anda berbaring telentang rata di lantai.")
 
 TabMovement:CreateToggle("Enable Ragdoll Fall", false, "RagdollFallEnabled", function(state)
     _G.RagdollFallEnabled = state
@@ -1663,7 +1666,7 @@ local TabVisuals = Window:CreateTab("Visuals & Camera", "rbxassetid://4483345998
 -- INTEGRASI AVATAR CHANGER & FE KORBLOX HEADLESS
 TabVisuals:CreateParagraph("Record Protection & Cosmetics (Local)", "Ubah visual karakter Anda saat merekam layar.")
 
-TabVisuals:CreateButton("Avatar Changer", function()
+TabVisuals:CreateButton("Randomize Avatar (Client)", function()
     ApplyRandomAvatar()
 end)
 
@@ -2023,6 +2026,10 @@ SafeConnect(LocalPlayer.CharacterAdded, function()
     bombTimer = 0
     isTweening = false
     _G.CurrentJumpCount = 0
+    
+    -- Reset cache joint saat karakter baru spawn
+    originalRootC0 = nil
+    rootJointInstance = nil
     
     -- Menjaga modifikasi visual saat respawn
     task.spawn(function()
