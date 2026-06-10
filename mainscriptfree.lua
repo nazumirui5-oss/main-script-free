@@ -86,6 +86,7 @@ _G.WallAvoidMethod = "Jump" -- "Jump" atau "Avoid"
 local isHeadlessActive = false
 local isKorbloxActive = false
 local RangeVisualPart = nil
+local ragdollJoints = {}
 
 -- State Internal TBD
 local faceSpeed = 0.18
@@ -321,14 +322,66 @@ end
 local function ApplyRagdollFall(state)
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    if not hum or not char then return end
     
     if state then
+        -- Mengaktifkan Ragdoll Fisika Realistis (Client-side Constraint)
         hum.PlatformStand = true
-        hum:ChangeState(Enum.HumanoidStateType.FallingDown)
+        
+        for _, v in ipairs(char:GetDescendants()) do
+            -- Menonaktifkan Motor6D kecuali RootJoint agar HRP & Kamera tetap menyatu dengan stabil
+            if v:IsA("Motor6D") and v.Name ~= "RootJoint" and v.Name ~= "Root" then
+                v.Enabled = false
+                
+                local part0 = v.Part0
+                local part1 = v.Part1
+                if part0 and part1 then
+                    local a0 = part0:FindFirstChild(v.Name .. "RigAttachment") or part0:FindFirstChild(v.Name .. "Attachment")
+                    local a1 = part1:FindFirstChild(v.Name .. "RigAttachment") or part1:FindFirstChild(v.Name .. "Attachment")
+                    
+                    local tempA0, tempA1
+                    if not a0 then
+                        a0 = Instance.new("Attachment", part0)
+                        a0.Name = "Local_A0"
+                        a0.CFrame = v.C0
+                        tempA0 = a0
+                    end
+                    if not a1 then
+                        a1 = Instance.new("Attachment", part1)
+                        a1.Name = "Local_A1"
+                        a1.CFrame = v.C1
+                        tempA1 = a1
+                    end
+                    
+                    local socket = Instance.new("BallSocketConstraint")
+                    socket.Name = "LocalRagdollSocket"
+                    socket.Attachment0 = a0
+                    socket.Attachment1 = a1
+                    socket.LimitsEnabled = true
+                    socket.TwistLimitsEnabled = true
+                    socket.Parent = part0
+                    
+                    table.insert(ragdollJoints, {
+                        motor = v, 
+                        socket = socket, 
+                        tempA0 = tempA0, 
+                        tempA1 = tempA1
+                    })
+                end
+            end
+        end
     else
+        -- Menonaktifkan Ragdoll / Memulihkan Karakter ke Semula
         hum.PlatformStand = false
         hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        
+        for _, data in ipairs(ragdollJoints) do
+            if data.motor then data.motor.Enabled = true end
+            if data.socket then pcall(function() data.socket:Destroy() end) end
+            if data.tempA0 then pcall(function() data.tempA0:Destroy() end) end
+            if data.tempA1 then pcall(function() data.tempA1:Destroy() end) end
+        end
+        table.clear(ragdollJoints)
     end
 end
 
@@ -1044,7 +1097,7 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
     if tick() - lastTargetSearch >= searchInterval then
         local minDist = math.huge; local best = nil; local closestDist = math.huge; local closestPlayer = nil
         
-        -- SISTEM RANGE CHASE: Hanya set target jika ada di dalam lingkaran visual
+        -- SISTEM RANGE CHASE: Hanya set target jika ada di dalam lingkaran jangkauan visual
         if _G.RangeChaseEnabled then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and isAlive(p) and not isTeammate(p) then
@@ -1110,7 +1163,7 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
             local tRoot = lockedTarget.Character.HumanoidRootPart
             local targetPos = tRoot.Position
             
-            -- Integrasi Wall Avoidance System pada pergerakan
+            -- Integrasi Wall Avoidance System pada pergerakan Range Chase
             if _G.WallAvoidEnabled then
                 local hasObstacle, hitInfo = CheckWallInFront()
                 if hasObstacle then
@@ -1610,7 +1663,7 @@ local TabVisuals = Window:CreateTab("Visuals & Camera", "rbxassetid://4483345998
 -- INTEGRASI AVATAR CHANGER & FE KORBLOX HEADLESS
 TabVisuals:CreateParagraph("Record Protection & Cosmetics (Local)", "Ubah visual karakter Anda saat merekam layar.")
 
-TabVisuals:CreateButton("Randomize Avatar (Client)", function()
+TabVisuals:CreateButton("Avatar Changer", function()
     ApplyRandomAvatar()
 end)
 
