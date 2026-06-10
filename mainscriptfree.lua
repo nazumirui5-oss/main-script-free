@@ -100,9 +100,9 @@ local canWallJump = true
 local jumpDebounce = false
 local isTweening = false
 
--- Variables for Ragdoll Joint Rotation
-local originalRootC0 = nil
-local rootJointInstance = nil
+-- Variables for Local Roblox Physical Ragdoll
+local ragdollJoints = {}
+local createdConstraints = {}
 
 -- Performance Throttling
 local lastRaycastCheck = 0
@@ -206,13 +206,6 @@ end)
 pcall(function()
     local oldVisual = workspace:FindFirstChild("LouisHub_RangeVisual")
     if oldVisual then oldVisual:Destroy() end
-end)
-
--- Reset visual joint modification on reload
-pcall(function()
-    if rootJointInstance and originalRootC0 then
-        rootJointInstance.C0 = originalRootC0
-    end
 end)
 
 -- ========================================================
@@ -329,38 +322,72 @@ local function CreateRangeVisual()
     RangeVisualPart.Parent = workspace
 end
 
+-- Sistem Ragdoll Fisika Nyata Roblox (Motor6D -> BallSocket Constraints)
 local function ApplyRagdollFall(state)
     local char = LocalPlayer.Character
     if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
     
-    local rootJoint = nil
-    if char:FindFirstChild("LowerTorso") and char.LowerTorso:FindFirstChild("Root") then
-        rootJoint = char.LowerTorso.Root -- R15
-    elseif char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart:FindFirstChild("RootJoint") then
-        rootJoint = char.HumanoidRootPart.RootJoint -- R6
-    end
-    
-    if rootJoint then
-        if state then
-            if not originalRootC0 then
-                originalRootC0 = rootJoint.C0
-                rootJointInstance = rootJoint
-            end
-            -- Memutar visual torso 90 derajat secara lokal & menggeser tinggi visual 1.2 stud ke bawah 
-            -- agar pas berbaring rata menyentuh lantai tanpa menembus peta.
-            rootJoint.C0 = originalRootC0 * CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(90), 0, 0)
-            hum.PlatformStand = true
-        else
-            if originalRootC0 and rootJointInstance and rootJointInstance.Parent then
-                rootJointInstance.C0 = originalRootC0
-            end
-            originalRootC0 = nil
-            rootJointInstance = nil
-            hum.PlatformStand = false
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    if state then
+        -- Membersihkan constraints sisa sebelumnya jika ada
+        for _, item in ipairs(createdConstraints) do
+            pcall(function() item:Destroy() end)
         end
+        table.clear(createdConstraints)
+        table.clear(ragdollJoints)
+        
+        -- Memaksa humanoid ke mode fisika bebas dan menjatuhkan karakter
+        hum:ChangeState(Enum.HumanoidStateType.Physics)
+        hum.PlatformStand = true
+        hrp.CanCollide = false
+        
+        -- Mengganti Motor6D dengan BallSocketConstraint secara dinamis
+        for _, joint in ipairs(char:GetDescendants()) do
+            if joint:IsA("Motor6D") then
+                pcall(function()
+                    if joint.Part0 and joint.Part1 then
+                        joint.Enabled = false
+                        table.insert(ragdollJoints, joint)
+                        
+                        local a0 = Instance.new("Attachment")
+                        a0.CFrame = joint.C0
+                        a0.Parent = joint.Part0
+                        
+                        local a1 = Instance.new("Attachment")
+                        a1.CFrame = joint.C1
+                        a1.Parent = joint.Part1
+                        
+                        local socket = Instance.new("BallSocketConstraint")
+                        socket.Attachment0 = a0
+                        socket.Attachment1 = a1
+                        socket.Parent = joint.Part0
+                        
+                        table.insert(createdConstraints, a0)
+                        table.insert(createdConstraints, a1)
+                        table.insert(createdConstraints, socket)
+                    end
+                end)
+            end
+        end
+    else
+        -- Mengaktifkan kembali seluruh sambungan tubuh asli
+        for _, joint in ipairs(ragdollJoints) do
+            pcall(function() joint.Enabled = true end)
+        end
+        table.clear(ragdollJoints)
+        
+        -- Menghapus objek attachment dan socket tambahan
+        for _, item in ipairs(createdConstraints) do
+            pcall(function() item:Destroy() end)
+        end
+        table.clear(createdConstraints)
+        
+        -- Mengembalikan kontrol penuh gerak karakter
+        hrp.CanCollide = true
+        hum.PlatformStand = false
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
 end
 
@@ -1556,7 +1583,7 @@ end)
 local TabMovement = Window:CreateTab("Movement Hacks", "rbxassetid://4483362458")
 
 -- INTEGRASI FITUR RAGDOLL FALL DI TAB MOVEMENT
-TabMovement:CreateParagraph("Ragdoll Fall Physics", "Membuat karakter Anda berbaring telentang rata di lantai.")
+TabMovement:CreateParagraph("Ragdoll Fall Physics", "Membuat karakter Anda jatuh lemas ke lantai seperti sistem ragdoll fisik Roblox asli.")
 
 TabMovement:CreateToggle("Enable Ragdoll Fall", false, "RagdollFallEnabled", function(state)
     _G.RagdollFallEnabled = state
@@ -1570,7 +1597,7 @@ TabMovement:CreateToggle("Enable Ragdoll Fall", false, "RagdollFallEnabled", fun
 end)
 
 -- INTEGRASI FITUR DETEKSI DINDING (WALL AVOIDANCE) DI TAB MOVEMENT
-TabMovement:CreateParagraph("Wall Detection System", "Deteksi dinding secara otomatis di depan arah gerak karakter Anda.")
+TabMovement:CreateParagraph("Wall Detection System (BETA)", "Deteksi dinding secara otomatis di depan arah gerak karakter Anda.\n[Catatan: Fitur ini masih dalam tahap pengembangan / BETA]")
 
 TabMovement:CreateToggle("Enable Wall Detection Avoidance", false, "WallAvoidEnabled", function(state)
     _G.WallAvoidEnabled = state
@@ -2027,9 +2054,9 @@ SafeConnect(LocalPlayer.CharacterAdded, function()
     isTweening = false
     _G.CurrentJumpCount = 0
     
-    -- Reset cache joint saat karakter baru spawn
-    originalRootC0 = nil
-    rootJointInstance = nil
+    -- Pembersihan tabel sisa ragdoll ketika karakter baru respawn
+    table.clear(ragdollJoints)
+    table.clear(createdConstraints)
     
     -- Menjaga modifikasi visual saat respawn
     task.spawn(function()
