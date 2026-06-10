@@ -313,7 +313,7 @@ local function CreateRangeVisual()
     RangeVisualPart.Material = Enum.Material.ForceField
     RangeVisualPart.Color = Color3.fromRGB(0, 255, 255)
     RangeVisualPart.Shape = Enum.PartType.Cylinder
-    RangeVisualPart.Orientation = Vector3.new(0, 0, 90) -- Berbaring di tanah
+    RangeVisualPart.Orientation = Vector3.new(0, 0, 90) -- Berbaring rata di tanah
     RangeVisualPart.Transparency = 0.6
     RangeVisualPart.Parent = workspace
 end
@@ -325,7 +325,7 @@ local function ApplyRagdollFall(state)
     
     if state then
         hum.PlatformStand = true
-        hum:ChangeState(Enum.HumanoidStateType.Physics)
+        hum:ChangeState(Enum.HumanoidStateType.FallingDown)
     else
         hum.PlatformStand = false
         hum:ChangeState(Enum.HumanoidStateType.GettingUp)
@@ -437,22 +437,48 @@ local function ApplyRandomAvatar()
     if not hum then return end
     
     local presetIds = {
-        261,     -- Shedletsky
-        150,     -- Builderman
         1,       -- Roblox
-        2039665, -- Merely
+        150,     -- Builderman
+        261,     -- Shedletsky
         187514,  -- Telamon
-        450346,  -- Default Guest
         10000,   -- Random Early User
+        1610487, -- Guest
     }
     
     local selectedId = presetIds[math.random(1, #presetIds)]
-    pcall(function()
-        local desc = Players:GetHumanoidDescriptionFromUserId(selectedId)
-        if desc then
-            hum:ApplyDescription(desc)
-            Library:Notify("Avatar Changer", "Avatar Anda diubah ke UserId: " .. tostring(selectedId), 2)
+    task.spawn(function()
+        local success, desc = pcall(function()
+            return Players:GetHumanoidDescriptionFromUserId(selectedId)
+        end)
+        
+        if success and desc then
+            local applySuccess, err = pcall(function()
+                hum:ApplyDescription(desc)
+            end)
+            if applySuccess then
+                Library:Notify("Avatar Changer", "Avatar lokal acak berhasil dimuat!", 2)
+                return
+            end
         end
+        
+        -- Fallback manual jika API Roblox membatasi/rate-limit
+        pcall(function()
+            local shirts = {"rbxassetid://121925345", "rbxassetid://607785314", "rbxassetid://144076387"}
+            local pants = {"rbxassetid://122304648", "rbxassetid://607785731", "rbxassetid://144076760"}
+            
+            local shirt = char:FindFirstChildOfClass("Shirt") or Instance.new("Shirt", char)
+            shirt.ShirtTemplate = shirts[math.random(1, #shirts)]
+            
+            local pant = char:FindFirstChildOfClass("Pants") or Instance.new("Pants", char)
+            pant.PantsTemplate = pants[math.random(1, #pants)]
+            
+            local head = char:FindFirstChild("Head")
+            local face = head and head:FindFirstChildOfClass("Decal")
+            if face then
+                face.Texture = "rbxassetid://143890332"
+            end
+        end)
+        Library:Notify("Avatar Changer", "Avatar lokal acak berhasil diterapkan (Fallback Mode).", 2)
     end)
 end
 
@@ -468,7 +494,7 @@ local function CheckWallInFront()
     params.FilterType = Enum.RaycastFilterType.Exclude
     
     local origin = hrp.Position + Vector3.new(0, 0.5, 0)
-    local result = workspace:Raycast(origin, dir * 4.5, params)
+    local result = workspace:Raycast(origin, dir * 6, params)
     
     if result and result.Instance and result.Instance.CanCollide then
         return true, result
@@ -970,12 +996,6 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
         updateCrosshairAnimation(CrosshairContainer, _G.CurrentCrosshairStyle, 1.0, elapsed)
     end
 
-    -- RAGDOLL FALL SYSTEM KEEP ALIVE
-    if _G.RagdollFallEnabled then
-        hum.PlatformStand = true
-        hum:ChangeState(Enum.HumanoidStateType.Physics)
-    end
-
     -- VISUAL RANGE RING UPDATER
     if _G.RangeChaseEnabled then
         if not RangeVisualPart or RangeVisualPart.Parent == nil then
@@ -990,32 +1010,6 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
         if RangeVisualPart then
             pcall(function() RangeVisualPart:Destroy() end)
             RangeVisualPart = nil
-        end
-    end
-
-    -- DETEKSI JALAN DENGAN WALL AVOIDANCE
-    if _G.WallAvoidEnabled then
-        local hasObstacle, hitInfo = CheckWallInFront()
-        if hasObstacle and hitInfo then
-            if _G.WallAvoidMethod == "Jump" then
-                if hum.FloorMaterial ~= Enum.Material.Air then
-                    hum.Jump = true
-                end
-            elseif _G.WallAvoidMethod == "Avoid" then
-                local rightVec = root.CFrame.RightVector
-                local params = RaycastParams.new()
-                params.FilterDescendantsInstances = {LocalPlayer.Character}
-                params.FilterType = Enum.RaycastFilterType.Exclude
-                
-                local rayRight = Workspace:Raycast(root.Position, rightVec * 5, params)
-                local rayLeft = Workspace:Raycast(root.Position, -rightVec * 5, params)
-                
-                local steerDirection = rightVec
-                if rayRight and not rayLeft then
-                    steerDirection = -rightVec
-                end
-                hum:Move(steerDirection * 16)
-            end
         end
     end
 
@@ -1050,7 +1044,7 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
     if tick() - lastTargetSearch >= searchInterval then
         local minDist = math.huge; local best = nil; local closestDist = math.huge; local closestPlayer = nil
         
-        -- Override targeting if RangeChase is active
+        -- SISTEM RANGE CHASE: Hanya set target jika ada di dalam lingkaran visual
         if _G.RangeChaseEnabled then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and isAlive(p) and not isTeammate(p) then
@@ -1061,11 +1055,9 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
                     end
                 end
             end
-            if best then
-                lockedTarget = best
-                targetMemory = 1.2
-            end
+            lockedTarget = best -- Otomatis nil jika tidak ada player di dalam area jangkauan
         else
+            -- Pencarian Target Biasa / Tanpa Area Range
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and isAlive(p) and not isTeammate(p) then
                     local d = (root.Position - p.Character.HumanoidRootPart.Position).Magnitude
@@ -1112,9 +1104,33 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
         end
     end
 
-    -- WALK & CHASE AUTOMATIONS
-    if _G.AutoWalkActive or (_G.RangeChaseEnabled and lockedTarget) then
-        if amIHolder or _G.RangeChaseEnabled then
+    -- WALK & CHASE AUTOMATIONS (INTEGRATED WALL AVOIDANCE & RANGE CHASE FIX)
+    if _G.RangeChaseEnabled then
+        if lockedTarget and isAlive(lockedTarget) then
+            local tRoot = lockedTarget.Character.HumanoidRootPart
+            local targetPos = tRoot.Position
+            
+            -- Integrasi Wall Avoidance System pada pergerakan
+            if _G.WallAvoidEnabled then
+                local hasObstacle, hitInfo = CheckWallInFront()
+                if hasObstacle then
+                    if _G.WallAvoidMethod == "Jump" then
+                        if hum.FloorMaterial ~= Enum.Material.Air then
+                            hum.Jump = true
+                        end
+                    elseif _G.WallAvoidMethod == "Avoid" then
+                        local rightVec = root.CFrame.RightVector
+                        targetPos = targetPos + (rightVec * 8)
+                    end
+                end
+            end
+            
+            hum:MoveTo(targetPos)
+        else
+            -- Jika tidak ada player di visual area, biarkan player bergerak bebas normal (bukan diam)
+        end
+    elseif _G.AutoWalkActive then
+        if amIHolder then
             if lockedTarget and isAlive(lockedTarget) then
                 local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
                 if dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
@@ -1137,6 +1153,20 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
                         if not altRay or not altRay.Instance.CanCollide then
                             moveDir = worldAltDir
                             break
+                        end
+                    end
+                end
+                
+                -- Integrasi Wall Avoidance pada AutoWalk Active
+                if _G.WallAvoidEnabled then
+                    local hasObstacle, hitInfo = CheckWallInFront()
+                    if hasObstacle then
+                        if _G.WallAvoidMethod == "Jump" then
+                            if hum.FloorMaterial ~= Enum.Material.Air then
+                                hum.Jump = true
+                            end
+                        elseif _G.WallAvoidMethod == "Avoid" then
+                            moveDir = (moveDir + root.CFrame.RightVector).Unit
                         end
                     end
                 end
@@ -1202,15 +1232,30 @@ SafeConnect(RunService.Heartbeat, LPH_NO_VIRTUALIZE(function(dt)
             end
         end
     else
+        -- Follow Target Biasa (Q)
         if lockedTarget and isAlive(lockedTarget) then
             local tRoot = lockedTarget.Character.HumanoidRootPart; local dist = (root.Position - tRoot.Position).Magnitude
             if amIHolder and dist <= 12 then hum.WalkSpeed = 25 else hum.WalkSpeed = 16 end
             
-            -- AUTO HOLD BOMB NGEFOLLOW PLAYER SAAT ON / AKTIF
             local shouldFollow = _G.FollowEnabled or _G.AutoHoldActive
+            local targetPos = _G.PredictEnabled and (tRoot.Position + (tRoot.Velocity * 0.13)) or tRoot.Position
+            
+            -- Integrasi Wall Avoidance pada pergerakan Follow Biasa
+            if _G.WallAvoidEnabled then
+                local hasObstacle, hitInfo = CheckWallInFront()
+                if hasObstacle then
+                    if _G.WallAvoidMethod == "Jump" then
+                        if hum.FloorMaterial ~= Enum.Material.Air then
+                            hum.Jump = true
+                        end
+                    elseif _G.WallAvoidMethod == "Avoid" then
+                        local rightVec = root.CFrame.RightVector
+                        targetPos = targetPos + (rightVec * 8)
+                    end
+                end
+            end
             
             if shouldFollow and retreatTimer <= 0 then 
-                local targetPos = _G.PredictEnabled and (tRoot.Position + (tRoot.Velocity * 0.13)) or tRoot.Position
                 hum:MoveTo(targetPos) 
             elseif shouldFollow then
                 retreatTimer -= dt; hum:MoveTo(root.Position + (root.Position - tRoot.Position).Unit * 22)
@@ -1327,14 +1372,14 @@ table.insert(_G.LouisConnections, JumpRequestConnection)
 -- ========================================================================
 -- [[ MAIN MENU STRUCTURE ]]
 -- ========================================================================
-local Window = Library:CreateWindow("LOUIS TBD INTEGRATED EDITION", "discord.gg/P2FEVBz2PG")
+local Window = Library:CreateWindow("LOUIS TBD FREE EDITION", "discord.gg/P2FEVBz2PG")
 Window:BindToggleKey(Enum.KeyCode.RightControl)
 
-Library:Notify("LOUIS HUB INTEGRATED EDITION INSTANTIATED", "Tekan RightControl untuk sembunyikan UI.", 4)
+Library:Notify("LOUIS HUB FREE EDITION INSTANTIATED", "Tekan RightControl untuk sembunyikan UI.", 4)
 
 -- --- TAB 1: WELCOME ---
 local TabMain = Window:CreateTab("Welcome", "rbxassetid://6023426915")
-TabMain:CreateParagraph("Welcome!", "Hello " .. LocalPlayer.Name .. "!\nThank you for executing Louis TBD Integrated Edition.")
+TabMain:CreateParagraph("Welcome!", "Hello " .. LocalPlayer.Name .. "!\nThank you for executing Louis TBD Free Edition.")
 TabMain:CreateParagraph("UI Instructions", "Keybind to open/hide menu: RightControl\nYou can toggle external buttons from the settings.")
 TabMain:CreateParagraph("Official Community", "Join our Discord server to get the latest update information!")
 
@@ -1836,7 +1881,7 @@ end)
 RegisterExternalButton(_G.ExtRagdollFallBtn)
 
 
--- Sembunyikan default
+-- Sembunyikan default tombol eksternal saat load script
 SafeSetVisible(_G.ExtFollowBtn, false)
 SafeSetVisible(_G.ExtFreezeBtn, false)
 SafeSetVisible(_G.ExtFlickBtn, false)
@@ -1935,4 +1980,4 @@ SafeConnect(LocalPlayer.CharacterAdded, function()
     end)
 end)
 
-print("[LOUIS HUB FREE INTEGRATED EDITION]: TBD Loader Ready to Use.")
+print("[LOUIS HUB FREE EDITION]: TBD Loader Ready to Use.")
