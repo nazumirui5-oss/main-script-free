@@ -330,6 +330,15 @@ local function ApplyRagdollFall(state)
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hum or not hrp then return end
     
+    -- >>> LOGIKA ANTI-BOMB: Matikan deteksi sentuhan (CanTouch) saat ragdoll <<<
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            -- Jika state = true (sedang ragdoll), CanTouch diatur ke false agar bom tidak mendeteksi sentuhan
+            part.CanTouch = not state 
+        end
+    end
+    -- >>> ================================================================== <<<
+    
     if state then
         -- Membersihkan constraints sisa sebelumnya jika ada
         for _, item in ipairs(createdConstraints) do
@@ -1979,8 +1988,11 @@ SafeSetVisible(_G.ExtRagdollFallBtn, false)
 -- ========================================================================
 SafeConnect(UserInputService.InputBegan, function(input, gameProcessed)
     if gameProcessed then return end
+    
     local key = input.KeyCode
-    if key == Enum.KeyCode.Q then 
+    
+    -- [Q] Auto Follow Target
+    if key == Enum.KeyCode.Q then
         _G.FollowEnabled = not _G.FollowEnabled
         SafeSetVisible(_G.ExtFollowBtn, _G.FollowEnabled)
         if _G.FollowEnabled then
@@ -1988,83 +2000,117 @@ SafeConnect(UserInputService.InputBegan, function(input, gameProcessed)
         else
             SafeSetText(_G.ExtFollowBtn, "AUTO FOLLOW")
         end
-        Library:Notify("Follow Toggle", "Status: " .. (_G.FollowEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.Z then 
-        _G.FlickEnabled = not _G.FlickEnabled
-        SafeSetVisible(_G.ExtFlickBtn, _G.FlickEnabled)
-        if not _G.FlickEnabled then
-            _G.FlickActive = false
-            SafeSetText(_G.ExtFlickBtn, "FLICK")
+        Library:Notify("Auto Follow", "Target follow is now " .. (_G.FollowEnabled and "Enabled" or "Disabled"), 1.5)
+        
+    -- [T] Enable Auto Walk System
+    elseif key == Enum.KeyCode.T then
+        if _G.AutoWalkEnabled then
+            _G.AutoWalkActive = not _G.AutoWalkActive
+            if _G.AutoWalkActive then
+                SafeSetText(_G.ExtAutoWalkBtn, "WALKING")
+            else
+                SafeSetText(_G.ExtAutoWalkBtn, "AUTO WALK")
+            end
+            Library:Notify("Auto Walk", "Auto Walk is now " .. (_G.AutoWalkActive and "Active" or "Inactive"), 1.5)
         end
-        Library:Notify("Flick Toggle", "Status: " .. (_G.FlickEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.I then 
-        _G.FOVEnabled = not _G.FOVEnabled
-        if not _G.FOVEnabled then Camera.FieldOfView = 70 end
-        Library:Notify("FOV Override", "Status: " .. (_G.FOVEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.O then 
-        _G.FreezeEnabled = not _G.FreezeEnabled
-        SafeSetVisible(_G.ExtFreezeBtn, _G.FreezeEnabled)
-        Library:Notify("Freeze System", "Status: " .. (_G.FreezeEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.K then 
+        
+    -- [P] Enable Auto Pass Bomb
+    elseif key == Enum.KeyCode.P then
+        _G.AutoPassEnabled = not _G.AutoPassEnabled
+        Library:Notify("Auto Pass", "Auto Pass Bomb is now " .. (_G.AutoPassEnabled and "Enabled" or "Disabled"), 1.5)
+        
+    -- [Z] Enable Flick System
+    elseif key == Enum.KeyCode.Z then
+        if _G.FlickEnabled then
+            _G.FlickActive = not _G.FlickActive
+            if _G.FlickActive then
+                SafeSetText(_G.ExtFlickBtn, "FLICKING")
+            else
+                SafeSetText(_G.ExtFlickBtn, "FLICK")
+            end
+            Library:Notify("Flick", "Flick is now " .. (_G.FlickActive and "Active" or "Inactive"), 1.5)
+        end
+        
+    -- [J] Enable Auto Hold Bomb
+    elseif key == Enum.KeyCode.J then
+        if _G.AutoHoldEnabled then
+            _G.AutoHoldActive = not _G.AutoHoldActive
+            if _G.AutoHoldActive then
+                SafeSetText(_G.ExtHoldBtn, "HOLDING")
+            else
+                SafeSetText(_G.ExtHoldBtn, "HOLD BOMB")
+            end
+            Library:Notify("Auto Hold", "Auto Hold Bomb is now " .. (_G.AutoHoldActive and "Active" or "Inactive"), 1.5)
+        end
+        
+    -- [O] Enable Freeze System
+    elseif key == Enum.KeyCode.O then
+        if _G.FreezeEnabled then
+            if isFreezing then
+                stopFreeze()
+                Library:Notify("Freeze", "Freeze system deactivated", 1.5)
+            else
+                isFreezing = true
+                SafeSetText(_G.ExtFreezeBtn, "LAGGING")
+                Library:Notify("Freeze", "Freeze system activated", 1.5)
+                
+                local char = LocalPlayer.Character
+                table.clear(activeAnchoredParts)
+                if char then
+                    for _, part in ipairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") and not part.Anchored then
+                            part.Anchored = true
+                            table.insert(activeAnchoredParts, part)
+                        end
+                    end
+                end
+                
+                task.spawn(function()
+                    local elapsed = 0
+                    while elapsed < 3.5 and isFreezing do
+                        task.wait(0.1)
+                        elapsed = elapsed + 0.1
+                    end
+                    if isFreezing then stopFreeze() end
+                end)
+            end
+        end
+        
+    -- [K] Infinite Jump Toggle
+    elseif key == Enum.KeyCode.K then
         _G.InfJumpEnabled = not _G.InfJumpEnabled
-        Library:Notify("Inf Jump", "Status: " .. (_G.InfJumpEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.J then 
-        _G.AutoHoldEnabled = not _G.AutoHoldEnabled
-        SafeSetVisible(_G.ExtHoldBtn, _G.AutoHoldEnabled)
-        if not _G.AutoHoldEnabled then
-            _G.AutoHoldActive = false
-            SafeSetText(_G.ExtHoldBtn, "HOLD BOMB")
+        Library:Notify("Infinite Jump", "Infinite Jump is now " .. (_G.InfJumpEnabled and "Enabled" or "Disabled"), 1.5)
+        
+    -- [I] FOV Override Toggle
+    elseif key == Enum.KeyCode.I then
+        _G.FOVEnabled = not _G.FOVEnabled
+        if not _G.FOVEnabled then
+            Camera.FieldOfView = 70
         end
-        Library:Notify("Auto Hold", "Status: " .. (_G.AutoHoldEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.U then 
+        Library:Notify("FOV Override", "FOV Override is now " .. (_G.FOVEnabled and "Enabled" or "Disabled"), 1.5)
+        
+    -- [Y] Stretch Resolution Toggle
+    elseif key == Enum.KeyCode.Y then
+        _G.ResolutionEnabled = not _G.ResolutionEnabled
+        Library:Notify("Stretch Resolution", "Stretch Resolution is now " .. (_G.ResolutionEnabled and "Enabled" or "Disabled"), 1.5)
+        
+    -- [U] Activate Custom Crosshair
+    elseif key == Enum.KeyCode.U then
         _G.CrosshairEnabled = not _G.CrosshairEnabled
         CrosshairContainer.Visible = _G.CrosshairEnabled
-        pcall(function() UserInputService.MouseIconEnabled = not _G.CrosshairEnabled end)
+        pcall(function()
+            UserInputService.MouseIconEnabled = not _G.CrosshairEnabled
+        end)
         if _G.CrosshairEnabled then
             buildCrosshair(CrosshairContainer, _G.CurrentCrosshairStyle, 1.0)
+            pcall(function()
+                if UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter or UserInputService.MouseBehavior == Enum.MouseBehavior.LockCurrentPosition then
+                    Mouse.Icon = TRANSPARENT_ICON
+                end
+            end)
         else
             pcall(function() Mouse.Icon = "" end)
         end
-        Library:Notify("Crosshair", "Status: " .. (_G.CrosshairEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.Y then 
-        _G.ResolutionEnabled = not _G.ResolutionEnabled
-        Library:Notify("Resolution", "Status: " .. (_G.ResolutionEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.T then 
-        _G.AutoWalkEnabled = not _G.AutoWalkEnabled
-        SafeSetVisible(_G.ExtAutoWalkBtn, _G.AutoWalkEnabled)
-        if not _G.AutoWalkEnabled then
-            _G.AutoWalkActive = false
-            SafeSetText(_G.ExtAutoWalkBtn, "AUTO WALK")
-        end
-        Library:Notify("Auto Walk", "Status: " .. (_G.AutoWalkEnabled and "ON" or "OFF"), 1.5)
-    elseif key == Enum.KeyCode.P then 
-        triggerManualPass()
-    elseif key == Enum.KeyCode.E or key == Enum.KeyCode.X or key == Enum.KeyCode.C or key == Enum.KeyCode.G or key == Enum.KeyCode.H then
-        NotifyPremium()
+        Library:Notify("Custom Crosshair", "Custom Crosshair is now " .. (_G.CrosshairEnabled and "Enabled" or "Disabled"), 1.5)
     end
 end)
-
--- Character Added event connection to safely reset state
-SafeConnect(LocalPlayer.CharacterAdded, function()
-    lastHadBomb = false
-    retreatTimer = 0
-    autoWalkRetreatTimer = 0
-    targetMemory = 0
-    bombTimer = 0
-    isTweening = false
-    _G.CurrentJumpCount = 0
-    
-    -- Pembersihan tabel sisa ragdoll ketika karakter baru respawn
-    table.clear(ragdollJoints)
-    table.clear(createdConstraints)
-    
-    -- Menjaga modifikasi visual saat respawn
-    task.spawn(function()
-        task.wait(1.2)
-        if isHeadlessActive then ApplyHeadless() end
-        if isKorbloxActive then ApplyKorblox() end
-        if _G.RagdollFallEnabled then ApplyRagdollFall(true) end
-    end)
-end)
-
-print("[LOUIS HUB FREE EDITION]: TBD Loader Ready to Use.")
